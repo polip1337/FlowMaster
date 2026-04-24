@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unlock Simulator Run Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a1110;
+      --panel: #12201d;
+      --panel-2: #162a25;
+      --text: #d9f6ea;
+      --muted: #9dc8b8;
+      --accent: #67d8a5;
+      --warn: #f6cf8f;
+      --border: #315247;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: radial-gradient(circle at top, #0f1e1a 0%, var(--bg) 70%);
+      color: var(--text);
+    }
+    .wrap {
+      width: min(1200px, 96vw);
+      margin: 18px auto;
+      display: grid;
+      gap: 12px;
+    }
+    .panel {
+      background: rgba(18, 32, 29, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn, input[type="file"]::file-selector-button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--accent);
+      color: #062017;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      color: var(--muted);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid #2b493f;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.9rem;
+    }
+    .stat .k { color: var(--muted); }
+    .charts {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+    }
+    canvas {
+      width: 100%;
+      background: rgba(7, 15, 13, 0.65);
+      border: 1px solid #28453b;
+      border-radius: 10px;
+      padding: 8px;
+    }
+    .warn {
+      color: var(--warn);
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Unlock Simulator Run Viewer</h1>
+      <div class="muted">Load one or many simulator JSON logs. Supports legacy <code>run-*-unlock-times.json</code> and consolidated <code>execution-log.json</code>.</div>
+      <div class="row" style="margin-top:10px;">
+        <input id="fileInput" type="file" multiple accept=".json">
+        <button id="clearBtn" class="btn" type="button">Clear</button>
+      </div>
+      <div id="status" class="warn" style="margin-top:8px;">No files loaded yet.</div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="panel charts">
+      <div>
+        <div class="muted" style="margin-bottom:6px;">Unlock Progress Over Time (nodes unlocked vs minutes)</div>
+        <canvas id="progressChart" height="320"></canvas>
+      </div>
+      <div>
+        <div class="muted" style="margin-bottom:6px;">Completion Time by Run (minutes)</div>
+        <canvas id="completionChart" height="280"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const clearBtn = document.getElementById("clearBtn");
+    const statusEl = document.getElementById("status");
+    const statsEl = document.getElementById("stats");
+
+    let progressChart = null;
+    let completionChart = null;
+
+    function formatMinutes(minutes) {
+      if (!Number.isFinite(minutes)) return "n/a";
+      const totalSec = Math.round(minutes * 60);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function hashColor(text) {
+      let hash = 0;
+      for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash) + text.charCodeAt(i);
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue} 70% 60%)`;
+    }
+
+    function inferRunLabel(fileName) {
+      const parts = fileName.replace(".json", "").split("-");
+      const runPart = parts.slice(-3).join("-");
+      let strategy = "unknown";
+      if (fileName.includes("\\") || fileName.includes("/")) {
+        const pathParts = fileName.split(/[\\/]/);
+        strategy = pathParts[pathParts.length - 2] || "unknown";
+      } else if (fileName.startsWith("run-")) {
+        strategy = "manual";
+      }
+      return `${strategy}/${runPart}`;
+    }
+
+    function toUnlockEventsArray(value) {
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((item) => item && typeof item.tick === "number" && typeof item.seconds === "number")
+        .sort((a, b) => a.tick - b.tick);
+    }
+
+    function parseRunsFromJson(data, filePathLike) {
+      const runs = [];
+
+      if (Array.isArray(data)) {
+        const events = toUnlockEventsArray(data);
+        if (events.length > 0) {
+          const completionSeconds = events[events.length - 1].seconds;
+          runs.push({
+            label: inferRunLabel(filePathLike),
+            events,
+            completionMinutes: completionSeconds / 60
+          });
+        }
+        return runs;
+      }
+
+      const addRun = (runData, label) => {
+        const events = toUnlockEventsArray(runData?.unlockEvents ?? runData?.events ?? []);
+        if (events.length === 0) return;
+        const completionSeconds = events[events.length - 1].seconds;
+        runs.push({
+          label,
+          events,
+          completionMinutes: completionSeconds / 60
+        });
+      };
+
+      if (Array.isArray(data?.runs)) {
+        for (let i = 0; i < data.runs.length; i += 1) {
+          addRun(data.runs[i], `${filePathLike}#run-${String(i + 1).padStart(3, "0")}`);
+        }
+        return runs;
+      }
+
+      if (Array.isArray(data?.summaries)) {
+        for (const summary of data.summaries) {
+          const strategy = summary?.strategy ?? "unknown";
+          const summaryRuns = Array.isArray(summary?.runs) ? summary.runs : [];
+          for (let i = 0; i < summaryRuns.length; i += 1) {
+            addRun(summaryRuns[i], `${filePathLike}:${strategy}#${i + 1}`);
+          }
+        }
+        return runs;
+      }
+
+      return runs;
+    }
+
+    function buildProgressDataset(run) {
+      const points = [{ x: 0, y: 1 }];
+      let unlockedCount = 1;
+      for (const event of run.events) {
+        unlockedCount += 1;
+        points.push({ x: event.seconds / 60, y: unlockedCount });
+      }
+      return points;
+    }
+
+    function renderCharts(runs) {
+      if (progressChart) progressChart.destroy();
+      if (completionChart) completionChart.destroy();
+
+      const progressCtx = document.getElementById("progressChart");
+      const completionCtx = document.getElementById("completionChart");
+
+      const datasets = runs.map((run) => ({
+        label: run.label,
+        data: buildProgressDataset(run),
+        borderColor: hashColor(run.label),
+        backgroundColor: "transparent",
+        tension: 0.12,
+        pointRadius: 2,
+        pointHoverRadius: 4
+      }));
+
+      progressChart = new Chart(progressCtx, {
+        type: "line",
+        data: { datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: "nearest", intersect: false },
+          parsing: false,
+          scales: {
+            x: { type: "linear", title: { display: true, text: "Minutes" } },
+            y: { title: { display: true, text: "Unlocked Nodes" }, ticks: { stepSize: 1 } }
+          }
+        }
+      });
+
+      const completionLabels = runs.map((run) => run.label);
+      const completionData = runs.map((run) => run.completionMinutes);
+      const completionColors = runs.map((run) => hashColor(run.label));
+      completionChart = new Chart(completionCtx, {
+        type: "bar",
+        data: {
+          labels: completionLabels,
+          datasets: [{
+            label: "Completion (minutes)",
+            data: completionData,
+            backgroundColor: completionColors
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { title: { display: true, text: "Minutes" } }
+          }
+        }
+      });
+    }
+
+    function renderStats(runs) {
+      if (runs.length === 0) {
+        statsEl.innerHTML = "";
+        return;
+      }
+      const minutes = runs.map((r) => r.completionMinutes);
+      const best = Math.min(...minutes);
+      const worst = Math.max(...minutes);
+      const avg = minutes.reduce((a, b) => a + b, 0) / minutes.length;
+
+      statsEl.innerHTML = [
+        `<div class="stat"><div class="k">Runs loaded</div><div><strong>${runs.length}</strong></div></div>`,
+        `<div class="stat"><div class="k">Best</div><div><strong>${formatMinutes(best)}</strong></div></div>`,
+        `<div class="stat"><div class="k">Average</div><div><strong>${formatMinutes(avg)}</strong></div></div>`,
+        `<div class="stat"><div class="k">Worst</div><div><strong>${formatMinutes(worst)}</strong></div></div>`
+      ].join("");
+    }
+
+    async function parseFiles(files) {
+      const runs = [];
+      for (const file of files) {
+        if (!file.name.endsWith(".json")) continue;
+        const text = await file.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          continue;
+        }
+        const parsedRuns = parseRunsFromJson(data, file.webkitRelativePath || file.name);
+        runs.push(...parsedRuns);
+      }
+      return runs;
+    }
+
+    fileInput.addEventListener("change", async () => {
+      const files = Array.from(fileInput.files || []);
+      if (files.length === 0) {
+        statusEl.textContent = "No files selected.";
+        return;
+      }
+      statusEl.textContent = "Loading files...";
+      const runs = await parseFiles(files);
+      if (runs.length === 0) {
+        statusEl.textContent = "No valid simulator runs found. Pick run-*-unlock-times.json or execution-log.json files.";
+        renderStats([]);
+        if (progressChart) progressChart.destroy();
+        if (completionChart) completionChart.destroy();
+        return;
+      }
+
+      statusEl.textContent = `Loaded ${runs.length} run file(s).`;
+      renderStats(runs);
+      renderCharts(runs);
+    });
+
+    clearBtn.addEventListener("click", () => {
+      fileInput.value = "";
+      statusEl.textContent = "Cleared.";
+      statsEl.innerHTML = "";
+      if (progressChart) progressChart.destroy();
+      if (completionChart) completionChart.destroy();
+      progressChart = null;
+      completionChart = null;
+    });
+  </script>
+</body>
+</html>

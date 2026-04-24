@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cultivation Meridian Flow</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #17120d;
+      --panel: rgba(33, 25, 17, 0.9);
+      --panel-soft: rgba(41, 31, 22, 0.82);
+      --text: #f3e5c3;
+      --muted: #cfbe95;
+      --accent: #d6b277;
+      --locked: #6d5b43;
+      --source: #d6b06a;
+      --unlocked: #8ecf9f;
+      --line: #987951;
+      --edge: rgba(194, 153, 97, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background:
+        linear-gradient(rgba(16, 12, 8, 0.72), rgba(16, 12, 8, 0.8)),
+        url("body.png") center top / cover no-repeat fixed,
+        radial-gradient(circle at top, #6e5331 0%, var(--bg) 58%);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .game {
+      width: min(100vw, 1500px);
+      height: 100vh;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--edge);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(4px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+
+    .muted { color: var(--muted); }
+
+    .arena {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      border-left: 1px solid rgba(194, 153, 97, 0.22);
+      border-right: 1px solid rgba(194, 153, 97, 0.22);
+    }
+
+    #pixiWrap {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      border: none;
+      background: radial-gradient(circle at top, rgba(96, 71, 43, 0.45) 0%, rgba(22, 16, 11, 0.86) 75%);
+      box-shadow: inset 0 0 0 1px rgba(255, 224, 165, 0.1);
+    }
+
+    #pixiWrap canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .flow-popup {
+      position: absolute;
+      z-index: 10;
+      min-width: 180px;
+      max-width: 210px;
+      background: rgba(27, 20, 13, 0.95);
+      border: 1px solid #876944;
+      border-radius: 10px;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(2px);
+    }
+
+    .flow-popup.hidden {
+      display: none;
+    }
+
+    .marker-tooltip {
+      position: fixed;
+      z-index: 12;
+      pointer-events: none;
+      background: rgba(20, 14, 10, 0.96);
+      border: 1px solid #8f724c;
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 0.74rem;
+      color: #faeecf;
+      white-space: nowrap;
+      transform: translate(10px, -26px);
+    }
+
+    .marker-tooltip.hidden {
+      display: none;
+    }
+
+    .zoom-hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 11;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #8a6b44;
+      background: rgba(29, 21, 14, 0.9);
+      color: #f0dec0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      pointer-events: none;
+      text-align: center;
+    }
+
+    .flow-popup-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      font-size: 0.92rem;
+      color: #f5e8cb;
+    }
+
+    .popup-block {
+      border: 1px solid #73583a;
+      background: rgba(38, 28, 19, 0.75);
+      border-radius: 8px;
+      padding: 6px;
+      margin-bottom: 6px;
+    }
+
+    .popup-block-title {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #d8c08f;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .popup-keyvals {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 0.78rem;
+      color: #f4e9cd;
+    }
+
+    .popup-keyvals span {
+      color: #c9b487;
+    }
+
+    .flow-row {
+      display: grid;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .flow-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .flow-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .flow-slider-line {
+      display: grid;
+      grid-template-columns: 1fr 38px;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .flow-slider-line input[type="range"] {
+      width: 100%;
+    }
+
+    .projection-title {
+      margin-top: 6px;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .projection-list {
+      display: grid;
+      gap: 4px;
+      max-height: 120px;
+      overflow: auto;
+    }
+
+    .projection-btn {
+      border: 1px solid #8a7249;
+      background: #3a2c1d;
+      color: #fae7be;
+      border-radius: 7px;
+      padding: 5px 6px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .projection-btn:hover {
+      background: #4b3926;
+    }
+
+    .projection-active {
+      font-size: 0.76rem;
+      color: #e8d2a1;
+      margin-top: 6px;
+    }
+
+    .dev-title {
+      margin-top: 8px;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      color: #f2ca8e;
+      font-weight: 700;
+    }
+
+    .dev-list {
+      display: grid;
+      gap: 4px;
+      max-height: 132px;
+      overflow: auto;
+    }
+
+    .dev-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dev-btn {
+      border: 1px solid #8f734b;
+      background: #453320;
+      color: #ffe7b8;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    .btn {
+      border: none;
+      background: linear-gradient(180deg, #e2bf80 0%, #b8894e 100%);
+      color: #111;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .btn.ghost {
+      background: linear-gradient(180deg, #6d5336 0%, #4e3b25 100%);
+      color: #f8e9cc;
+    }
+
+    .btn.active {
+      outline: 2px solid #f4d18c;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
+    }
+
+    .status {
+      min-height: 24px;
+      font-weight: 700;
+    }
+
+    .bonus-panel {
+      border: 1px solid #7f6441;
+      border-radius: 10px;
+      background: rgba(30, 22, 15, 0.62);
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+      font-size: 0.82rem;
+    }
+
+    .bonus-title {
+      font-weight: 700;
+      color: #efdeb9;
+    }
+
+    .bonus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 6px;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .warning {
+      color: #ffcea2;
+      font-size: 0.8rem;
+    }
+
+    .good {
+      color: #c2e8cf;
+      font-size: 0.8rem;
+    }
+
+    .has-tooltip {
+      cursor: help;
+      text-decoration: underline dotted rgba(240, 214, 162, 0.45);
+      text-underline-offset: 2px;
+    }
+
+    #balancePaneHost {
+      position: fixed;
+      top: 66px;
+      right: 18px;
+      z-index: 50;
+      min-width: 280px;
+    }
+
+    .top-hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      width: min(880px, calc(100% - 130px));
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--edge);
+      background: rgba(27, 20, 13, 0.86);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
+      font-size: 0.86rem;
+    }
+
+    .top-hud strong {
+      color: #f9e8c4;
+    }
+
+    .side-panel {
+      position: absolute;
+      top: 62px;
+      bottom: 16px;
+      width: min(355px, calc(100vw - 44px));
+      z-index: 25;
+      border: 1px solid var(--edge);
+      border-radius: 14px;
+      background: var(--panel-soft);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+      transition: transform 0.26s ease;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .side-panel .side-panel-toggle {
+      border: none;
+      width: 100%;
+      background: rgba(56, 42, 27, 0.95);
+      color: #f2dfbe;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 9px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .side-panel-content {
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .side-panel.left {
+      left: 14px;
+    }
+
+    .side-panel.left.collapsed {
+      transform: translateX(calc(-100% + 44px));
+    }
+
+    .side-panel.right {
+      right: 14px;
+    }
+
+    .side-panel.right.collapsed {
+      transform: translateX(calc(100% - 44px));
+    }
+
+    @media (max-width: 960px) {
+      .top-hud {
+        width: calc(100% - 24px);
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game">
+    <div class="arena">
+      <div id="pixiWrap" aria-label="Node network"></div>
+      <div class="top-hud">
+        <div><strong>Ticks:</strong> <span id="ticks">0</span></div>
+        <div><strong>Core Qi:</strong> <span id="sourceTotal">0.00</span></div>
+        <div><strong>Base Gen:</strong> 100 SI / 1000 ticks</div>
+        <div class="muted">Guide each meridian's flow every tick.</div>
+      </div>
+      <div id="zoomHud" class="zoom-hud">Zoom: 1.00x</div>
+      <div id="flowPopup" class="flow-popup hidden"></div>
+      <div id="markerTooltip" class="marker-tooltip hidden"></div>
+    </div>
+
+    <aside id="leftPanel" class="side-panel left">
+      <button type="button" class="side-panel-toggle" data-toggle-panel="leftPanel">Meridian Controls</button>
+      <div class="side-panel-content">
+        <div class="button-row">
+          <button class="btn" id="recenter">Recenter View</button>
+          <button class="btn ghost" id="resetBodyView">Reset Body View</button>
+          <button class="btn ghost" id="devModeToggle">Dev Mode: Off</button>
+          <button class="btn ghost" id="devSpeedToggle">Dev Speed: Off</button>
+        </div>
+        <div class="button-row" id="devToolsRow" style="display:none;">
+          <button class="btn ghost" id="showAllNodesBtn">Show All Nodes: Off</button>
+          <button class="btn ghost" id="editNodesBtn">Node Tools</button>
+          <button class="btn ghost" id="saveShapeBtn">Export nodes.js</button>
+          <button class="btn ghost" id="addT2NodeBtn">Add T2 Node</button>
+          <button class="btn ghost" id="saveT2LayoutBtn">Export T2 Layout</button>
+        </div>
+        <div class="button-row" id="devSpeedRow" style="display:none;">
+          <button class="btn ghost active" id="speed1x">1x</button>
+          <button class="btn ghost" id="speed10x">10x</button>
+          <button class="btn ghost" id="speed100x">100x</button>
+        </div>
+        <div class="muted">Select a visible node to adjust flows and bridges.</div>
+        <div class="status" id="status">Open all sigil nodes to complete cultivation.</div>
+      </div>
+    </aside>
+
+    <aside id="rightPanel" class="side-panel right">
+      <button type="button" class="side-panel-toggle" data-toggle-panel="rightPanel">Cultivation Intel</button>
+      <div class="side-panel-content">
+        <div class="bonus-panel">
+          <div class="bonus-title">Current Cultivation Paths & Bonuses</div>
+          <div id="bonusSummary" class="bonus-grid"></div>
+          <div id="stateWarnings" class="warning"></div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Resonance Pattern Checklist</div>
+          <div id="resonanceChecklist" class="bonus-grid"></div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Next Best Action</div>
+          <div id="nextAction" class="good"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div id="balancePaneHost"></div>
+
+  <script src="nodes.js"></script>
+  <script src="js/t2-nodes/crown.nodes.js"></script>
+  <script src="js/t2-nodes/mind.nodes.js"></script>
+  <script src="js/t2-nodes/intent.nodes.js"></script>
+  <script src="js/t2-nodes/qi.nodes.js"></script>
+  <script src="js/t2-nodes/heart.nodes.js"></script>
+  <script src="js/t2-nodes/stomach.nodes.js"></script>
+  <script src="js/t2-nodes/dantian.nodes.js"></script>
+  <script src="js/t2-nodes/spine.nodes.js"></script>
+  <script src="js/t2-nodes/kneeLeft.nodes.js"></script>
+  <script src="js/t2-nodes/kneeRight.nodes.js"></script>
+  <script src="js/t2-nodes/footLeft.nodes.js"></script>
+  <script src="js/t2-nodes/footRight.nodes.js"></script>
+  <script src="js/t2-nodes/t2-layout.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.2.6/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-viewport@5.0.2/dist/pixi_viewport.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/zod@3.23.8/lib/index.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    for (const toggle of document.querySelectorAll("[data-toggle-panel]")) {
+      toggle.addEventListener("click", () => {
+        const panelId = toggle.getAttribute("data-toggle-panel");
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        panel.classList.toggle("collapsed");
+      });
+    }
+  </script>
+</body>
+</html>
