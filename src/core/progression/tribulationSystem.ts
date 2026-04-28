@@ -128,6 +128,7 @@ function applyTribulationSuccess(state: GameState): void {
   state.tribulation.permanentCultivationRateBonus += event.rewardOnSuccess.cultivationRateMultiplier;
   state.specialEventFlags.add(`event:tribulation_success:${nodeId}:${pending.toRank}`);
   state.specialEventFlags.add("event:insight_library:tribulation_success");
+  state.specialEventFlags.add(`event:insight_library:tribulation_success:${pending.toRank}`);
   // Force the next tick to evaluate progression finalization immediately.
   state.immediateConditionCheck = true;
   state.combat = null;

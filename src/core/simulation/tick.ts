@@ -49,6 +49,7 @@ import {
   getCrossBodyFlowBonus,
   runCompanionCultivationTick
 } from "../companion/simulation";
+import { processInsightLibraryTriggers } from "../insight/insightLibrary";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -429,6 +430,7 @@ export function simulationTick(state: GameState): GameState {
   checkDaoSelectionTrigger(next);
   generateDaoInsights(next);
   updateDaoNodeProgression(next);
+  processInsightLibraryTriggers(next);
 
   for (const node of next.t2Nodes.values()) {
     // S-010 — REFINED when Rank 5+ and all T1 quality ≥ 8; cluster resonance ×1.15 once.

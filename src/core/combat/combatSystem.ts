@@ -274,6 +274,10 @@ export function endCombat(
     mergeIngredientDrops(next.ingredientInventory, droppedIngredients);
     next.globalTrackers.combatCount += 1;
     next.specialEventFlags.add("event:combat_victory");
+    next.specialEventFlags.add(`event:enemy_defeated:${next.combat.enemy.id}`);
+    for (const treasure of droppedTreasures) {
+      next.specialEventFlags.add(`event:treasure_acquired:${treasure.type}`);
+    }
     const areaDao = inferCombatAreaDao(next.combat.enemy);
     if (areaDao) {
       gainSectFavorFromCombat(next, areaDao);

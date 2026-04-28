@@ -20,6 +20,7 @@ import {
   createInitialCelestialCalendar,
   refreshCelestialStateForCurrentDay
 } from "../celestial/calendar";
+import { createInitialInsightLibraryState } from "../insight/insightLibrary";
 
 function ioNodeMapFromTopology(topology: T1ClusterTopology): Map<string, number> {
   return new Map(Object.entries(topology.meridianIoMap));
@@ -199,6 +200,7 @@ export function buildInitialGameState(): GameState {
     celestialBodies: createInitialCelestialBodies(),
     celestialCalendar: createInitialCelestialCalendar(),
     companion,
+    insightLibrary: createInitialInsightLibraryState(),
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null

@@ -13,6 +13,7 @@ import {
 } from "./types";
 import { applySectMemberBenefits } from "../sect/sectSystem";
 import { countActiveJingSourceNodes } from "../bodyTempering/bodyTemperingSystem";
+import { applyInsightPermanentBonuses } from "../insight/insightLibrary";
 
 function applyCultivationPartial(
   out: CultivationAttributes,
@@ -93,6 +94,7 @@ export function computeAllAttributes(state: GameState): {
   combat.physicalDurability += temperingLevel * 10;
   cultivation.jingGenerationRate += temperingLevel * 0.01;
   cultivation.jingGenerationRate += countActiveJingSourceNodes(state) * temperingLevel * 0.01;
+  applyInsightPermanentBonuses(cultivation, combat, state.insightLibrary);
 
   return { cultivation, combat };
 }
