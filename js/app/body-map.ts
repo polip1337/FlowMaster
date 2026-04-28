@@ -11,6 +11,7 @@ import {
 } from "./state.ts";
 import { cubicBezierPoint } from "./utils.ts";
 import { applyInventoryToTier2Target } from "./phase29-panels.ts";
+import { makeMeridianId } from "../../src/core/meridians/meridianId";
 
 type BodyMapLinkDef = {
   from: string;
@@ -62,7 +63,7 @@ function getMarkerNodeById(id: string) {
 }
 
 function getMeridianId(from: string, to: string): string {
-  return `${from}->${to}`;
+  return makeMeridianId(from, to);
 }
 
 function makeInitialMeridian(def: BodyMapLinkDef): MeridianUiRecord {
@@ -95,7 +96,7 @@ export function ensureBodyMapUiState() {
     st.bodyMapMeridians = new Map<string, MeridianUiRecord>();
     for (const def of BODY_MAP_LINKS) {
       const row = makeInitialMeridian(def);
-      const starter = row.id === "crown->mind" || row.id === "mind->intent";
+      const starter = row.id === getMeridianId("crown", "mind") || row.id === getMeridianId("mind", "intent");
       if (starter) {
         row.isEstablished = true;
         row.state = "NASCENT";

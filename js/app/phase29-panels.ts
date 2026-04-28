@@ -40,6 +40,14 @@ import {
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
 import type { Recipe } from "../../src/core/alchemy/types.ts";
+import { makeMeridianId } from "../../src/core/meridians/meridianId";
+import {
+  advanceCoreBridgeTick,
+  advanceCoreAlchemyToRefiningFromUi,
+  beginCoreAlchemyFromUi,
+  refineCoreAlchemyFromUi,
+  startCoreCombatFromUi
+} from "./core-bridge.ts";
 
 type HeatZone = "green" | "yellow" | "orange" | "red";
 
@@ -90,7 +98,7 @@ function routeMetrics(nodeIds: string[]) {
   let bottleneckId = "n/a";
   let heat = 0;
   for (let i = 0; i < nodeIds.length - 1; i += 1) {
-    const id = `${nodeIds[i]}->${nodeIds[i + 1]}`;
+    const id = makeMeridianId(nodeIds[i], nodeIds[i + 1]);
     const m = st.bodyMapMeridians?.get(id);
     if (!m || !m.isEstablished) continue;
     const score = Math.max(0, m.width) * Math.max(0, Math.min(1, m.purity));
@@ -285,21 +293,9 @@ function applyCombatEnergyPriority(id: string, value: number) {
 }
 
 function startCombatSimulation() {
-  const enemy = getSelectedEnemy();
+  startCoreCombatFromUi(st.combatEnemyId);
   st.combatEncountered = true;
   st.combatPhase = "active";
-  st.combatEnemyMaxHp = enemy.hp;
-  st.combatEnemyHp = enemy.hp;
-  st.combatEnemyMaxSoulHp = enemy.soulHp;
-  st.combatEnemySoulHp = enemy.soulHp;
-  st.combatPlayerMaxHp = 180 + st.temperingLevel * 12;
-  st.combatPlayerHp = st.combatPlayerMaxHp;
-  st.combatPlayerMaxSoulHp = 110 + st.temperingLevel * 8;
-  st.combatPlayerSoulHp = st.combatPlayerMaxSoulHp;
-  st.combatTick = 0;
-  st.combatCurrentSkillIndex = 0;
-  st.combatSkillCooldownTicks = 0;
-  st.combatLog = [`Encounter started with ${enemy.name}.`];
   st.combatSummary = null;
 }
 
@@ -460,6 +456,9 @@ function resetWorkbench() {
 function startAlchemyMixing() {
   const recipe = selectedRecipe();
   if (!recipe) return;
+  if (!beginCoreAlchemyFromUi(recipe.id)) {
+    return;
+  }
   st.alchemyWorkbenchSlots = recipe.ingredients.slice(0, 4);
   st.alchemyPhase = "MIXING";
   st.alchemyQualityPreview = computeAlchemyQualityPreview(recipe);
@@ -467,11 +466,13 @@ function startAlchemyMixing() {
 
 function advanceToRefining() {
   if (st.alchemyPhase !== "MIXING") return;
+  if (!advanceCoreAlchemyToRefiningFromUi()) return;
   st.alchemyPhase = "REFINING";
 }
 
 function refineSelectedAlchemy() {
   if (st.alchemyPhase !== "REFINING") return;
+  if (!refineCoreAlchemyFromUi(ALCHEMY_REFINE_COST)) return;
   if (st.combatEnergyPool.yangQi < ALCHEMY_REFINE_COST) return;
   st.combatEnergyPool.yangQi -= ALCHEMY_REFINE_COST;
   st.alchemyQualityPreview = Math.min(200, st.alchemyQualityPreview + ALCHEMY_REFINE_COST);
@@ -667,20 +668,7 @@ export function onPhase29KeyDown(event: KeyboardEvent): void {
 }
 
 export function stepPhase29UiSystems() {
-  const passiveDecay = st.refiningPulseActive ? 0.08 : 0.24;
-  st.bodyHeat = Math.max(0, st.bodyHeat - passiveDecay);
-  if (st.refiningPulseActive) {
-    st.bodyHeat = Math.min(st.maxBodyHeat, st.bodyHeat + 0.48 + st.temperingLevel * 0.02);
-  }
-  const actionGain = st.temperingAction === "Sprint Training" ? 0.5 : st.temperingAction === "Stone Lifting" ? 0.45 : 0.3;
-  st.temperingXp += actionGain;
-  const req = st.temperingLevel * 120;
-  while (st.temperingXp >= req && st.temperingLevel < 9) {
-    st.temperingXp -= req;
-    st.temperingLevel += 1;
-  }
-  st.daoInsights += 0.12 + st.temperingLevel * 0.01;
-  st.daoComprehensionLevel = st.daoSelected ? Math.min(9, Math.floor(st.daoInsights / 500)) : 0;
+  advanceCoreBridgeTick();
   const crackedNode = nodeData.find((n) => n.damageState === "cracked");
   if (crackedNode && st.combatCrackFlashNodeId !== crackedNode.id) {
     st.combatCrackFlashNodeId = crackedNode.id;
@@ -693,28 +681,8 @@ export function stepPhase29UiSystems() {
   if (!st.combatEncountered && nodeData.some((n) => n.damageState === "cracked" || n.damageState === "shattered")) {
     st.combatEncountered = true;
   }
-  if (st.combatPhase === "active") {
-    st.combatTick += 1;
-    st.combatSkillCooldownTicks = (st.combatSkillCooldownTicks + 1) % 8;
-    if (st.combatSkillCooldownTicks === 0) {
-      st.combatCurrentSkillIndex = (st.combatCurrentSkillIndex + 1) % Math.max(1, st.combatRotation.length);
-      const skill = st.combatRotation[st.combatCurrentSkillIndex] ?? "Unknown";
-      const damage = 9 + st.temperingLevel * 2;
-      st.combatEnemyHp = Math.max(0, st.combatEnemyHp - damage);
-      st.combatEnergyPool.qi = Math.max(0, st.combatEnergyPool.qi - Math.max(1, st.combatEnergyPriority.qi * 0.04));
-      st.combatEnergyPool.jing = Math.max(0, st.combatEnergyPool.jing - Math.max(1, st.combatEnergyPriority.jing * 0.03));
-      st.combatEnergyPool.yangQi = Math.max(0, st.combatEnergyPool.yangQi - Math.max(1, st.combatEnergyPriority.yangQi * 0.02));
-      st.combatEnergyPool.shen = Math.max(0, st.combatEnergyPool.shen - Math.max(1, st.combatEnergyPriority.shen * 0.015));
-      st.combatLog.push(`You cast ${skill}, dealing ${damage} HP.`);
-    }
-    if (st.combatTick % 9 === 0) {
-      const incoming = 7 + st.temperingLevel * 0.6;
-      st.combatPlayerHp = Math.max(0, st.combatPlayerHp - incoming);
-      st.combatLog.push(`Enemy strike hits for ${incoming.toFixed(0)} HP.`);
-    }
-    if (st.combatEnemyHp <= 0 || st.combatPlayerHp <= 0 || st.combatTick >= 48) {
-      finalizeCombatSummary();
-    }
+  if (st.combatPhase === "active" && (st.combatEnemyHp <= 0 || st.combatPlayerHp <= 0)) {
+    finalizeCombatSummary();
   }
 }
 
