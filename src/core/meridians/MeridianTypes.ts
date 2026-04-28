@@ -19,9 +19,10 @@ export const MERIDIAN_WIDTH_BASE: Record<MeridianState, number> = {
 export const MERIDIAN_TF_FOR_STATE: Record<MeridianState, number> = {
   [MeridianState.UNESTABLISHED]: 0,
   [MeridianState.NASCENT]: 0,
-  [MeridianState.DEVELOPED]: 10_000,
-  [MeridianState.REFINED]: 100_000,
-  [MeridianState.TRANSCENDENT]: 1_000_000
+  // Phase 36 balance: broaden progression pacing to session-scale milestones.
+  [MeridianState.DEVELOPED]: 60_000,
+  [MeridianState.REFINED]: 300_000,
+  [MeridianState.TRANSCENDENT]: 1_800_000
 };
 
 const STATE_ORDER: MeridianState[] = [

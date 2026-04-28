@@ -38,7 +38,7 @@ describe("phase 21 celestial body map", () => {
   it("applies peak generation and resonance bonuses for linked T2 node", () => {
     const state = buildInitialGameState();
     const modifiers = getCelestialTickModifiers(state);
-    expect(modifiers.t2GenerationMultiplier("MULADHARA")).toBeCloseTo(2, 6);
+    expect(modifiers.t2GenerationMultiplier("MULADHARA")).toBeCloseTo(1.7, 6);
     expect(modifiers.t2ResonanceQualityMultiplier("MULADHARA")).toBeCloseTo(1.1, 6);
   });
 
@@ -87,8 +87,8 @@ describe("phase 21 celestial body map", () => {
     const conjDelta = conjAfter - conjBefore;
 
     expect(baseDelta).toBeGreaterThan(0);
-    expect(conjDelta).toBeGreaterThan(baseDelta * 2.9);
-    expect(conjDelta).toBeLessThan(baseDelta * 3.1);
+    expect(conjDelta).toBeGreaterThan(baseDelta * 2.1);
+    expect(conjDelta).toBeLessThan(baseDelta * 2.3);
     expect(conjNext.specialEventFlags.has("event:celestial_conjunction_active")).toBe(true);
   });
 

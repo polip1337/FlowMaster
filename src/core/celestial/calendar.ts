@@ -3,9 +3,10 @@ import type { GameState } from "../../state/GameState";
 import type { CelestialBody, CelestialCalendar, CelestialSeason } from "./types";
 
 export const CELESTIAL_YEAR_DAYS = 364;
-export const CELESTIAL_PEAK_DURATION_DAYS = 45;
+export const CELESTIAL_PEAK_DURATION_DAYS = 30;
 const SEASON_LENGTH_DAYS = 91;
-const CONJUNCTION_DURATION_DAYS = 3;
+const CONJUNCTION_DURATION_DAYS = 2;
+const MAX_TOTAL_GENERATION_MULTIPLIER = 2.4;
 
 interface ConjunctionEvent {
   startDay: number;
@@ -133,10 +134,10 @@ export function advanceCalendar(state: GameState): GameState {
 
 export function getCelestialTickModifiers(state: GameState): CelestialTickModifiers {
   const season = state.celestialCalendar.season;
-  const seasonQiMultiplier = season === "Spring" ? 1.2 : 1;
-  const seasonYangConversionMultiplier = season === "Summer" ? 1.3 : 1;
-  const seasonJingMultiplier = season === "Autumn" ? 1.25 : 1;
-  const seasonShenMultiplier = season === "Winter" ? 1.4 : 1;
+  const seasonQiMultiplier = season === "Spring" ? 1.15 : 1;
+  const seasonYangConversionMultiplier = season === "Summer" ? 1.2 : 1;
+  const seasonJingMultiplier = season === "Autumn" ? 1.2 : 1;
+  const seasonShenMultiplier = season === "Winter" ? 1.25 : 1;
   const conjunctionSet = new Set(state.celestialCalendar.activeConjunctions);
   const peakSet = new Set(state.celestialBodies.filter((body) => body.currentSign === "Peak").map((body) => body.id));
 
@@ -145,18 +146,32 @@ export function getCelestialTickModifiers(state: GameState): CelestialTickModifi
   const shenByNode = new Map<string, number>();
   for (const body of state.celestialBodies) {
     const isPeak = peakSet.has(body.id);
-    peakGenerationByNode.set(body.linkedT2NodeId, isPeak ? 2 : 1);
+    peakGenerationByNode.set(body.linkedT2NodeId, isPeak ? 1.7 : 1);
     resonanceByNode.set(body.linkedT2NodeId, isPeak ? 1.1 : 1);
-    shenByNode.set(body.linkedT2NodeId, conjunctionSet.has(body.id) ? 3 : 1);
+    shenByNode.set(body.linkedT2NodeId, conjunctionSet.has(body.id) ? 2.2 : 1);
   }
+
+  const capByCurrent = (value: number, current: number): number => {
+    if (current <= 0) {
+      return value;
+    }
+    return Math.min(value, MAX_TOTAL_GENERATION_MULTIPLIER / current);
+  };
 
   return {
     qiGenerationMultiplier: seasonQiMultiplier,
     jingGenerationMultiplier: seasonJingMultiplier,
     yangQiConversionMultiplier: seasonYangConversionMultiplier,
     shenGenerationMultiplier: seasonShenMultiplier,
-    t2ShenGenerationMultiplier: (nodeId: string) => shenByNode.get(nodeId) ?? 1,
-    t2GenerationMultiplier: (nodeId: string) => peakGenerationByNode.get(nodeId) ?? 1,
+    t2ShenGenerationMultiplier: (nodeId: string) => {
+      const peak = peakGenerationByNode.get(nodeId) ?? 1;
+      const shen = shenByNode.get(nodeId) ?? 1;
+      return capByCurrent(shen, seasonShenMultiplier * peak);
+    },
+    t2GenerationMultiplier: (nodeId: string) => {
+      const peak = peakGenerationByNode.get(nodeId) ?? 1;
+      return capByCurrent(peak, 1);
+    },
     t2ResonanceQualityMultiplier: (nodeId: string) => resonanceByNode.get(nodeId) ?? 1,
     conjunctionBodies: [...conjunctionSet]
   };

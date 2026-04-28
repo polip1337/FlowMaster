@@ -43,27 +43,28 @@ const ELITE_DROPS: TreasureDropDef[] = [
   },
   { treasureType: TreasureType.RecoveryElixir, weight: 5, quantityMin: 1, quantityMax: 1, tierMin: 4, tierMax: 6 },
   { treasureType: TreasureType.CultivationManual, weight: 4, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 7 },
+  { treasureType: TreasureType.MeridianRestoration, weight: 1, quantityMin: 1, quantityMax: 1, tierMin: 6, tierMax: 9 },
   { treasureType: TreasureType.DaoFragment, weight: 2, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 7 }
 ];
 
 const BASIC_INGREDIENT_DROPS = [
-  { ingredientId: "spirit-grass", probability: 0.6, quantityMin: 1, quantityMax: 3, tierMin: 1, tierMax: 3 },
-  { ingredientId: "iron-bark", probability: 0.45, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 },
-  { ingredientId: "jade-moss", probability: 0.35, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 }
+  { ingredientId: "spirit-grass", probability: 0.11, quantityMin: 1, quantityMax: 3, tierMin: 1, tierMax: 3 },
+  { ingredientId: "iron-bark", probability: 0.1, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 },
+  { ingredientId: "jade-moss", probability: 0.09, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 }
 ];
 
 const ADVANCED_INGREDIENT_DROPS = [
-  { ingredientId: "ember-bloom", probability: 0.55, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
-  { ingredientId: "moon-tear", probability: 0.5, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
-  { ingredientId: "void-thorn", probability: 0.35, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 },
-  { ingredientId: "golden-pith", probability: 0.3, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 }
+  { ingredientId: "ember-bloom", probability: 0.18, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
+  { ingredientId: "moon-tear", probability: 0.17, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
+  { ingredientId: "void-thorn", probability: 0.09, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 },
+  { ingredientId: "golden-pith", probability: 0.08, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 }
 ];
 
 const ELITE_INGREDIENT_DROPS = [
-  { ingredientId: "void-thorn", probability: 0.5, quantityMin: 1, quantityMax: 2, tierMin: 4, tierMax: 8 },
-  { ingredientId: "dragon-blood-sap", probability: 0.4, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
-  { ingredientId: "astral-pollen", probability: 0.3, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
-  { ingredientId: "dao-lotus-heart", probability: 0.15, quantityMin: 1, quantityMax: 1, tierMin: 7, tierMax: 9 }
+  { ingredientId: "void-thorn", probability: 0.16, quantityMin: 1, quantityMax: 2, tierMin: 4, tierMax: 8 },
+  { ingredientId: "dragon-blood-sap", probability: 0.12, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
+  { ingredientId: "astral-pollen", probability: 0.1, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
+  { ingredientId: "dao-lotus-heart", probability: 0.04, quantityMin: 1, quantityMax: 1, tierMin: 7, tierMax: 9 }
 ];
 
 export const ENEMY_ARCHETYPES: EnemyDef[] = [
@@ -71,9 +72,9 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     id: "bandit-cultivator",
     name: "Bandit Cultivator",
     tier: 2,
-    hp: 180,
-    soulHp: 90,
-    physicalAttack: 14,
+    hp: 165,
+    soulHp: 80,
+    physicalAttack: 11,
     soulAttack: 2,
     attackSpeedTicks: 16,
     preferredNodeTarget: null,
@@ -85,9 +86,9 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     id: "wild-beast",
     name: "Wild Beast",
     tier: 3,
-    hp: 300,
-    soulHp: 60,
-    physicalAttack: 16,
+    hp: 240,
+    soulHp: 50,
+    physicalAttack: 13,
     soulAttack: 0,
     attackSpeedTicks: 14,
     preferredNodeTarget: null,
@@ -99,10 +100,10 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     id: "rogue-scholar",
     name: "Rogue Scholar",
     tier: 5,
-    hp: 240,
-    soulHp: 220,
-    physicalAttack: 10,
-    soulAttack: 18,
+    hp: 380,
+    soulHp: 310,
+    physicalAttack: 17,
+    soulAttack: 24,
     attackSpeedTicks: 18,
     preferredNodeTarget: "AJNA",
     dropTable: ADVANCED_DROPS,
@@ -113,10 +114,10 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     id: "ancient-guardian",
     name: "Ancient Guardian",
     tier: 7,
-    hp: 520,
-    soulHp: 360,
-    physicalAttack: 28,
-    soulAttack: 10,
+    hp: 700,
+    soulHp: 500,
+    physicalAttack: 34,
+    soulAttack: 18,
     attackSpeedTicks: 20,
     preferredNodeTarget: "ANAHATA",
     dropTable: ELITE_DROPS,
@@ -127,10 +128,10 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     id: "tribulation-spirit",
     name: "Tribulation Spirit",
     tier: 9,
-    hp: 700,
-    soulHp: 640,
-    physicalAttack: 34,
-    soulAttack: 32,
+    hp: 1150,
+    soulHp: 1040,
+    physicalAttack: 55,
+    soulAttack: 50,
     attackSpeedTicks: 12,
     preferredNodeTarget: "SAHASRARA",
     dropTable: ELITE_DROPS,

@@ -15,12 +15,16 @@ interface RankRequirement {
   minActiveNodes: number;
 }
 
-function getRankBreakthroughRequirements(currentRank: number): RankRequirement {
+export function getRankBreakthroughRequirements(currentRank: number): RankRequirement {
+  const targetRank = Math.min(MAX_RANK, currentRank + 1);
+  // Phase 36 balance: keep early breakthroughs accessible while making rank 8-9 a long-tail goal.
+  const costScaleByTargetRank = [1, 1, 0.85, 0.95, 1.1, 1.35, 2.1, 3.2, 4.8, 6.8] as const;
+  const scale = costScaleByTargetRank[targetRank] ?? costScaleByTargetRank[costScaleByTargetRank.length - 1];
   return {
-    jingCost: 1000 * currentRank * currentRank,
-    shenCost: 500 * currentRank * currentRank,
-    minAverageMeridianQuality: currentRank * 0.8,
-    minActiveNodes: Math.min(24, 2 + currentRank * 2)
+    jingCost: Math.floor(1000 * currentRank * currentRank * scale),
+    shenCost: Math.floor(500 * currentRank * currentRank * scale),
+    minAverageMeridianQuality: Math.max(0.6, currentRank * 0.72 + Math.max(0, currentRank - 4) * 0.15),
+    minActiveNodes: Math.min(24, currentRank <= 4 ? 2 + currentRank * 2 : 10 + (currentRank - 4) * 3)
   };
 }
 

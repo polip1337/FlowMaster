@@ -43,9 +43,9 @@ describe("Phase 35 integration (TASK-218..227)", () => {
     expect(qiAfter).toBeGreaterThan(qiBefore);
 
     state.t2Nodes.get("MULADHARA")!.level = 3;
-    [...state.t2Nodes.get("MULADHARA")!.t1Nodes.values()].find((t1) => t1.isSourceNode)!.energy[EnergyType.Qi] = 1000;
+    [...state.t2Nodes.get("MULADHARA")!.t1Nodes.values()].find((t1) => t1.isSourceNode)!.energy[EnergyType.Qi] = 5000;
     let unlockTick = -1;
-    for (let i = 0; i < 200; i += 1) {
+    for (let i = 0; i < 600; i += 1) {
       state = simulationTick(state);
       if (state.t2Nodes.get("SVADHISTHANA")?.state === T2NodeState.ACTIVE) {
         unlockTick = state.tick;
@@ -61,13 +61,13 @@ describe("Phase 35 integration (TASK-218..227)", () => {
       throw new Error("missing setup for first meridian integration");
     }
     expect(establishMeridian(firstMeridian, EnergyType.Qi, root, sacral)).toBe(true);
-    firstMeridian.totalFlow = 9_500;
+    firstMeridian.totalFlow = 55_000;
     root.t1Nodes.get(firstMeridian.ioNodeOutId)!.energy[EnergyType.Qi] = 2_000_000;
     sacral.t1Nodes.get(firstMeridian.ioNodeInId)!.energy[EnergyType.Qi] = 0;
     sacral.t1Nodes.get(firstMeridian.ioNodeInId)!.capacity = 2_000_000;
 
     let trainTicks = 0;
-    while (trainTicks < 10_500 && firstMeridian.state !== MeridianState.DEVELOPED) {
+    while (trainTicks < 80_000 && firstMeridian.state !== MeridianState.DEVELOPED) {
       const flow = computePassiveMeridianFlow(firstMeridian, root, sacral);
       applyMeridianFlow(root, sacral, flow, firstMeridian);
       updateMeridianWidth(firstMeridian, flow);
@@ -77,8 +77,8 @@ describe("Phase 35 integration (TASK-218..227)", () => {
       trainTicks += 1;
     }
     expect(firstMeridian.state).toBe(MeridianState.DEVELOPED);
-    expect(trainTicks).toBeGreaterThanOrEqual(5000);
-    expect(trainTicks).toBeLessThanOrEqual(10000);
+    expect(trainTicks).toBeGreaterThanOrEqual(30000);
+    expect(trainTicks).toBeLessThanOrEqual(60000);
   });
 
   it("TASK-219: active 3-node loop trains meridians at least 3x passive", () => {
@@ -114,7 +114,7 @@ describe("Phase 35 integration (TASK-218..227)", () => {
           ...state.meridians.get(bodyMeridianId("MULADHARA", "L_HIP"))!,
           isEstablished: true,
           state: MeridianState.DEVELOPED,
-          totalFlow: 10_000
+          totalFlow: 60_000
         },
         keyIds[2],
         state
@@ -229,7 +229,7 @@ describe("Phase 35 integration (TASK-218..227)", () => {
     lHip.level = 3;
     const forward = state.meridians.get(makeMeridianId("MULADHARA", "SVADHISTHANA"))!;
     establishMeridian(forward, EnergyType.Qi, root, sacral);
-    forward.totalFlow = 10_000;
+    forward.totalFlow = 60_000;
     forward.state = MeridianState.DEVELOPED;
     const reverseId = makeMeridianId("SVADHISTHANA", "MULADHARA");
     const reverse = openReverseMeridian(forward, reverseId, state);
@@ -253,7 +253,7 @@ describe("Phase 35 integration (TASK-218..227)", () => {
     state.activeRoute.nodeSequence = ["MULADHARA", "SVADHISTHANA", "L_HIP", "MULADHARA"];
     const hipReverseId = makeMeridianId("L_HIP", "MULADHARA");
     const hipForward = state.meridians.get(makeMeridianId("MULADHARA", "L_HIP"))!;
-    hipForward.totalFlow = 10_000;
+    hipForward.totalFlow = 60_000;
     hipForward.state = MeridianState.DEVELOPED;
     hipForward.isEstablished = true;
     state.meridians.get(makeMeridianId("SVADHISTHANA", "L_HIP"))!.isEstablished = true;
@@ -361,7 +361,7 @@ describe("Phase 35 integration (TASK-218..227)", () => {
     const peakMultiplier = baseMod;
     const nonPeakMultiplier = getCelestialTickModifiers(peakState).t2GenerationMultiplier("MULADHARA");
     expect(nonPeakMultiplier).toBe(1);
-    expect(peakMultiplier).toBeCloseTo(2, 6);
+    expect(peakMultiplier).toBeCloseTo(1.7, 6);
 
     advanceCalendar(peakState);
     expect(peakState.celestialCalendar.dayOfYear).toBe((nonPeakDay + 1) % 364);

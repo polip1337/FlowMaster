@@ -86,11 +86,10 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "svadhisthana",
     primaryAffinity: Et.Qi,
     secondaryAffinity: Et.Jing,
-    sealThreshold: 900,
+    sealThreshold: 2_600,
     unlockConditions: [
       rank(I.MULADHARA, 1),
-      level(I.MULADHARA, 3),
-      energyQi(500)
+      energyQi(1_800)
     ],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.82 },
@@ -116,8 +115,8 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "anahata",
     primaryAffinity: Et.Shen,
     secondaryAffinity: Et.Qi,
-    sealThreshold: 2200,
-    unlockConditions: [active(I.MANIPURA), level(I.MANIPURA, 2), energyQi(6000)],
+    sealThreshold: 1_900,
+    unlockConditions: [active(I.MANIPURA), level(I.MANIPURA, 2), energyQi(5_200)],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.58 },
     description: "Heart chakra — Shen hub and lateral shoulder bridge."
@@ -129,8 +128,8 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "vishuddha",
     primaryAffinity: Et.Qi,
     secondaryAffinity: Et.Shen,
-    sealThreshold: 3000,
-    unlockConditions: [active(I.ANAHATA), level(I.ANAHATA, 3), energyQi(12000)],
+    sealThreshold: 2_600,
+    unlockConditions: [active(I.ANAHATA), level(I.ANAHATA, 3), energyQi(9_500)],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.44 },
     description: "Throat chakra — technique power and resonance storage."
@@ -142,8 +141,8 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "ajna",
     primaryAffinity: Et.Shen,
     secondaryAffinity: Et.YangQi,
-    sealThreshold: 4000,
-    unlockConditions: [active(I.VISHUDDHA), level(I.VISHUDDHA, 2), energyQi(20000)],
+    sealThreshold: 3_500,
+    unlockConditions: [active(I.VISHUDDHA), level(I.VISHUDDHA, 2), energyQi(16_000)],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.32 },
     description: "Third eye — yin-yang dyad and critical insight."
@@ -155,8 +154,8 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "sahasrara",
     primaryAffinity: Et.Shen,
     secondaryAffinity: Et.Qi,
-    sealThreshold: 5200,
-    unlockConditions: [active(I.AJNA), level(I.AJNA, 3), energyQi(35000)],
+    sealThreshold: 4_500,
+    unlockConditions: [active(I.AJNA), level(I.AJNA, 3), energyQi(28_000)],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.2 },
     description: "Crown chakra — realm cap and Dao insight."
@@ -168,8 +167,8 @@ export const T2_NODE_DEFS: T2NodeDef[] = [
     topologyId: "bindu",
     primaryAffinity: Et.Jing,
     secondaryAffinity: Et.Shen,
-    sealThreshold: 7500,
-    unlockConditions: [active(I.SAHASRARA), level(I.SAHASRARA, 4), energyQi(50000)],
+    sealThreshold: 6_400,
+    unlockConditions: [active(I.SAHASRARA), level(I.SAHASRARA, 4), energyQi(40_000)],
     baseCapacityPerT1: 100,
     displayPosition: { x: 0.5, y: 0.08 },
     description: "Bindu — stabilization reserve and meridian repair focus."

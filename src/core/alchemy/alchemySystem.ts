@@ -110,7 +110,8 @@ function spendBodyYangQi(state: GameState, amount: number): number {
 }
 
 function effectMultiplierFromQuality(quality: number): number {
-  return Math.max(0.2, quality / 100);
+  // Phase 36 balance: crafted pills should provide a meaningful upgrade over baseline progression rewards.
+  return Math.max(0.35, quality / 90);
 }
 
 function buildTreasureFromRecipe(recipe: Recipe, quality: number): Treasure {
@@ -170,9 +171,12 @@ function buildTreasureFromRecipe(recipe: Recipe, quality: number): Treasure {
 }
 
 export function computePillQuality(recipe: Recipe, context: PillQualityContext): number {
+  const rankSignal = Math.max(0, context.avgBodyRank / 9);
+  const jingSignal = Math.max(0, context.jingGenerationRate / context.maxJingRate);
+  const resonanceSignal = Math.max(0, context.manipuraResonance);
   const quality =
     recipe.baseQuality *
-    (context.manipuraResonance * 0.4 + (context.avgBodyRank / 9) * 0.3 + (context.jingGenerationRate / context.maxJingRate) * 0.3);
+    (0.3 + resonanceSignal * 0.38 + rankSignal * 0.17 + jingSignal * 0.15);
   return clamp(quality, 1, 200);
 }
 

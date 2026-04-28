@@ -35,7 +35,7 @@ describe("phase 16 alchemy system", () => {
       jingGenerationRate: 50,
       maxJingRate: 100
     });
-    const expected = recipe!.baseQuality * (1.5 * 0.4 + (6 / 9) * 0.3 + (50 / 100) * 0.3);
+    const expected = recipe!.baseQuality * (0.3 + 1.5 * 0.38 + (6 / 9) * 0.17 + (50 / 100) * 0.15);
     expect(quality).toBeCloseTo(expected, 6);
   });
 
