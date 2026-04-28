@@ -156,6 +156,10 @@ export function buildInitialGameState(): GameState {
       breakthroughEvents: []
     },
     specialEventFlags: new Set<string>(),
+    sect: {
+      joinedSectId: null,
+      elderFavorLevels: {}
+    },
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null

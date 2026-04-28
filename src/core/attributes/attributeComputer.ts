@@ -11,6 +11,7 @@ import {
   type CombatAttributes,
   type CultivationAttributes
 } from "./types";
+import { applySectMemberBenefits } from "../sect/sectSystem";
 
 function applyCultivationPartial(
   out: CultivationAttributes,
@@ -86,6 +87,7 @@ export function computeAllAttributes(state: GameState): {
   cultivation.maxEnergyBonus += flowBonusSum;
 
   applyAjnaLobeBalance(state, cultivation);
+  applySectMemberBenefits(state, cultivation, combat);
 
   return { cultivation, combat };
 }

@@ -7,6 +7,8 @@ import { T2NodeState } from "../nodes/T2Types";
 import { rollDrops, rollIngredientDrops } from "../treasures/treasureSystem";
 import { applyHpThresholdNodeDamageRolls, crackNode } from "./nodeDamage";
 import { getDaoSkillScaling } from "../dao/daoSystem";
+import { DaoType } from "../dao/types";
+import { gainSectFavorFromCombat } from "../sect/sectSystem";
 import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState } from "../../state/GameState";
 import type { CombatEndResult, CombatState, CombatTickContext, CombatTickResult } from "./types";
@@ -266,6 +268,10 @@ export function endCombat(
     mergeIngredientDrops(next.ingredientInventory, droppedIngredients);
     next.globalTrackers.combatCount += 1;
     next.specialEventFlags.add("event:combat_victory");
+    const areaDao = inferCombatAreaDao(next.combat.enemy);
+    if (areaDao) {
+      gainSectFavorFromCombat(next, areaDao);
+    }
   } else {
     applySevereNodeDamage(next);
     reduceBodyEnergyByPercent(next, 0.2);
@@ -290,5 +296,32 @@ function mergeIngredientDrops(inventory: IngredientStack[], drops: IngredientSta
     } else {
       inventory.push({ ingredientId: drop.ingredientId, quantity: drop.quantity });
     }
+  }
+}
+
+function inferCombatAreaDao(enemy: EnemyDef): DaoType | null {
+  switch (enemy.preferredNodeTarget) {
+    case "MULADHARA":
+    case "L_HIP":
+    case "R_HIP":
+      return DaoType.Earth;
+    case "MANIPURA":
+    case "L_SHOULDER":
+    case "R_SHOULDER":
+      return DaoType.Fire;
+    case "SVADHISTHANA":
+    case "L_FOOT":
+    case "R_FOOT":
+      return DaoType.Water;
+    case "VISHUDDHA":
+      return DaoType.Thunder;
+    case "AJNA":
+    case "SAHASRARA":
+    case "BINDU":
+      return DaoType.Water;
+    case "ANAHATA":
+      return DaoType.Life;
+    default:
+      return null;
   }
 }
