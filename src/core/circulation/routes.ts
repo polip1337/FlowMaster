@@ -24,6 +24,8 @@ const GREAT_CIRCULATION_LOOP_EFFICIENCY = 1.3;
 const GREAT_CIRCULATION_TRAINING_MOD = 1.25;
 const GREAT_CIRCULATION_HEAT_MULT = 1.5;
 const SHEN_BONUS_ANAHATA_PER_TICK = 0.003;
+const HARMONY_LOOP_EFFICIENCY_BONUS = 0.15;
+const HARMONY_TRAINING_MOD = 1.3;
 
 const ANKLE_IDS = new Set(["L_ANKLE", "R_ANKLE"]);
 /** TASK-089 — Ankle internal ring T1 ids (non KNEE/FOOT IO). */
@@ -369,12 +371,16 @@ export function prepareCirculationTick(state: GameState, techniqueStrength: numb
   }
 
   base.throttleFactor = computeCirculationThrottleFactor(state.bodyHeat, state.maxBodyHeat);
-  base.loopEfficiency = loopEff;
+  const sharedHarmonyActive = Boolean(
+    state.companion?.sharedRouteActive && state.companion.harmonyLevel >= 50
+  );
+  base.loopEfficiency = loopEff + (sharedHarmonyActive ? HARMONY_LOOP_EFFICIENCY_BONUS : 0);
   base.greatCirculationAvailable = greatAvail;
   base.greatCirculationRoute = greatRoute;
   base.ankleMiniCirculationQualityBonus = detectAnkleMiniCirculationBonus(route.nodeSequence);
   base.routeHeatMultiplier = greatRoute ? GREAT_CIRCULATION_HEAT_MULT : 1;
-  base.greatCirculationTrainingPoolScale = greatRoute ? GREAT_CIRCULATION_TRAINING_MOD : 1;
+  const greatTraining = greatRoute ? GREAT_CIRCULATION_TRAINING_MOD : 1;
+  base.greatCirculationTrainingPoolScale = sharedHarmonyActive ? greatTraining * HARMONY_TRAINING_MOD : greatTraining;
 
   return base;
 }

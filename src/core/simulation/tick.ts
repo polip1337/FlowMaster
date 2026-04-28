@@ -43,6 +43,12 @@ import { applyBodyTemperingTick } from "../bodyTempering/bodyTemperingSystem";
 import { recordMeridianScarIfOverloaded } from "../meridians/scarSystem";
 import { TICKS_PER_INGAME_DAY } from "../constants";
 import { advanceCalendar, getCelestialTickModifiers } from "../celestial/calendar";
+import {
+  applyCrossBodyShenTransfer,
+  evaluateSharedRouteActivation,
+  getCrossBodyFlowBonus,
+  runCompanionCultivationTick
+} from "../companion/simulation";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -120,6 +126,20 @@ function updateFlowBonusCapacities(state: GameState): void {
     }
     t2Node.flowBonusPercent = nextBonus;
   }
+
+  const companion = state.companion;
+  if (!companion?.active) {
+    return;
+  }
+  const crossBonus = getCrossBodyFlowBonus(companion);
+  const playerAnahata = state.t2Nodes.get("ANAHATA");
+  if (playerAnahata && crossBonus > 0) {
+    playerAnahata.flowBonusPercent += crossBonus;
+  }
+  const companionAnahata = companion.cultivation.t2Nodes.get("ANAHATA");
+  if (companionAnahata && crossBonus > 0) {
+    companionAnahata.flowBonusPercent += crossBonus;
+  }
 }
 
 function unlockEdgesForNode(node: T2Node, unlockedNodeId: number): void {
@@ -154,6 +174,11 @@ function getManipuraResonance(state: GameState): number {
  */
 export function simulationTick(state: GameState): GameState {
   const next = cloneGameState(state);
+  if (next.companion) {
+    evaluateSharedRouteActivation(next.companion, next.activeRoute);
+    runCompanionCultivationTick(next.companion);
+    applyCrossBodyShenTransfer(next.companion, next.t2Nodes);
+  }
   const tribulationActive = isTribulationActive(next);
   const cultivation = next.cultivationAttributes;
   const tribulationRateMul = 1 + next.tribulation.permanentCultivationRateBonus;

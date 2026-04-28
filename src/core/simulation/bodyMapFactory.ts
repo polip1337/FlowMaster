@@ -14,6 +14,7 @@ import type { T1ClusterTopology } from "../../data/topologies/types";
 import { T2_NODE_DEFS } from "../../data/t2NodeDefs";
 import type { GameState } from "../../state/GameState";
 import { BASIC_TECHNIQUE } from "./CultivationTechnique";
+import type { CompanionState } from "../companion/types";
 import {
   createInitialCelestialBodies,
   createInitialCelestialCalendar,
@@ -111,6 +112,20 @@ export function buildInitialGameState(): GameState {
     meridians.set(id, createUneStablishedMeridian(edge, id));
   }
 
+  const companion: CompanionState = {
+    active: false,
+    name: "Companion",
+    cultivation: {
+      t2Nodes: new Map(),
+      meridians: new Map(),
+      activeRoute: null,
+      techniqueStrength: 1
+    },
+    harmonyLevel: 0,
+    sharedRouteActive: false,
+    crossBodyMeridians: []
+  };
+
   const initialState: GameState = {
     t2Nodes,
     meridians,
@@ -183,6 +198,7 @@ export function buildInitialGameState(): GameState {
     },
     celestialBodies: createInitialCelestialBodies(),
     celestialCalendar: createInitialCelestialCalendar(),
+    companion,
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null
