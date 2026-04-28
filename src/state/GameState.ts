@@ -12,6 +12,7 @@ import type { EnemyDef } from "../data/enemies/types";
 import type { CelestialBody, CelestialCalendar } from "../core/celestial/types";
 import type { CompanionState } from "../core/companion/types";
 import type { InsightLibraryState } from "../core/insight/insightLibrary";
+import type { HarmonicPair } from "../core/meridians/meridianLogic";
 export type { CirculationRoute } from "../core/circulation/types";
 
 export interface TutorialState {
@@ -99,6 +100,13 @@ export interface BodyTemperingState {
   trainingCooldown: number;
 }
 
+export interface MeridianHarmonicsState {
+  pairs: HarmonicPair[];
+  activeMeridianIds: string[];
+  pulsePhase: number;
+  tintByMeridianId: Record<string, string>;
+}
+
 export interface GameState {
   t2Nodes: Map<string, T2Node>;
   meridians: Map<string, Meridian>;
@@ -145,4 +153,6 @@ export interface GameState {
   immediateConditionCheck: boolean;
   /** TASK-125 — optional node id receiving direct Jing repair this tick. */
   activeRepairNodeId: string | null;
+  /** TASK-171 — body-map display hooks for harmonic meridian resonance. */
+  meridianHarmonics: MeridianHarmonicsState;
 }

@@ -204,7 +204,13 @@ export function buildInitialGameState(): GameState {
     insightLibrary: createInitialInsightLibraryState(),
     tick: 0,
     immediateConditionCheck: true,
-    activeRepairNodeId: null
+    activeRepairNodeId: null,
+    meridianHarmonics: {
+      pairs: [],
+      activeMeridianIds: [],
+      pulsePhase: 0,
+      tintByMeridianId: {}
+    }
   };
   refreshCelestialStateForCurrentDay(initialState);
   return initialState;

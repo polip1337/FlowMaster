@@ -35,6 +35,8 @@ describe("buildInitialGameState", () => {
     for (const m of state.meridians.values()) {
       expect(m.state).toBe(MeridianState.UNESTABLISHED);
       expect(m.isEstablished).toBe(false);
+      expect(m.isScarred).toBe(false);
+      expect(m.scarPenalty).toBe(0);
     }
   });
 
@@ -43,5 +45,13 @@ describe("buildInitialGameState", () => {
     const fromDefs = [...new Set(T2_NODE_DEFS.map((d) => d.id))].sort();
     const fromBody = [...BODY_T2_IDS].sort();
     expect(fromDefs).toEqual(fromBody);
+  });
+
+  it("initializes harmonic body-map display state hooks", () => {
+    const state = buildInitialGameState();
+    expect(state.meridianHarmonics.pairs).toEqual([]);
+    expect(state.meridianHarmonics.activeMeridianIds).toEqual([]);
+    expect(state.meridianHarmonics.pulsePhase).toBe(0);
+    expect(state.meridianHarmonics.tintByMeridianId).toEqual({});
   });
 });

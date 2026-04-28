@@ -9,10 +9,13 @@ import {
 import { EnergyType, addPools, emptyPool, scaledPool, totalEnergy } from "../energy/EnergyType";
 import {
   applyMeridianFlow,
+  checkMeridianHarmonics,
   computeActiveMeridianFlow,
   computeFlowBonus,
   computeMeridianPurity,
   computePassiveMeridianFlow,
+  MERIDIAN_HARMONIC_SHEN_PULSE_PER_TICK,
+  MERIDIAN_HARMONIC_THROUGHPUT_BONUS,
   planMeridianGrossWithdrawal,
   resolveBidirDirection,
   updateMeridianAffinity,
@@ -102,6 +105,24 @@ function applyPoolMultiplier(pool: ReturnType<typeof emptyPool>, multiplier: num
     out[t] = pool[t] * multiplier;
   }
   return out;
+}
+
+const HARMONIC_TINT_PALETTE = ["#c890ff", "#89c8ff", "#7de4c0", "#ffd38a", "#f5a3d8"] as const;
+
+function tintForHarmonicPair(pairId: string): string {
+  let hash = 0;
+  for (let i = 0; i < pairId.length; i += 1) {
+    hash = (hash * 31 + pairId.charCodeAt(i)) >>> 0;
+  }
+  return HARMONIC_TINT_PALETTE[hash % HARMONIC_TINT_PALETTE.length];
+}
+
+function getNodeShenPulseTarget(node: T2Node): T1Node | null {
+  const source = [...node.t1Nodes.values()].find((t1) => t1.isSourceNode);
+  if (source) {
+    return source;
+  }
+  return [...node.t1Nodes.values()][0] ?? null;
 }
 
 function updateFlowBonusCapacities(state: GameState): void {
@@ -200,6 +221,33 @@ export function simulationTick(state: GameState): GameState {
     : executeCirculationRoute(next, next.technique.strength * circulationSpeedMul);
   const routeMeridians = tribulationActive ? new Set<string>() : getActiveValidatedRouteMeridianIds(next);
   const flowByMeridian = new Map<string, ReturnType<typeof emptyPool>>();
+  const harmonicPairs = tribulationActive ? [] : checkMeridianHarmonics(next);
+  const harmonicThroughputMulByMeridian = new Map<string, number>();
+  const shenPulseByNodeId = new Map<string, number>();
+  const harmonicTintByMeridianId: Record<string, string> = {};
+  for (const pair of harmonicPairs) {
+    harmonicThroughputMulByMeridian.set(
+      pair.meridianAId,
+      (harmonicThroughputMulByMeridian.get(pair.meridianAId) ?? 1) + MERIDIAN_HARMONIC_THROUGHPUT_BONUS
+    );
+    harmonicThroughputMulByMeridian.set(
+      pair.meridianBId,
+      (harmonicThroughputMulByMeridian.get(pair.meridianBId) ?? 1) + MERIDIAN_HARMONIC_THROUGHPUT_BONUS
+    );
+    shenPulseByNodeId.set(
+      pair.sharedNodeId,
+      (shenPulseByNodeId.get(pair.sharedNodeId) ?? 0) + MERIDIAN_HARMONIC_SHEN_PULSE_PER_TICK
+    );
+    const tint = tintForHarmonicPair(pair.id);
+    harmonicTintByMeridianId[pair.meridianAId] = tint;
+    harmonicTintByMeridianId[pair.meridianBId] = tint;
+  }
+  next.meridianHarmonics = {
+    pairs: harmonicPairs,
+    activeMeridianIds: [...new Set(harmonicPairs.flatMap((pair) => [pair.meridianAId, pair.meridianBId]))],
+    pulsePhase: (next.tick % 120) / 120,
+    tintByMeridianId: harmonicTintByMeridianId
+  };
   const transfers: MeridianTickTransfer[] = [];
   let meridianHeatGain = 0;
   const preFlowLifetimeByT1 = new Map<string, number>();
@@ -290,6 +338,10 @@ export function simulationTick(state: GameState): GameState {
     if (isActiveRoute) {
       requestedFlow = scaledPool(requestedFlow, circulation.throttleFactor);
     }
+    const harmonicMultiplier = harmonicThroughputMulByMeridian.get(meridian.id) ?? 1;
+    if (harmonicMultiplier > 1) {
+      requestedFlow = scaledPool(requestedFlow, harmonicMultiplier);
+    }
 
     const ioOut = fromNode.t1Nodes.get(meridian.ioNodeOutId);
     if (ioOut) {
@@ -323,6 +375,11 @@ export function simulationTick(state: GameState): GameState {
         transfer.meridian
       );
       const flowed = totalEnergy(grossWithdrawn);
+      const harmonicMultiplier = harmonicThroughputMulByMeridian.get(transfer.meridian.id) ?? 1;
+      if (flowed > 0 && harmonicMultiplier > 1) {
+        const harmonicBonusFlow = flowed * (harmonicMultiplier - 1) / harmonicMultiplier;
+        transfer.meridian.totalFlow = Math.max(0, transfer.meridian.totalFlow - harmonicBonusFlow);
+      }
       if (flowed > 0) {
         recordMeridianScarIfOverloaded(transfer.meridian, flowed, routeMeridians.has(transfer.meridian.id));
       }
@@ -389,9 +446,10 @@ export function simulationTick(state: GameState): GameState {
     if (totalEnergy(gross) <= 0) {
       continue;
     }
-    let trainFlow = gross;
+    const harmonicMultiplier = harmonicThroughputMulByMeridian.get(transfer.meridian.id) ?? 1;
+    let trainFlow = harmonicMultiplier > 1 ? scaledPool(gross, 1 / harmonicMultiplier) : gross;
     if (routeMeridians.has(transfer.meridian.id) && circulation.greatCirculationTrainingPoolScale > 1) {
-      trainFlow = scaledPool(gross, circulation.greatCirculationTrainingPoolScale);
+      trainFlow = scaledPool(trainFlow, circulation.greatCirculationTrainingPoolScale);
     }
 
     updateMeridianWidth(transfer.meridian, trainFlow);
@@ -401,6 +459,18 @@ export function simulationTick(state: GameState): GameState {
   }
 
   // Step 8 (throttled): flow bonus recalc
+  for (const [nodeId, shenPulse] of shenPulseByNodeId) {
+    const node = next.t2Nodes.get(nodeId);
+    if (!node) {
+      continue;
+    }
+    const target = getNodeShenPulseTarget(node);
+    if (!target) {
+      continue;
+    }
+    target.energy[EnergyType.Shen] += shenPulse;
+  }
+
   if ((next.tick + 1) % 10 === 0) {
     updateFlowBonusCapacities(next);
   }

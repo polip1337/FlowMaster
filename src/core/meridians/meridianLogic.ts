@@ -30,6 +30,24 @@ export interface GameStateForReverseMeridian {
   t2Nodes: Map<string, T2Node>;
 }
 
+export interface HarmonicPair {
+  id: string;
+  sharedNodeId: string;
+  meridianAId: string;
+  meridianBId: string;
+  qualityA: number;
+  qualityB: number;
+}
+
+export interface GameStateForMeridianHarmonics {
+  t2Nodes: Map<string, T2Node>;
+  meridians: Map<string, Meridian>;
+}
+
+export const MERIDIAN_HARMONIC_QUALITY_DELTA_MAX = 0.5;
+export const MERIDIAN_HARMONIC_THROUGHPUT_BONUS = 0.15;
+export const MERIDIAN_HARMONIC_SHEN_PULSE_PER_TICK = 0.002;
+
 export function getT1LocalPressure(node: T1Node): number {
   if (node.capacity <= 0) {
     return 0;
@@ -80,7 +98,7 @@ export function computeMeridianPurity(m: Meridian): number {
   const structural = jingStructuralPurity(m.jingDeposit);
   const typePurityFactor = weightedModifierValue(m.dominantTypeAccumulator, (t) => ENERGY_MODIFIERS[t].purityFactor);
   const flow = logScalePurityFlow(m.totalFlow, typePurityFactor || 1);
-  return clamp(m.basePurity + structural + flow + m.shenScatterBonus, 0, 0.99);
+  return clamp(m.basePurity + structural + flow + m.shenScatterBonus - Math.max(0, m.scarPenalty), 0, 0.99);
 }
 
 export function updateMeridianWidth(m: Meridian, typeMix: EnergyPool): number {
@@ -444,4 +462,46 @@ export function createBaseMeridian(
     scarPenalty: init.scarPenalty ?? 0,
     isReverse: init.isReverse ?? false
   };
+}
+
+function isRefinedOrAbove(m: Meridian): boolean {
+  return m.isEstablished && meridianStateRank(m.state) >= meridianStateRank(MeridianState.REFINED);
+}
+
+function harmonicPairId(sharedNodeId: string, aId: string, bId: string): string {
+  const [left, right] = [aId, bId].sort((x, y) => x.localeCompare(y));
+  return `${sharedNodeId}:${left}:${right}`;
+}
+
+/** TASK-169 — detect balanced REFINED+ meridian pairs sharing the same T2 endpoint node. */
+export function checkMeridianHarmonics(state: GameStateForMeridianHarmonics): HarmonicPair[] {
+  const pairs: HarmonicPair[] = [];
+  for (const [nodeId] of state.t2Nodes) {
+    const connected = [...state.meridians.values()].filter(
+      (m) => isRefinedOrAbove(m) && (m.nodeFromId === nodeId || m.nodeToId === nodeId)
+    );
+    if (connected.length < 2) {
+      continue;
+    }
+    for (let i = 0; i < connected.length - 1; i += 1) {
+      for (let j = i + 1; j < connected.length; j += 1) {
+        const a = connected[i];
+        const b = connected[j];
+        const qualityA = clamp(a.purity, 0, 1);
+        const qualityB = clamp(b.purity, 0, 1);
+        if (Math.abs(qualityA - qualityB) > MERIDIAN_HARMONIC_QUALITY_DELTA_MAX) {
+          continue;
+        }
+        pairs.push({
+          id: harmonicPairId(nodeId, a.id, b.id),
+          sharedNodeId: nodeId,
+          meridianAId: a.id,
+          meridianBId: b.id,
+          qualityA,
+          qualityB
+        });
+      }
+    }
+  }
+  return pairs;
 }

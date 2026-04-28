@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EnergyType, emptyPool, totalEnergy } from "../../../src/core/energy/EnergyType";
 import {
   applyMeridianFlow,
+  checkMeridianHarmonics,
   computeFlowBonus,
   computeMeridianPurity,
   computePassiveMeridianFlow,
@@ -261,6 +262,60 @@ describe("meridian system (phase 5)", () => {
     const healed = healMeridianScar(m, 1);
     expect(healed).toBeCloseTo(0.05, 6);
     expect(m.scarPenalty).toBeCloseTo(0.05, 6);
+  });
+
+  it("detects meridian harmonic pairs for REFINED+ connections with close quality", () => {
+    const shared = makeT2Stub("shared", 1, 1);
+    const left = makeT2Stub("left", 1, 1);
+    const right = makeT2Stub("right", 1, 1);
+    const mA = createBaseMeridian({
+      id: "mA",
+      nodeFromId: "shared",
+      nodeToId: "left",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      state: MeridianState.REFINED,
+      purity: 0.9
+    });
+    const mB = createBaseMeridian({
+      id: "mB",
+      nodeFromId: "shared",
+      nodeToId: "right",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      state: MeridianState.TRANSCENDENT,
+      purity: 0.55
+    });
+    const mOff = createBaseMeridian({
+      id: "mOff",
+      nodeFromId: "shared",
+      nodeToId: "right",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      state: MeridianState.DEVELOPED,
+      purity: 0.9
+    });
+    const pairs = checkMeridianHarmonics({
+      t2Nodes: new Map([
+        ["shared", shared],
+        ["left", left],
+        ["right", right]
+      ]),
+      meridians: new Map([
+        [mA.id, mA],
+        [mB.id, mB],
+        [mOff.id, mOff]
+      ])
+    });
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].sharedNodeId).toBe("shared");
+    expect(new Set([pairs[0].meridianAId, pairs[0].meridianBId])).toEqual(new Set(["mA", "mB"]));
   });
 });
 
