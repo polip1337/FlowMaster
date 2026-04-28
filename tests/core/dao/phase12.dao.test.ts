@@ -20,6 +20,14 @@ describe("phase 12 dao system", () => {
     expect(state.specialEventFlags.has("event:moment_of_stillness")).toBe(true);
   });
 
+  it("only triggers moment of stillness once before dao selection", () => {
+    const state = buildInitialGameState();
+    state.t2Nodes.get("MULADHARA")!.rank = 2;
+
+    expect(checkDaoSelectionTrigger(state)).toBe(true);
+    expect(checkDaoSelectionTrigger(state)).toBe(false);
+  });
+
   it("selectDao initializes dao nodes and first unlockable skill", () => {
     const state = buildInitialGameState();
     const next = selectDao(state, DaoType.Fire);
@@ -89,5 +97,26 @@ describe("phase 12 dao system", () => {
     expect(node.rank).toBeGreaterThanOrEqual(2);
     expect(state.playerDao.comprehensionLevel).toBeGreaterThanOrEqual(8);
     expect(state.specialEventFlags.has("event:dao_comprehension_available")).toBe(true);
+  });
+
+  it("does not partially drain multi-energy dao costs when one type is insufficient", () => {
+    const state = buildInitialGameState();
+    selectDao(state, DaoType.Life);
+    state.playerDao.daoInsights = 10_000;
+    for (const t2 of state.t2Nodes.values()) {
+      for (const t1 of t2.t1Nodes.values()) {
+        t1.energy[EnergyType.Jing] = 0;
+        t1.energy[EnergyType.Shen] = 0;
+      }
+    }
+    const firstT2 = [...state.t2Nodes.values()][0];
+    const firstT1 = [...firstT2.t1Nodes.values()][0];
+    firstT1.energy[EnergyType.Jing] = 1_000;
+
+    updateDaoNodeProgression(state);
+
+    const seedNode = state.playerDao.daoNodes.get("LIFE_SEED");
+    expect(seedNode?.state).toBe(T2NodeState.SEALING);
+    expect(firstT1.energy[EnergyType.Jing]).toBe(1_000);
   });
 });

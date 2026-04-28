@@ -181,4 +181,42 @@ describe("phase 13 combat system", () => {
     expect(DAO_SKILLS.length).toBeGreaterThan(40);
     expect(DAO_SKILLS.some((s) => s.category === "soul")).toBe(true);
   });
+
+  it("applies dao node rank/level scaling to combat skill damage", () => {
+    const state = buildInitialGameState();
+    state.playerDao.availableSkillIds = ["water-river-palm"];
+    state.combatAttributes.physicalPower = 100;
+    const started = startCombat(state, ENEMY_ARCHETYPES[0]);
+    const combat = started.combat as CombatState;
+    const baseEnemyHp = combat.enemyHp;
+    for (const type of Object.values(EnergyType)) {
+      combat.combatEnergyPool[type] = 10_000;
+    }
+
+    combatTick(combat, {
+      attributes: started.combatAttributes,
+      criticalInsight: 0,
+      t2Nodes: started.t2Nodes,
+      random: () => 1
+    });
+    const baselineDamage = baseEnemyHp - combat.enemyHp;
+    expect(baselineDamage).toBeGreaterThan(0);
+
+    combat.enemyHp = baseEnemyHp;
+    combat.currentSkillIndex = 0;
+    combat.ticksUntilNextSkill = 0;
+    combat.rotation = ["water-river-palm"];
+    const daoNode = started.t2Nodes.get("MULADHARA")!;
+    const scaledNodes = new Map([[ "WATER_SPRING", { ...daoNode, rank: 3, level: 5 } ]]);
+    combatTick(combat, {
+      attributes: started.combatAttributes,
+      criticalInsight: 0,
+      t2Nodes: started.t2Nodes,
+      playerDaoNodes: scaledNodes,
+      random: () => 1
+    });
+    const scaledDamage = baseEnemyHp - combat.enemyHp;
+
+    expect(scaledDamage).toBeGreaterThan(baselineDamage);
+  });
 });

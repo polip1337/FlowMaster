@@ -50,5 +50,6 @@ export interface CombatTickContext {
   attributes: CombatAttributes;
   criticalInsight: number;
   t2Nodes: Map<string, T2Node>;
+  playerDaoNodes?: Map<string, T2Node>;
   random?: () => number;
 }

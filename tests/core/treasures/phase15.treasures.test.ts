@@ -141,6 +141,17 @@ describe("phase 15 treasure and inventory system", () => {
     const withSeal = applyTreasure(sealManual, "", withTechnique);
     expect(withSeal.nodeSealThresholdModifiers.SVADHISTHANA).toBeCloseTo(0.8);
 
+    const sealManualWrongMultiplier: Treasure = {
+      id: "manual-2b",
+      type: TreasureType.CultivationManual,
+      tier: 3,
+      quantity: 1,
+      effect: { mode: "reduce_seal_threshold", nodeId: "SVADHISTHANA", multiplier: 0.1 }
+    };
+    addInventoryItem(withSeal, sealManualWrongMultiplier);
+    const withFixedSecondReduction = applyTreasure(sealManualWrongMultiplier, "", withSeal);
+    expect(withFixedSecondReduction.nodeSealThresholdModifiers.SVADHISTHANA).toBeCloseTo(0.64);
+
     const ioManual: Treasure = {
       id: "manual-3",
       type: TreasureType.CultivationManual,

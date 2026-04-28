@@ -56,6 +56,37 @@ function spendBodyEnergyByType(state: GameState, type: EnergyType, amount: numbe
   return false;
 }
 
+function canSpendBodyEnergyByType(state: GameState, type: EnergyType, amount: number): boolean {
+  if (amount <= 0) {
+    return true;
+  }
+  let total = 0;
+  for (const t2 of state.t2Nodes.values()) {
+    for (const t1 of t2.t1Nodes.values()) {
+      total += t1.energy[type];
+      if (total >= amount) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function spendBodyEnergyTransaction(state: GameState, costs: ReadonlyArray<{ type: EnergyType; amount: number }>): boolean {
+  const normalizedCosts = costs.filter((cost) => cost.amount > 0);
+  if (normalizedCosts.length === 0) {
+    return true;
+  }
+  const canPayAll = normalizedCosts.every((cost) => canSpendBodyEnergyByType(state, cost.type, cost.amount));
+  if (!canPayAll) {
+    return false;
+  }
+  for (const cost of normalizedCosts) {
+    spendBodyEnergyByType(state, cost.type, cost.amount);
+  }
+  return true;
+}
+
 function buildDaoNode(def: (typeof DAO_NODE_DEFS_BY_TYPE)[DaoType][number]): T2Node {
   const topology = allTopologies[def.topologyId as keyof typeof allTopologies];
   const cluster = createT2Cluster(topology, def.id);
@@ -118,7 +149,7 @@ function updateDaoComprehensionFlags(state: GameState): void {
 }
 
 export function checkDaoSelectionTrigger(state: GameState): boolean {
-  if (state.playerDao.selectedDao !== null) {
+  if (state.playerDao.selectedDao !== null || state.specialEventFlags.has(MOMENT_OF_STILLNESS_FLAG)) {
     return false;
   }
   const rank = getHighestBodyRank(state);
@@ -198,7 +229,10 @@ export function updateDaoNodeProgression(state: GameState): void {
       const threshold = daoNodeThreshold(state, def.nodeIndex);
       if (state.playerDao.daoInsights >= threshold) {
         const energyCost = 100 * (def.nodeIndex + 1);
-        const canPay = energyTypes.every((type) => spendBodyEnergyByType(state, type, energyCost));
+        const canPay = spendBodyEnergyTransaction(
+          state,
+          energyTypes.map((type) => ({ type, amount: energyCost }))
+        );
         if (canPay) {
           state.playerDao.daoInsights -= threshold;
           node.state = T2NodeState.ACTIVE;
@@ -215,13 +249,19 @@ export function updateDaoNodeProgression(state: GameState): void {
     const levelCost = Math.max(1, daoNodeThreshold(state, def.nodeIndex) * node.level);
     const energyCost = 40 * node.rank * node.level;
     if (node.level < 9 && state.playerDao.daoInsights >= levelCost) {
-      const canPay = energyTypes.every((type) => spendBodyEnergyByType(state, type, energyCost));
+      const canPay = spendBodyEnergyTransaction(
+        state,
+        energyTypes.map((type) => ({ type, amount: energyCost }))
+      );
       if (canPay) {
         state.playerDao.daoInsights -= levelCost;
         node.level += 1;
       }
     } else if (node.level >= 9 && node.rank < 9 && state.playerDao.daoInsights >= levelCost * 2) {
-      const canPay = energyTypes.every((type) => spendBodyEnergyByType(state, type, energyCost * 3));
+      const canPay = spendBodyEnergyTransaction(
+        state,
+        energyTypes.map((type) => ({ type, amount: energyCost * 3 }))
+      );
       if (canPay) {
         state.playerDao.daoInsights -= levelCost * 2;
         node.rank += 1;

@@ -11,6 +11,7 @@ const SHATTER_STABILIZATION_COST = 1;
 const PASSIVE_REPAIR_FACTOR = 0.001;
 const ACTIVE_REPAIR_MULTIPLIER = 10;
 const ACTIVE_REPAIR_JING_DRAIN_PER_TICK = 0.1;
+type HpThresholdDamagePhase = "hp30" | "hp10" | "auto";
 type NodeContainer = Map<string, T2Node> | Pick<GameState, "t2Nodes">;
 
 function resolveNodes(container: NodeContainer): Map<string, T2Node> {
@@ -73,14 +74,18 @@ export function applyHpThresholdNodeDamageRolls(
   hpRatio: number,
   t2Nodes: Map<string, T2Node>,
   stabilizationUsed: boolean,
-  random: () => number
+  random: () => number,
+  phase: HpThresholdDamagePhase = "auto"
 ): { stabilizationUsed: boolean; cracked: boolean; shattered: boolean } {
   const active = activeNodes(t2Nodes);
   let didCrack = false;
   let didShatter = false;
   let nextStabilizationUsed = stabilizationUsed;
 
-  if (hpRatio <= 0.3 && random() < 0.5) {
+  const allowCrack = phase === "hp30" || phase === "auto";
+  const allowShatter = phase === "hp10" || phase === "auto";
+
+  if (allowCrack && hpRatio <= 0.3 && hpRatio > 0.1 && random() < 0.5) {
     const target = pickRandomNode(active, random);
     if (target) {
       crackNode(target);
@@ -88,7 +93,7 @@ export function applyHpThresholdNodeDamageRolls(
     }
   }
 
-  if (hpRatio <= 0.1) {
+  if (allowShatter && hpRatio <= 0.1) {
     if (!nextStabilizationUsed && getBinduReserve(t2Nodes) >= SHATTER_STABILIZATION_COST) {
       spendBinduReserve(t2Nodes, SHATTER_STABILIZATION_COST);
       nextStabilizationUsed = true;

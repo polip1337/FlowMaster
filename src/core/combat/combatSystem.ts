@@ -6,6 +6,7 @@ import type { T2Node } from "../nodes/T2Node";
 import { T2NodeState } from "../nodes/T2Types";
 import { rollDrops, rollIngredientDrops } from "../treasures/treasureSystem";
 import { applyHpThresholdNodeDamageRolls, crackNode } from "./nodeDamage";
+import { getDaoSkillScaling } from "../dao/daoSystem";
 import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState } from "../../state/GameState";
 import type { CombatEndResult, CombatState, CombatTickContext, CombatTickResult } from "./types";
@@ -88,6 +89,14 @@ function categoryDamage(base: number, category: SkillCategory, attributes: Comba
   return 0;
 }
 
+function daoSkillDamageScale(context: CombatTickContext, skill: SkillDef): number {
+  const daoNode = context.playerDaoNodes?.get(skill.unlockedByDaoNode);
+  if (!daoNode) {
+    return 1;
+  }
+  return getDaoSkillScaling(daoNode, context.attributes.techniquePower);
+}
+
 export function rollCrit(criticalInsight: number, random: () => number = Math.random): boolean {
   const critChance = Math.min(0.5, Math.max(0, criticalInsight) / 500);
   return random() < critChance;
@@ -118,7 +127,7 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
   combat.playerSoulHp = Math.max(0, combat.playerSoulHp - combat.enemy.soulAttack);
   const hpRatio = combat.playerMaxHp > 0 ? combat.playerHp / combat.playerMaxHp : 0;
   if (!combat.hp30RollDone && hpRatio <= 0.3) {
-    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random);
+    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random, "hp30");
     combat.stabilizationUsed = roll.stabilizationUsed;
     combat.hp30RollDone = true;
     if (roll.cracked) {
@@ -126,7 +135,7 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
     }
   }
   if (!combat.hp10RollDone && hpRatio <= 0.1) {
-    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random);
+    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random, "hp10");
     combat.stabilizationUsed = roll.stabilizationUsed;
     combat.hp10RollDone = true;
     if (roll.shattered) {
@@ -190,7 +199,8 @@ export function combatTick(combat: CombatState, context: CombatTickContext): Com
       const base = estimateSkillBase(skill);
       const crit = rollCrit(context.criticalInsight, random);
       const critMult = crit ? 2 : 1;
-      const damage = categoryDamage(base, skill.category, attrs) * critMult;
+      const daoScale = daoSkillDamageScale(context, skill);
+      const damage = categoryDamage(base, skill.category, attrs) * critMult * daoScale;
 
       if (skill.category === "soul") {
         combat.enemySoulHp = Math.max(0, combat.enemySoulHp - damage);

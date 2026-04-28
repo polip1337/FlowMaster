@@ -58,6 +58,18 @@ describe("phase 14 hp/soul and node damage", () => {
     expect([...shatteredNode!.t1Nodes.values()].every((t1) => t1.state === T1NodeState.UNSEALED)).toBe(true);
   });
 
+  it("does not crack during hp10-only roll phase", () => {
+    const state = buildInitialGameState();
+    for (const node of state.t2Nodes.values()) {
+      node.state = T2NodeState.ACTIVE;
+    }
+    spendBinduReserve(state.t2Nodes, Number.POSITIVE_INFINITY);
+
+    const roll = applyHpThresholdNodeDamageRolls(0.1, state.t2Nodes, true, () => 0, "hp10");
+    expect(roll.cracked).toBe(false);
+    expect(roll.shattered).toBe(true);
+  });
+
   it("repairs damaged nodes passively and faster with active repair toggle", () => {
     const passiveState = buildInitialGameState();
     const damagedPassive = passiveState.t2Nodes.get("MULADHARA")!;

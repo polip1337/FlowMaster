@@ -128,7 +128,8 @@ function applyCultivationManual(state: GameState, treasure: Treasure): void {
   }
   if (effect.mode === "reduce_seal_threshold") {
     const current = state.nodeSealThresholdModifiers[effect.nodeId] ?? 1;
-    state.nodeSealThresholdModifiers[effect.nodeId] = Math.max(0.2, current * effect.multiplier);
+    const MANUAL_THRESHOLD_REDUCTION_MULTIPLIER = 0.8;
+    state.nodeSealThresholdModifiers[effect.nodeId] = Math.max(0.2, current * MANUAL_THRESHOLD_REDUCTION_MULTIPLIER);
     return;
   }
   const node = state.t2Nodes.get(effect.nodeId);
