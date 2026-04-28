@@ -213,6 +213,22 @@ describe("phase 29 hud and panels", () => {
     expect(ingredientsEl.innerHTML).toContain("phase31-ingredient-highlight");
   });
 
+  it("escapes untrusted panel strings before writing innerHTML", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    stateModule.st.combatEncountered = true;
+    stateModule.st.combatPhase = "active";
+    stateModule.st.combatLog = [`<img src=x onerror=alert(1)>`];
+    stateModule.st.daoNodes = [{ id: "x", name: "<svg/onload=1>", state: "<b>ACTIVE</b>" }];
+    stateModule.st.daoSkills = ["<script>alert(1)</script>"];
+    mod.updatePhase29Panels();
+    const combatActiveEl = documentMock.getElementById("combatActiveBody");
+    const daoNodesEl = documentMock.getElementById("daoNodes");
+    const daoSkillsEl = documentMock.getElementById("daoSkills");
+    expect(combatActiveEl.innerHTML).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(daoNodesEl.innerHTML).toContain("&lt;svg/onload=1&gt;");
+    expect(daoSkillsEl.innerHTML).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
   it("filters alchemy recipes and refines quality by spending YangQi", async () => {
     const { mod, stateModule, documentMock } = await loadPhase29Module();
     mod.bindPhase29PanelUi();

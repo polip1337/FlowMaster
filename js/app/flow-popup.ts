@@ -16,6 +16,7 @@ import { attachDomTooltips, hideMarkerTooltip } from './tooltips.ts';
 import { candidateProjectionTargets, activateProjection, toggleProjectionBridge } from './projections.ts';
 import { redrawNetwork } from './hud.ts';
 import { updateEdgeControlsLayout } from './edge-controls.ts';
+import { escapeHtml } from './safe-dom.ts';
 
 // toggleConnection lives in input.ts — bound at bootstrap time to break the cycle
 let _toggleConnection: ((from: number, to: number) => void) | null = null;
@@ -116,7 +117,7 @@ export function renderFlowPopup(nodeId: number) {
 
   const title = document.createElement("div");
   title.className = "flow-popup-title";
-  title.innerHTML = `<span>${node.name}</span><span class="state-badge state-${stateKey}">${stateMeta.char} · ${stateMeta.en}</span>`;
+  title.innerHTML = `<span>${escapeHtml(node.name)}</span><span class="state-badge state-${stateKey}">${escapeHtml(stateMeta.char)} · ${escapeHtml(stateMeta.en)}</span>`;
   flowPopupEl.appendChild(title);
 
   const attr = getAttributeState();
@@ -136,7 +137,7 @@ export function renderFlowPopup(nodeId: number) {
   overviewBlock.innerHTML = `
     <div class="popup-section-title">概覽 · Overview</div>
     <div class="popup-keyvals">
-      <div data-tooltip="${info.description}"><span>Path</span>${info.name} T${node.attributeTier ?? "-"}</div>
+      <div data-tooltip="${escapeHtml(info.description)}"><span>Path</span>${escapeHtml(info.name)} T${node.attributeTier ?? "-"}</div>
       <div><span>SI</span>${fmt(node.si)} / ${node.unlockCost}</div>
       <div><span>In</span>${formatSiPerSec(nodeRate.in * TICKS_PER_SECOND)}</div>
       <div><span>Out</span>${formatSiPerSec(nodeRate.out * TICKS_PER_SECOND)}</div>
@@ -153,7 +154,7 @@ export function renderFlowPopup(nodeId: number) {
 
   const bonusBlock = document.createElement("div");
   bonusBlock.className = "popup-section";
-  bonusBlock.innerHTML = `<div class="popup-section-title">增益 · Bonuses</div><div class="flow-label">${stateKey === "locked" ? "—" : formatNodeBonuses(node)}</div>`;
+  bonusBlock.innerHTML = `<div class="popup-section-title">增益 · Bonuses</div><div class="flow-label">${stateKey === "locked" ? "—" : escapeHtml(formatNodeBonuses(node))}</div>`;
   flowPopupEl.appendChild(bonusBlock);
 
   if (!node.unlocked) {
@@ -164,7 +165,7 @@ export function renderFlowPopup(nodeId: number) {
     const hintText = blocking
       ? (blocking.unlocked ? `Feed ${blocking.name} to raise its flow share.` : `Break through ${blocking.name} first to open this channel.`)
       : "No upstream meridian is feeding this node yet.";
-    pathBlock.innerHTML = `<div class="popup-section-title">通關之路 · Path to Unlock</div><div class="path-to-unlock">${hintName} — ${hintText}</div>`;
+    pathBlock.innerHTML = `<div class="popup-section-title">通關之路 · Path to Unlock</div><div class="path-to-unlock">${escapeHtml(hintName)} — ${escapeHtml(hintText)}</div>`;
     flowPopupEl.appendChild(pathBlock);
   } else {
     const flowSection = document.createElement("div");

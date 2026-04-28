@@ -68,6 +68,7 @@ import {
 import { getBodyIdForNodeId, CELESTIAL_YEAR_DAYS, CELESTIAL_PEAK_DURATION_DAYS } from "../../src/core/celestial/calendar";
 import { T2_NODE_DEFS } from "../../src/data/t2NodeDefs";
 import { SECTS } from "../../src/data/sects/sects";
+import { escapeHtml, normalizeDisplayString } from "./safe-dom.ts";
 
 type HeatZone = "green" | "yellow" | "orange" | "red";
 
@@ -231,7 +232,7 @@ function getSelectedEnemy() {
 
 function skillChip(skillName: string, index: number): string {
   const active = index === st.combatCurrentSkillIndex ? "active" : "";
-  return `<button type="button" class="phase29-item-btn ${active}" data-rotation-index="${index}">${index + 1}. ${skillName}</button>`;
+  return `<button type="button" class="phase29-item-btn ${active}" data-rotation-index="${index}">${index + 1}. ${escapeHtml(skillName)}</button>`;
 }
 
 function renderCombatPrepPanel() {
@@ -243,8 +244,8 @@ function renderCombatPrepPanel() {
   const enemy = getSelectedEnemy();
   const pattern = enemy.preferredNodeTarget ? `Targets ${enemy.preferredNodeTarget} first` : "Aggressive frontal pressure";
   combatPrepBodyEl.innerHTML = `
-    <div class="phase29-row"><span>Enemy</span><strong>${enemy.name} (Tier ${enemy.tier})</strong></div>
-    <div class="muted">Pattern: ${pattern}</div>
+    <div class="phase29-row"><span>Enemy</span><strong>${escapeHtml(enemy.name)} (Tier ${enemy.tier})</strong></div>
+    <div class="muted">Pattern: ${escapeHtml(pattern)}</div>
     <div class="bonus-title">Rotation Builder</div>
     <div id="combatRotationBuilder" class="phase30-rotation">${st.combatRotation.map(skillChip).join("")}</div>
     <div class="bonus-title">Energy Priority</div>
@@ -269,7 +270,7 @@ function renderCombatActivePanel() {
     <div class="phase29-row"><span>Player Soul HP</span><strong>${st.combatPlayerSoulHp.toFixed(0)} / ${st.combatPlayerMaxSoulHp.toFixed(0)}</strong></div>
     <div class="phase29-row"><span>Enemy HP</span><strong>${st.combatEnemyHp.toFixed(0)} / ${st.combatEnemyMaxHp.toFixed(0)}</strong></div>
     <div class="phase29-row"><span>Enemy Soul HP</span><strong>${st.combatEnemySoulHp.toFixed(0)} / ${st.combatEnemyMaxSoulHp.toFixed(0)}</strong></div>
-    <div class="phase29-row"><span>Current Skill</span><strong>${currentSkill}</strong></div>
+    <div class="phase29-row"><span>Current Skill</span><strong>${escapeHtml(currentSkill)}</strong></div>
     <div class="phase29-row"><span>Cooldown</span><strong>${cooldownPct.toFixed(0)}%</strong></div>
     <div class="phase30-energy-grid">
       <div class="phase29-row"><span>Qi</span><strong>${st.combatEnergyPool.qi.toFixed(0)}</strong></div>
@@ -277,7 +278,7 @@ function renderCombatActivePanel() {
       <div class="phase29-row"><span>YangQi</span><strong>${st.combatEnergyPool.yangQi.toFixed(0)}</strong></div>
       <div class="phase29-row"><span>Shen</span><strong>${st.combatEnergyPool.shen.toFixed(0)}</strong></div>
     </div>
-    <div id="combatLogView" class="phase30-log">${st.combatLog.slice(-8).map((line) => `<div class="phase30-log-line">${line}</div>`).join("")}</div>
+    <div id="combatLogView" class="phase30-log">${st.combatLog.slice(-8).map((line) => `<div class="phase30-log-line">${escapeHtml(line)}</div>`).join("")}</div>
   `;
 }
 
@@ -293,8 +294,8 @@ function renderCombatSummaryPanel() {
     <div class="phase29-row"><span>Damage Dealt / Received</span><strong>${summary.damageDealt} / ${summary.damageReceived}</strong></div>
     <div class="phase29-row"><span>Skills Used</span><strong>${summary.skillsUsed}</strong></div>
     <div class="phase29-row"><span>Energy Spent</span><strong>Qi ${summary.energySpent.qi}, Jing ${summary.energySpent.jing}, YangQi ${summary.energySpent.yangQi}, Shen ${summary.energySpent.shen}</strong></div>
-    <div class="phase29-row"><span>Nodes Damaged</span><strong>${summary.nodesDamaged.join(", ") || "None"}</strong></div>
-    <div class="phase29-row"><span>Treasures Dropped</span><strong>${summary.treasuresDropped.join(", ") || "None"}</strong></div>
+    <div class="phase29-row"><span>Nodes Damaged</span><strong>${escapeHtml(summary.nodesDamaged.join(", ") || "None")}</strong></div>
+    <div class="phase29-row"><span>Treasures Dropped</span><strong>${escapeHtml(summary.treasuresDropped.join(", ") || "None")}</strong></div>
     <div class="phase29-row"><span>Insights Gained</span><strong>${summary.insightsGained}</strong></div>
   `;
 }
@@ -363,9 +364,9 @@ function renderRoutePanel() {
   }
   const metrics = routeMetrics(st.activeBodyRouteNodeIds);
   activeRouteDisplayEl.innerHTML = `
-    <div><strong>${st.activeBodyRouteNodeIds.join(" -> ")}</strong></div>
+    <div><strong>${escapeHtml(st.activeBodyRouteNodeIds.join(" -> "))}</strong></div>
     <div>Loop efficiency: <strong>${(metrics.efficiency * 100).toFixed(1)}%</strong></div>
-    <div>Bottleneck: <strong>${metrics.bottleneck}</strong></div>
+    <div>Bottleneck: <strong>${escapeHtml(metrics.bottleneck)}</strong></div>
     <div>Heat/tick: <strong>${metrics.heat.toFixed(3)}</strong></div>
   `;
 }
@@ -384,13 +385,13 @@ function renderDaoPanel() {
   if (!daoSummaryEl || !daoNodesEl || !daoSkillsEl) return;
   const selected = st.daoSelected;
   daoSummaryEl.textContent = selected
-    ? `${selected} Dao | insights ${st.daoInsights.toFixed(0)} | comprehension ${st.daoComprehensionLevel}`
+    ? `${normalizeDisplayString(selected)} Dao | insights ${st.daoInsights.toFixed(0)} | comprehension ${st.daoComprehensionLevel}`
     : "No Dao selected. Choose one below.";
   daoNodesEl.innerHTML = st.daoNodes.length > 0
-    ? st.daoNodes.map((n) => `<div class="phase29-row"><span>${n.name}</span><strong>${n.state}</strong></div>`).join("")
+    ? st.daoNodes.map((n) => `<div class="phase29-row"><span>${escapeHtml(n.name)}</span><strong>${escapeHtml(n.state)}</strong></div>`).join("")
     : `<div class="muted">No Dao nodes yet.</div>`;
   daoSkillsEl.innerHTML = st.daoSkills.length > 0
-    ? st.daoSkills.map((skill) => `<span class="phase29-chip">${skill}</span>`).join("")
+    ? st.daoSkills.map((skill) => `<span class="phase29-chip">${escapeHtml(skill)}</span>`).join("")
     : `<span class="muted">No unlocked skills.</span>`;
 }
 
@@ -399,7 +400,7 @@ function renderInventoryPanel() {
   inventoryGridEl.innerHTML = st.inventoryItems
     .map((item) => `
       <button type="button" class="phase29-item-btn ${st.selectedInventoryItemId === item.id ? "active" : ""}" data-item-id="${item.id}">
-        ${item.name} x${item.quantity}
+        ${escapeHtml(item.name)} x${item.quantity}
       </button>
     `).join("");
   const selected = st.inventoryItems.find((item) => item.id === st.selectedInventoryItemId) ?? null;
@@ -407,8 +408,8 @@ function renderInventoryPanel() {
     inventoryDetailEl.textContent = "Select a treasure to preview and apply.";
   } else {
     inventoryDetailEl.innerHTML = `
-      <div><strong>${selected.name}</strong></div>
-      <div>${selected.effect}</div>
+      <div><strong>${escapeHtml(selected.name)}</strong></div>
+      <div>${escapeHtml(selected.effect)}</div>
       <div class="muted">${st.inventoryTargetingActive ? "Targeting active: click a body-map node." : "Click Apply to target on body map."}</div>
       <button type="button" id="applyInventoryItemBtn" class="btn ghost" ${selected.quantity <= 0 ? "disabled" : ""}>Apply to Body Map Target</button>
     `;
@@ -422,7 +423,7 @@ function renderInventoryPanel() {
     .map((item) => {
       const activeRecipe = ALCHEMY_RECIPES.find((recipe) => recipe.id === st.alchemySelectedRecipeId) ?? null;
       const highlighted = activeRecipe?.ingredients.includes(item.id);
-      return `<div class="phase29-row ${highlighted ? "phase31-ingredient-highlight" : ""}"><span>${item.name}</span><strong>x${item.quantity}</strong></div>`;
+      return `<div class="phase29-row ${highlighted ? "phase31-ingredient-highlight" : ""}"><span>${escapeHtml(item.name)}</span><strong>x${item.quantity}</strong></div>`;
     })
     .join("");
 }
@@ -521,10 +522,10 @@ function renderAlchemyPanel() {
     const current = st.alchemyPhase === "IDLE" ? computeAlchemyQualityPreview(recipe) : st.alchemyQualityPreview;
     const craftCount = craftCountForRecipe(recipe);
     alchemyQualityPreviewEl.innerHTML = `
-      <div class="phase29-row"><span>Recipe</span><strong>${recipe.name}</strong></div>
+      <div class="phase29-row"><span>Recipe</span><strong>${escapeHtml(recipe.name)}</strong></div>
       <div class="phase29-row"><span>Expected quality</span><strong>${current.toFixed(1)}</strong></div>
       <div class="phase29-row"><span>Craft count</span><strong>${craftCount}</strong></div>
-      <div class="phase29-row"><span>Required</span><strong>${recipe.ingredients.join(", ")}</strong></div>
+      <div class="phase29-row"><span>Required</span><strong>${escapeHtml(recipe.ingredients.join(", "))}</strong></div>
       <div class="phase31-controls">
         <button type="button" id="alchemyStartMixingBtn" class="btn ghost" ${craftCount <= 0 ? "disabled" : ""}>Start Mixing</button>
         <button type="button" id="alchemyAdvanceRefiningBtn" class="btn ghost" ${st.alchemyPhase !== "MIXING" ? "disabled" : ""}>Advance to Refining</button>
@@ -543,8 +544,8 @@ function renderAlchemyPanel() {
     const label = RECIPE_TYPE_LABELS[recipeEntry.resultType] ?? recipeEntry.resultType;
     return `
       <button type="button" class="phase29-item-btn ${selected ? "active" : ""}" data-recipe-id="${recipeEntry.id}">
-        <div><strong>${recipeEntry.name}</strong></div>
-        <div class="muted">Type: ${label} | Tier: ${recipeEntry.tier}</div>
+        <div><strong>${escapeHtml(recipeEntry.name)}</strong></div>
+        <div class="muted">Type: ${escapeHtml(label)} | Tier: ${recipeEntry.tier}</div>
         <div class="${available ? "good" : "warning"}">${available ? "Available" : "Locked"} | craft x${craftCountForRecipe(recipeEntry)}</div>
       </button>
     `;
@@ -590,7 +591,7 @@ function renderCelestialCalendarWidget() {
       const name = NODE_NAME_BY_ID.get(nodeId) ?? nodeId;
       const days = getDaysUntilPeak(nodeId);
       const label = days === 0 ? "Peak active" : `${days}d`;
-      return `<div class="phase29-row"><span>${name}</span><strong>${label}</strong></div>`;
+      return `<div class="phase29-row"><span>${escapeHtml(name)}</span><strong>${escapeHtml(label)}</strong></div>`;
     })
     .join("");
   celestialCalendarWidgetEl.innerHTML = `
@@ -601,7 +602,7 @@ function renderCelestialCalendarWidget() {
     <div class="phase33-conjunctions">
       <div class="bonus-title">Active Conjunctions</div>
       <div class="${conjunctionNodes.length > 0 ? "good" : "muted"}">
-        ${conjunctionNodes.length > 0 ? conjunctionNodes.join(" · ") : "No conjunction currently active"}
+        ${conjunctionNodes.length > 0 ? conjunctionNodes.map((name) => escapeHtml(name)).join(" · ") : "No conjunction currently active"}
       </div>
     </div>
     <div class="bonus-title">Next Peak Countdown</div>
@@ -637,9 +638,9 @@ function renderSectPanel() {
     ].join(" | ");
     return `
       <div class="phase33-sect-card ${isJoined ? "joined" : ""}">
-        <div class="phase29-row"><span><strong>${sect.name}</strong></span><strong>${isJoined ? "Joined" : "Available"}</strong></div>
-        <div class="muted">Elder: ${sect.homeElder.name} (${sect.homeElder.daoType}) | Favor ${favor}</div>
-        <div class="muted">Requirement: ${requiredNodeId} rank ${requiredNodeRank} (${currentRank}/${requiredNodeRank})</div>
+        <div class="phase29-row"><span><strong>${escapeHtml(sect.name)}</strong></span><strong>${isJoined ? "Joined" : "Available"}</strong></div>
+        <div class="muted">Elder: ${escapeHtml(sect.homeElder.name)} (${escapeHtml(sect.homeElder.daoType)}) | Favor ${favor}</div>
+        <div class="muted">Requirement: ${escapeHtml(requiredNodeId)} rank ${requiredNodeRank} (${currentRank}/${requiredNodeRank})</div>
         <div class="phase29-row"><span>Join Status</span><strong>${isJoined ? "Member" : blockedByMembership ? "Locked (already joined)" : "Can join"}</strong></div>
         <button type="button" class="btn ghost phase33-join-btn" data-sect-id="${sect.id}" ${isJoined || blockedByMembership ? "disabled" : ""}>Join Sect</button>
         <div class="bonus-title">Teachable Manuals</div>
@@ -665,12 +666,13 @@ function downloadTextFile(filename: string, content: string): void {
 
 function initializeDaoForSelection(daoName: string) {
   st.daoSelected = daoName;
+  const safeDaoName = normalizeDisplayString(daoName, "Unknown");
   st.daoNodes = [
-    { id: `${daoName}-seed`, name: `${daoName} Seed`, state: "ACTIVE" },
-    { id: `${daoName}-path`, name: `${daoName} Path`, state: "SEALING" },
-    { id: `${daoName}-crown`, name: `${daoName} Crown`, state: "LOCKED" }
+    { id: `${safeDaoName}-seed`, name: `${safeDaoName} Seed`, state: "ACTIVE" },
+    { id: `${safeDaoName}-path`, name: `${safeDaoName} Path`, state: "SEALING" },
+    { id: `${safeDaoName}-crown`, name: `${safeDaoName} Crown`, state: "LOCKED" }
   ];
-  st.daoSkills = [`${daoName} Strike`, `${daoName} Pulse`];
+  st.daoSkills = [`${safeDaoName} Strike`, `${safeDaoName} Pulse`];
   st.daoInsights = Math.max(st.daoInsights, 120);
 }
 

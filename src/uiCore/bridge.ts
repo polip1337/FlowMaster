@@ -55,6 +55,29 @@ export interface UiMirrorState {
   ajnaImbalanceSeverity: number;
 }
 
+const MAX_UI_TEXT_LENGTH = 120;
+const CONTROL_CHARS_REGEX = /[\u0000-\u001F\u007F]/g;
+
+function normalizeDisplayString(value: unknown, fallback = ""): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const cleaned = value.replace(CONTROL_CHARS_REGEX, "").trim();
+  if (!cleaned) {
+    return fallback;
+  }
+  return cleaned.length > MAX_UI_TEXT_LENGTH ? cleaned.slice(0, MAX_UI_TEXT_LENGTH) : cleaned;
+}
+
+function normalizeDisplayList(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return values
+    .map((entry) => normalizeDisplayString(entry))
+    .filter((entry) => entry.length > 0);
+}
+
 export function normalizeToCoreMeridianId(id: string): string {
   if (id.includes("::")) {
     const [from, to] = parseForwardId(id);
@@ -101,21 +124,25 @@ export function mirrorCoreStateToUi(core: GameState, ui: UiMirrorState): void {
   ui.refiningPulseActive = core.refiningPulseActive;
   ui.temperingLevel = core.bodyTemperingState.temperingLevel;
   ui.temperingXp = core.bodyTemperingState.temperingXP;
-  ui.temperingAction = core.bodyTemperingState.currentTrainingAction ?? ui.temperingAction;
-  ui.daoSelected = core.playerDao.selectedDao;
+  ui.temperingAction = normalizeDisplayString(core.bodyTemperingState.currentTrainingAction, ui.temperingAction);
+  ui.daoSelected = core.playerDao.selectedDao ? normalizeDisplayString(core.playerDao.selectedDao) : null;
   ui.daoInsights = core.playerDao.daoInsights;
   ui.daoComprehensionLevel = core.playerDao.comprehensionLevel;
   ui.celestialDayOfYear = core.celestialCalendar.dayOfYear;
   ui.celestialSeason = core.celestialCalendar.season;
-  ui.celestialActiveConjunctions = [...core.celestialCalendar.activeConjunctions];
+  ui.celestialActiveConjunctions = normalizeDisplayList(core.celestialCalendar.activeConjunctions);
   ui.celestialBodies = core.celestialBodies.map((body) => ({
-    id: body.id,
-    linkedT2NodeId: body.linkedT2NodeId,
-    currentSign: body.currentSign
+    id: normalizeDisplayString(body.id),
+    linkedT2NodeId: normalizeDisplayString(body.linkedT2NodeId),
+    currentSign: normalizeDisplayString(body.currentSign)
   }));
-  ui.sectJoinedId = core.sect.joinedSectId;
-  ui.sectElderFavorLevels = { ...core.sect.elderFavorLevels };
-  ui.unlockedTechniques = [...core.unlockedTechniques];
+  ui.sectJoinedId = core.sect.joinedSectId ? normalizeDisplayString(core.sect.joinedSectId) : null;
+  ui.sectElderFavorLevels = Object.fromEntries(
+    Object.entries(core.sect.elderFavorLevels)
+      .map(([id, favor]) => [normalizeDisplayString(id), favor] as const)
+      .filter(([id]) => id.length > 0)
+  );
+  ui.unlockedTechniques = normalizeDisplayList(core.unlockedTechniques);
   const t2NodeRanks: Record<string, number> = {};
   for (const [nodeId, node] of core.t2Nodes) {
     t2NodeRanks[toUiTier2Id(nodeId)] = node.rank;

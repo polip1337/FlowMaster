@@ -17,6 +17,10 @@ const MAX_DESERIALIZE_DEPTH = 80;
 const MAX_DESERIALIZE_NODES = 50_000;
 const MAX_JSON_LENGTH = 2_000_000;
 const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+const MAX_MAP_ENTRIES = 10_000;
+const MAX_ARRAY_LENGTH = 5_000;
+const MAX_SET_ENTRIES = 5_000;
+const MAX_TICK = 10_000_000_000;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -114,7 +118,13 @@ function deepMergeWithDefaults<T>(defaults: T, incoming: unknown): T {
     return deepClone(defaults);
   }
   if (Array.isArray(defaults)) {
-    return (Array.isArray(incoming) ? deepClone(incoming) : deepClone(defaults)) as unknown as T;
+    if (!Array.isArray(incoming)) {
+      return deepClone(defaults);
+    }
+    if (incoming.length > MAX_ARRAY_LENGTH) {
+      throw new Error(`Save payload exceeds max array length ${MAX_ARRAY_LENGTH}`);
+    }
+    return deepClone(incoming) as unknown as T;
   }
   if (isPlainObject(defaults)) {
     const out: Record<string, unknown> = {};
@@ -127,7 +137,16 @@ function deepMergeWithDefaults<T>(defaults: T, incoming: unknown): T {
   if (incoming === undefined || incoming === null) {
     return defaults;
   }
-  return incoming as T;
+  if (typeof defaults === "number") {
+    return (typeof incoming === "number" && Number.isFinite(incoming) ? incoming : defaults) as T;
+  }
+  if (typeof defaults === "string") {
+    return (typeof incoming === "string" ? incoming : defaults) as T;
+  }
+  if (typeof defaults === "boolean") {
+    return (typeof incoming === "boolean" ? incoming : defaults) as T;
+  }
+  return defaults;
 }
 
 function normalizeKnownContainers(state: GameState): GameState {
@@ -163,6 +182,60 @@ function normalizeKnownContainers(state: GameState): GameState {
   return state;
 }
 
+function assertNumberInRange(name: string, value: unknown, min: number, max: number): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`Invalid save invariant: ${name} out of range.`);
+  }
+}
+
+function assertBoolean(name: string, value: unknown): asserts value is boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`Invalid save invariant: ${name} must be boolean.`);
+  }
+}
+
+function assertString(name: string, value: unknown, maxLength = 120): asserts value is string {
+  if (typeof value !== "string" || value.length === 0 || value.length > maxLength) {
+    throw new Error(`Invalid save invariant: ${name} must be a non-empty string <= ${maxLength} chars.`);
+  }
+}
+
+function validateCriticalStateInvariants(state: GameState): void {
+  assertNumberInRange("tick", state.tick, 0, MAX_TICK);
+  assertNumberInRange("bodyHeat", state.bodyHeat, 0, 1_000_000);
+  assertNumberInRange("maxBodyHeat", state.maxBodyHeat, 1, 1_000_000);
+  if (state.bodyHeat > state.maxBodyHeat * 5) {
+    throw new Error("Invalid save invariant: bodyHeat exceeds allowed multiple of maxBodyHeat.");
+  }
+  if (state.t2Nodes.size > MAX_MAP_ENTRIES) {
+    throw new Error(`Invalid save invariant: t2Nodes exceeds max entries ${MAX_MAP_ENTRIES}.`);
+  }
+  for (const [nodeId, node] of state.t2Nodes) {
+    assertString("t2Nodes key", nodeId);
+    assertNumberInRange(`t2Nodes[${nodeId}].rank`, (node as { rank?: unknown }).rank, 0, 1000);
+    const damageState = (node as { nodeDamageState?: unknown }).nodeDamageState as
+      | { cracked?: unknown; shattered?: unknown; repairProgress?: unknown }
+      | undefined;
+    if (!damageState || !isPlainObject(damageState)) {
+      throw new Error(`Invalid save invariant: t2Nodes[${nodeId}].nodeDamageState missing.`);
+    }
+    assertBoolean(`t2Nodes[${nodeId}].nodeDamageState.cracked`, damageState.cracked);
+    assertBoolean(`t2Nodes[${nodeId}].nodeDamageState.shattered`, damageState.shattered);
+    assertNumberInRange(`t2Nodes[${nodeId}].nodeDamageState.repairProgress`, damageState.repairProgress, 0, 1);
+  }
+  if (state.meridians.size > MAX_MAP_ENTRIES) {
+    throw new Error(`Invalid save invariant: meridians exceeds max entries ${MAX_MAP_ENTRIES}.`);
+  }
+  for (const [meridianId, meridian] of state.meridians) {
+    assertString("meridian key", meridianId);
+    assertNumberInRange(`meridians[${meridianId}].width`, (meridian as { width?: unknown }).width, 0, 1000);
+    assertNumberInRange(`meridians[${meridianId}].purity`, (meridian as { purity?: unknown }).purity, 0, 1);
+  }
+  if (state.specialEventFlags.size > MAX_SET_ENTRIES) {
+    throw new Error(`Invalid save invariant: specialEventFlags exceeds max entries ${MAX_SET_ENTRIES}.`);
+  }
+}
+
 export function serializeGameState(state: GameState): string {
   const payload: SaveEnvelope = {
     version: SAVE_SCHEMA_VERSION,
@@ -178,7 +251,9 @@ export function migrateState(rawObj: unknown, fromVersion: number): GameState {
     candidate = rawObj.state;
   }
   const merged = deepMergeWithDefaults(defaults, candidate);
-  return normalizeKnownContainers(merged);
+  const normalized = normalizeKnownContainers(merged);
+  validateCriticalStateInvariants(normalized);
+  return normalized;
 }
 
 export function deserializeGameState(json: string): GameState {

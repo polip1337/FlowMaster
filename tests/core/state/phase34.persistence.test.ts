@@ -107,4 +107,30 @@ describe("phase34 persistence", () => {
     const payload = JSON.stringify({ version: SAVE_SCHEMA_VERSION, state: nested });
     expect(() => deserializeGameState(payload)).toThrow(/max depth/i);
   });
+
+  it("rejects invalid critical nested ranges during migration", () => {
+    const state = buildInitialGameState();
+    const t2Nodes = {
+      __type: "Map",
+      entries: Array.from(state.t2Nodes.entries())
+    };
+    const firstEntry = t2Nodes.entries[0];
+    if (!firstEntry) {
+      throw new Error("Expected at least one t2 node in initial game state.");
+    }
+    (firstEntry[1] as Record<string, unknown>).nodeDamageState = {
+      cracked: true,
+      shattered: false,
+      repairProgress: 99
+    };
+    const payload = JSON.stringify({
+      version: SAVE_SCHEMA_VERSION,
+      state: {
+        ...state,
+        tick: 10,
+        t2Nodes
+      }
+    });
+    expect(() => deserializeGameState(payload)).toThrow(/invariant/i);
+  });
 });

@@ -98,4 +98,55 @@ describe("uiCore bridge contracts", () => {
     expect(ui.ajnaYinRatio).toBeGreaterThan(ui.ajnaYangRatio);
     expect(ui.ajnaImbalanceSeverity).toBeGreaterThan(0.2);
   });
+
+  it("sanitizes display-bound strings during core to ui mirroring", () => {
+    const core = buildInitialGameState();
+    core.bodyTemperingState.currentTrainingAction = "  <script>alert(1)</script>\u0000  ";
+    core.playerDao.selectedDao = "  Dao<&>  ";
+    core.celestialCalendar.activeConjunctions = ["  alpha\u0000  ", "", "beta "];
+    core.unlockedTechniques = ["  burst\u0000", " ", "<manual>"];
+    const ui = {
+      tickCounter: 0,
+      bodyHeat: 0,
+      maxBodyHeat: 0,
+      refiningPulseActive: false,
+      temperingLevel: 1,
+      temperingXp: 0,
+      temperingAction: "",
+      daoSelected: null,
+      daoInsights: 0,
+      daoComprehensionLevel: 0,
+      combatEncountered: false,
+      combatPhase: "prep" as const,
+      combatTick: 0,
+      combatPlayerHp: 0,
+      combatPlayerMaxHp: 0,
+      combatPlayerSoulHp: 0,
+      combatPlayerMaxSoulHp: 0,
+      combatEnemyHp: 0,
+      combatEnemyMaxHp: 0,
+      combatEnemySoulHp: 0,
+      combatEnemyMaxSoulHp: 0,
+      celestialDayOfYear: 0,
+      celestialSeason: "Spring" as const,
+      celestialActiveConjunctions: [],
+      celestialBodies: [],
+      sectJoinedId: null,
+      sectElderFavorLevels: {},
+      unlockedTechniques: [],
+      t2NodeRanks: {},
+      coreActiveRouteLength: 0,
+      circulationSpeedPercent: 0,
+      t2DamageById: {},
+      binduReserveRatio: 0,
+      ajnaYinRatio: 0.5,
+      ajnaYangRatio: 0.5,
+      ajnaImbalanceSeverity: 0
+    };
+    mirrorCoreStateToUi(core, ui);
+    expect(ui.temperingAction).toBe("<script>alert(1)</script>");
+    expect(ui.daoSelected).toBe("Dao<&>");
+    expect(ui.celestialActiveConjunctions).toEqual(["alpha", "beta"]);
+    expect(ui.unlockedTechniques).toEqual(["burst", "<manual>"]);
+  });
 });
