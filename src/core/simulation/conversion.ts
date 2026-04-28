@@ -13,7 +13,8 @@ export const MANIPURA_FURNACE_T1_ID = 11;
 export function applyManipuraRefiningPulse(
   manipura: T2Node,
   active: boolean,
-  bodyHeatRatio: number
+  bodyHeatRatio: number,
+  conversionMultiplier = 1
 ): number {
   if (!active) {
     return 0;
@@ -46,7 +47,7 @@ export function applyManipuraRefiningPulse(
     return 0;
   }
 
-  const yangGain = (qiSpend / 3) * eff;
+  const yangGain = (qiSpend / 3) * eff * conversionMultiplier;
   furnace.energy[EnergyType.Qi] -= qiSpend;
   furnace.energy[EnergyType.YangQi] += yangGain;
   return qiSpend * 0.2;

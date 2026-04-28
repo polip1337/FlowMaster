@@ -21,7 +21,7 @@ function isT2Operational(state: T2NodeState): boolean {
 /**
  * TASK-078 — Earth Jing into foot SOLE when the foot cluster is ACTIVE and SOLE T1 is ACTIVE.
  */
-export function applyFootSoleEarthJing(t2: T2Node, environmentModifier: number): void {
+export function applyFootSoleEarthJing(t2: T2Node, environmentModifier: number, generationMultiplier = 1): void {
   if (t2.state !== T2NodeState.ACTIVE) {
     return;
   }
@@ -29,20 +29,24 @@ export function applyFootSoleEarthJing(t2: T2Node, environmentModifier: number):
   if (!sole || sole.state !== T1NodeState.ACTIVE) {
     return;
   }
-  sole.energy[EnergyType.Jing] += 0.03 * sole.quality * environmentModifier;
+  sole.energy[EnergyType.Jing] += 0.03 * sole.quality * environmentModifier * generationMultiplier;
 }
 
 /**
  * TASK-080 — passive Shen when heart / third-eye resonance exceeds 0.5.
  */
-export function applyShenPassiveGeneration(t2: T2Node): void {
+export function applyShenPassiveGeneration(
+  t2: T2Node,
+  generationMultiplier = 1,
+  resonanceQualityMultiplier = 1
+): void {
   if (t2.id !== ANAHATA_ID && t2.id !== AJNA_ID) {
     return;
   }
   if (!isT2Operational(t2.state)) {
     return;
   }
-  if (getT2Resonance(t2) <= 0.5) {
+  if (getT2Resonance(t2) * resonanceQualityMultiplier <= 0.5) {
     return;
   }
   const t1Id = t2.id === ANAHATA_ID ? ANAHATA_SHEN_TARGET_T1 : AJNA_SHEN_TARGET_T1;
@@ -50,5 +54,5 @@ export function applyShenPassiveGeneration(t2: T2Node): void {
   if (!target || target.state !== T1NodeState.ACTIVE) {
     return;
   }
-  target.energy[EnergyType.Shen] += 0.003;
+  target.energy[EnergyType.Shen] += 0.003 * generationMultiplier;
 }

@@ -14,6 +14,11 @@ import type { T1ClusterTopology } from "../../data/topologies/types";
 import { T2_NODE_DEFS } from "../../data/t2NodeDefs";
 import type { GameState } from "../../state/GameState";
 import { BASIC_TECHNIQUE } from "./CultivationTechnique";
+import {
+  createInitialCelestialBodies,
+  createInitialCelestialCalendar,
+  refreshCelestialStateForCurrentDay
+} from "../celestial/calendar";
 
 function ioNodeMapFromTopology(topology: T1ClusterTopology): Map<string, number> {
   return new Map(Object.entries(topology.meridianIoMap));
@@ -106,7 +111,7 @@ export function buildInitialGameState(): GameState {
     meridians.set(id, createUneStablishedMeridian(edge, id));
   }
 
-  return {
+  const initialState: GameState = {
     t2Nodes,
     meridians,
     bodyHeat: 0,
@@ -176,8 +181,12 @@ export function buildInitialGameState(): GameState {
       currentTrainingAction: null,
       trainingCooldown: 0
     },
+    celestialBodies: createInitialCelestialBodies(),
+    celestialCalendar: createInitialCelestialCalendar(),
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null
   };
+  refreshCelestialStateForCurrentDay(initialState);
+  return initialState;
 }

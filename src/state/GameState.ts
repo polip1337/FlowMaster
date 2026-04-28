@@ -9,6 +9,7 @@ import type { CombatState } from "../core/combat/types";
 import type { PlacedFormationArray, Treasure } from "../core/treasures/types";
 import type { AlchemySession, IngredientStack } from "../core/alchemy/types";
 import type { EnemyDef } from "../data/enemies/types";
+import type { CelestialBody, CelestialCalendar } from "../core/celestial/types";
 export type { CirculationRoute } from "../core/circulation/types";
 
 export interface TutorialState {
@@ -133,6 +134,8 @@ export interface GameState {
   specialEventFlags: Set<string>;
   sect: SectState;
   bodyTemperingState: BodyTemperingState;
+  celestialBodies: CelestialBody[];
+  celestialCalendar: CelestialCalendar;
   tick: number;
   /** S-021 — next tick runs full unlock/upgrade condition pass regardless of throttle. */
   immediateConditionCheck: boolean;

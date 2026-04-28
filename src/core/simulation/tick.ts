@@ -40,6 +40,9 @@ import { checkDaoSelectionTrigger, generateDaoInsights, updateDaoNodeProgression
 import { applyNodeRepairTick } from "../combat/nodeDamage";
 import { applyFormationArrayPassiveGeneration } from "../treasures/treasureSystem";
 import { applyBodyTemperingTick } from "../bodyTempering/bodyTemperingSystem";
+import { recordMeridianScarIfOverloaded } from "../meridians/scarSystem";
+import { TICKS_PER_INGAME_DAY } from "../constants";
+import { advanceCalendar, getCelestialTickModifiers } from "../celestial/calendar";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -154,6 +157,7 @@ export function simulationTick(state: GameState): GameState {
   const tribulationActive = isTribulationActive(next);
   const cultivation = next.cultivationAttributes;
   const tribulationRateMul = 1 + next.tribulation.permanentCultivationRateBonus;
+  const celestial = getCelestialTickModifiers(next);
   const circulationSpeedMul = (1 + cultivation.circulationSpeed / 100) * tribulationRateMul;
   const refinementRateMul = (1 + cultivation.refinementRate / 100) * tribulationRateMul;
   const circulation = tribulationActive
@@ -182,8 +186,10 @@ export function simulationTick(state: GameState): GameState {
 
   // Step 1: source generation
   for (const t2 of next.t2Nodes.values()) {
+    const t2GenerationMul = celestial.t2GenerationMultiplier(t2.id);
     for (const t1 of t2.t1Nodes.values()) {
-      t1.energy = addPools(t1.energy, scaledPool(generateSourceEnergy(t1), tribulationRateMul));
+      const generationMul = tribulationRateMul * celestial.qiGenerationMultiplier * t2GenerationMul;
+      t1.energy = addPools(t1.energy, scaledPool(generateSourceEnergy(t1), generationMul));
     }
   }
   applyFormationArrayPassiveGeneration(next);
@@ -192,26 +198,41 @@ export function simulationTick(state: GameState): GameState {
   for (const footId of FOOT_CLUSTER_IDS) {
     const foot = next.t2Nodes.get(footId);
     if (foot) {
-      applyFootSoleEarthJing(foot, next.environmentModifier);
+      const footGenerationMul = celestial.jingGenerationMultiplier * celestial.t2GenerationMultiplier(foot.id);
+      applyFootSoleEarthJing(foot, next.environmentModifier, footGenerationMul);
     }
   }
   const anahata = next.t2Nodes.get("ANAHATA");
   if (anahata) {
-    applyShenPassiveGeneration(anahata);
+    const shenMul =
+      celestial.shenGenerationMultiplier *
+      celestial.t2GenerationMultiplier(anahata.id) *
+      celestial.t2ShenGenerationMultiplier(anahata.id);
+    applyShenPassiveGeneration(anahata, shenMul, celestial.t2ResonanceQualityMultiplier(anahata.id));
   }
   const ajna = next.t2Nodes.get("AJNA");
   if (ajna) {
-    applyShenPassiveGeneration(ajna);
+    const shenMul =
+      celestial.shenGenerationMultiplier *
+      celestial.t2GenerationMultiplier(ajna.id) *
+      celestial.t2ShenGenerationMultiplier(ajna.id);
+    applyShenPassiveGeneration(ajna, shenMul, celestial.t2ResonanceQualityMultiplier(ajna.id));
   }
   const manipura = next.t2Nodes.get("MANIPURA");
   if (manipura) {
     const heatRatio = next.maxBodyHeat > 0 ? next.bodyHeat / next.maxBodyHeat : 0;
-    meridianHeatGain += tribulationActive ? 0 : applyManipuraRefiningPulse(manipura, next.refiningPulseActive, heatRatio);
+    const conversionMul = celestial.yangQiConversionMultiplier * celestial.t2GenerationMultiplier(manipura.id);
+    meridianHeatGain += tribulationActive
+      ? 0
+      : applyManipuraRefiningPulse(manipura, next.refiningPulseActive, heatRatio, conversionMul);
   }
 
   // Step 2a — S-013: reserve IO_OUT energy meridians will withdraw (before T1 internal flows).
   clearMeridianReservations(next);
   for (const meridian of tribulationActive ? [] : next.meridians.values()) {
+    if (!meridian) {
+      continue;
+    }
     if (!meridian.isEstablished || meridian.state === MeridianState.UNESTABLISHED) {
       continue;
     }
@@ -275,6 +296,10 @@ export function simulationTick(state: GameState): GameState {
         transfer.requestedFlow,
         transfer.meridian
       );
+      const flowed = totalEnergy(grossWithdrawn);
+      if (flowed > 0) {
+        recordMeridianScarIfOverloaded(transfer.meridian, flowed, routeMeridians.has(transfer.meridian.id));
+      }
       let effectiveHeat = heatDelta;
       if (routeMeridians.has(transfer.meridian.id)) {
         effectiveHeat *= circulation.routeHeatMultiplier;
@@ -282,7 +307,6 @@ export function simulationTick(state: GameState): GameState {
       meridianHeatGain += effectiveHeat;
       flowByMeridian.set(transfer.meridian.id, grossWithdrawn);
       if (routeMeridians.has(transfer.meridian.id)) {
-        const flowed = totalEnergy(grossWithdrawn);
         transfer.meridian.totalFlow += flowed * (circulation.loopEfficiency - 1);
       }
     }
@@ -305,6 +329,9 @@ export function simulationTick(state: GameState): GameState {
   // Apply the hot-zone purity penalty directly to meridians.
   if (heat.purityMultiplier < 1) {
     for (const meridian of next.meridians.values()) {
+      if (!meridian) {
+        continue;
+      }
       if (!meridian.isEstablished) {
         continue;
       }
@@ -410,6 +437,9 @@ export function simulationTick(state: GameState): GameState {
 
   // Step 12: final state counters and trackers
   next.tick += 1;
+  if (next.tick % TICKS_PER_INGAME_DAY === 0) {
+    advanceCalendar(next);
+  }
   const globalTypeTotals = emptyPool();
   let globalTotal = 0;
   for (const t2 of next.t2Nodes.values()) {

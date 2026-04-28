@@ -1,5 +1,6 @@
 export const TICK_RATE = 10;
 export const DELTA_T = 0.1;
+export const TICKS_PER_INGAME_DAY = 7_200;
 
 export const T1_MAX_FLOW_RATE = 0.01;
 export const T1_BASE_SOURCE_RATE = 0.5;
