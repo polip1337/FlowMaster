@@ -29,6 +29,11 @@ export const shoulderTopology: T1ClusterTopology = {
     { from: 2, to: 6, defaultWeight: 50 },
     { from: 3, to: 7, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 1, to: 6, defaultWeight: 0 },
+    { from: 2, to: 7, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     HEART: 0,
     ELBOW: 7

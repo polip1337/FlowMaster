@@ -22,6 +22,11 @@ export const wristTopology: T1ClusterTopology = {
     { from: 3, to: 4, defaultWeight: 50 },
     { from: 2, to: 5, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 1, to: 5, defaultWeight: 0 },
+    { from: 3, to: 5, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     ELBOW: 0,
     HAND: 2

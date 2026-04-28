@@ -50,6 +50,11 @@ export const sahasraraTopology: T1ClusterTopology = {
     { from: 11, to: 9, defaultWeight: 50 },
     { from: 11, to: 10, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 2, to: 4, defaultWeight: 0 },
+    { from: 6, to: 8, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     AJNA: 0,
     BINDU: 2

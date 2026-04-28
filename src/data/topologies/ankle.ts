@@ -35,6 +35,11 @@ export const ankleTopology: T1ClusterTopology = {
     { from: 1, to: 4, defaultWeight: 50 },
     { from: 4, to: 1, defaultWeight: 0 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 4, defaultWeight: 0 },
+    { from: 3, to: 1, defaultWeight: 0 },
+    { from: 5, to: 0, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     KNEE: 0,
     FOOT: 3

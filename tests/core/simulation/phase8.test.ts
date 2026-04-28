@@ -22,6 +22,7 @@ function minimalT2(id: string, cluster: ReturnType<typeof createT2Cluster>): T2N
     state: T2NodeState.ACTIVE,
     t1Nodes: cluster.nodes,
     t1Edges: cluster.edges,
+    unlockedEdges: [],
     ioNodeMap: new Map(),
     rank: 1,
     level: 3,

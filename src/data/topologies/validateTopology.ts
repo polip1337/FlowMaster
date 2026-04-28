@@ -63,6 +63,14 @@ export function validateTopology(t: T1ClusterTopology): TopologyValidationError[
       });
     }
   }
+  for (const e of t.potentialExtraEdges ?? []) {
+    if (!idSet.has(e.from) || !idSet.has(e.to)) {
+      errors.push({
+        topologyId: t.id,
+        message: `potentialExtraEdge ${e.from}→${e.to} references unknown node id`
+      });
+    }
+  }
 
   const checkSpecial = (label: keyof T1ClusterTopology, id: number | undefined): void => {
     if (id === undefined) {

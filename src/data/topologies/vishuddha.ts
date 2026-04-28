@@ -47,6 +47,11 @@ export const vishuddhaTopology: T1ClusterTopology = {
     { from: 11, to: 9, defaultWeight: 50 },
     { from: 11, to: 10, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 3, to: 5, defaultWeight: 0 },
+    { from: 8, to: 10, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     HEART: 0,
     AJNA: 3

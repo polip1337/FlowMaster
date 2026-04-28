@@ -4,6 +4,7 @@ import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState } from "../../state/GameState";
 import { TreasureType, type PlacedFormationArray, type Treasure, type TreasureDropDef } from "./types";
 import type { IngredientStack } from "../alchemy/types";
+import { healMeridianScar } from "../meridians/scarSystem";
 
 function clampQuantity(value: number): number {
   return Math.max(0, Math.floor(value));
@@ -63,6 +64,15 @@ function applyMeridianSalve(state: GameState, treasure: Treasure, targetId: stri
     throw new Error("Meridian Salve requires a valid meridian id target.");
   }
   meridian.totalFlow += Math.max(0, treasure.effect.trainingFlowGain);
+}
+
+function applyMeridianRestoration(state: GameState, treasure: Treasure, targetId: string): void {
+  const meridian = state.meridians.get(targetId);
+  if (!meridian || treasure.type !== TreasureType.MeridianRestoration) {
+    throw new Error("Meridian Restoration requires a valid meridian id target.");
+  }
+  const applications = Math.max(1, Math.floor(treasure.effect.scarHealApplications));
+  healMeridianScar(meridian, applications);
 }
 
 function applyJingDeposit(state: GameState, treasure: Treasure, targetId: string): void {
@@ -132,6 +142,9 @@ function applyCultivationManual(state: GameState, treasure: Treasure): void {
     state.nodeSealThresholdModifiers[effect.nodeId] = Math.max(0.2, current * MANUAL_THRESHOLD_REDUCTION_MULTIPLIER);
     return;
   }
+  if (effect.mode === "unlock_t1_connection") {
+    return;
+  }
   const node = state.t2Nodes.get(effect.nodeId);
   if (!node) {
     throw new Error(`Manual target node ${effect.nodeId} not found.`);
@@ -152,6 +165,9 @@ export function applyTreasure(treasure: Treasure, targetId: string, state: GameS
       break;
     case TreasureType.MeridianSalve:
       applyMeridianSalve(next, treasure, targetId);
+      break;
+    case TreasureType.MeridianRestoration:
+      applyMeridianRestoration(next, treasure, targetId);
       break;
     case TreasureType.JingDeposit:
       applyJingDeposit(next, treasure, targetId);
@@ -217,6 +233,14 @@ function createTreasureFromDrop(drop: TreasureDropDef, enemyTier: number, random
         tier,
         quantity: safeQuantity,
         effect: { trainingFlowGain: 250 * tier }
+      };
+    case TreasureType.MeridianRestoration:
+      return {
+        id,
+        type: TreasureType.MeridianRestoration,
+        tier,
+        quantity: safeQuantity,
+        effect: { scarHealApplications: 1 }
       };
     case TreasureType.JingDeposit:
       return { id, type: TreasureType.JingDeposit, tier, quantity: safeQuantity, effect: { jingDepositGain: 80 * tier } };

@@ -28,6 +28,7 @@ function makeT2Stub(id: string, level: number, rank: number): T2Node {
     state: T2NodeState.ACTIVE,
     t1Nodes: new Map(),
     t1Edges: new Map(),
+    unlockedEdges: [],
     ioNodeMap: new Map(),
     rank,
     level,

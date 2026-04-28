@@ -44,6 +44,11 @@ export const anahataTopology: T1ClusterTopology = {
     { from: 10, to: 11, defaultWeight: 50 },
     { from: 11, to: 6, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 6, to: 8, defaultWeight: 0 },
+    { from: 7, to: 9, defaultWeight: 0 },
+    { from: 8, to: 10, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     THROAT: 0,
     R_SHOULDER: 1,

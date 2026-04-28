@@ -97,6 +97,7 @@ function buildDaoNode(def: (typeof DAO_NODE_DEFS_BY_TYPE)[DaoType][number]): T2N
     state: def.nodeIndex === 0 ? T2NodeState.SEALING : T2NodeState.LOCKED,
     t1Nodes: cluster.nodes,
     t1Edges: cluster.edges,
+    unlockedEdges: [],
     ioNodeMap: new Map(Object.entries(topology.meridianIoMap)),
     rank: 1,
     level: 1,

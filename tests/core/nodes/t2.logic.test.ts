@@ -14,6 +14,7 @@ function makeT2Node(): T2Node {
     state: T2NodeState.SEALING,
     t1Nodes: new Map(),
     t1Edges: new Map(),
+    unlockedEdges: [],
     ioNodeMap: new Map(),
     rank: 1,
     level: 1,

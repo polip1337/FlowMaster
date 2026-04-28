@@ -2,6 +2,7 @@ import type { T1EdgeMap } from "./T1Edge";
 import type { T1Node } from "./T1Node";
 import type { T2NodeState, T2NodeType } from "./T2Types";
 import type { UnlockCondition, UpgradeCondition } from "../../data/conditions";
+import type { T1EdgeDef } from "../../data/topologies/types";
 
 export interface T2NodeDamageState {
   cracked: boolean;
@@ -16,6 +17,7 @@ export interface T2Node {
   state: T2NodeState;
   t1Nodes: Map<number, T1Node>;
   t1Edges: T1EdgeMap;
+  unlockedEdges: T1EdgeDef[];
   ioNodeMap: Map<string, number>;
   rank: number;
   level: number;

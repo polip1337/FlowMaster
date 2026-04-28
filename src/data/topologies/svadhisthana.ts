@@ -46,6 +46,11 @@ export const svadhisthanaTopology: T1ClusterTopology = {
     { from: 6, to: 9, defaultWeight: 0 },
     { from: 7, to: 10, defaultWeight: 0 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 3, to: 5, defaultWeight: 0 },
+    { from: 8, to: 10, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     ROOT: 0,
     SOLAR: 3,

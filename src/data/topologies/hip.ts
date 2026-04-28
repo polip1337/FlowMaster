@@ -31,6 +31,11 @@ export const hipTopology: T1ClusterTopology = {
     { from: 6, to: 7, defaultWeight: 50 },
     { from: 1, to: 8, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 4, defaultWeight: 0 },
+    { from: 2, to: 3, defaultWeight: 0 },
+    { from: 4, to: 6, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     ROOT: 0,
     SACRAL: 2,

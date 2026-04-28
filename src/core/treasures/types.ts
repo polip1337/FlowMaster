@@ -4,6 +4,7 @@ export enum TreasureType {
   CondensedEssencePill = "condensed_essence_pill",
   RefiningStone = "refining_stone",
   MeridianSalve = "meridian_salve",
+  MeridianRestoration = "meridian_restoration",
   JingDeposit = "jing_deposit",
   DaoFragment = "dao_fragment",
   RecoveryElixir = "recovery_elixir",
@@ -26,6 +27,10 @@ export interface MeridianSalveEffect {
 
 export interface JingDepositEffect {
   jingDepositGain: number;
+}
+
+export interface MeridianRestorationEffect {
+  scarHealApplications: number;
 }
 
 export interface DaoFragmentEffect {
@@ -59,15 +64,21 @@ export interface OpenLatentIoSlotManualEffect {
   slotId: string;
 }
 
+export interface UnlockT1ConnectionManualEffect {
+  mode: "unlock_t1_connection";
+}
+
 export type CultivationManualEffect =
   | TechniqueUnlockManualEffect
   | SealThresholdReductionManualEffect
-  | OpenLatentIoSlotManualEffect;
+  | OpenLatentIoSlotManualEffect
+  | UnlockT1ConnectionManualEffect;
 
 export type TreasureEffect =
   | CondensedEssencePillEffect
   | RefiningStoneEffect
   | MeridianSalveEffect
+  | MeridianRestorationEffect
   | JingDepositEffect
   | DaoFragmentEffect
   | RecoveryElixirEffect

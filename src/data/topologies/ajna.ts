@@ -40,6 +40,11 @@ export const ajnaTopology: T1ClusterTopology = {
     { from: 1, to: 8, defaultWeight: 50 },
     { from: 3, to: 6, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 2, to: 7, defaultWeight: 0 },
+    { from: 0, to: 5, defaultWeight: 0 },
+    { from: 4, to: 9, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     THROAT: 10,
     SAHASRARA: 11

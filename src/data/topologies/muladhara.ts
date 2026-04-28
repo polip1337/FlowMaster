@@ -44,6 +44,11 @@ export const muladharaTopology: T1ClusterTopology = {
     { from: 6, to: 10, defaultWeight: 50 },
     { from: 7, to: 10, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 4, to: 6, defaultWeight: 0 },
+    { from: 5, to: 7, defaultWeight: 0 },
+    { from: 6, to: 8, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     SACRAL: 0,
     L_HIP: 1,

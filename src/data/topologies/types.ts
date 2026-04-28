@@ -28,6 +28,8 @@ export interface T1ClusterTopology {
   nodes: T1NodeDef[];
   /** Logical undirected links; clusterFactory adds both directed edges unless `directed: true`. */
   edges: T1EdgeDef[];
+  /** Optional unlockable adjacency-preserving shortcuts (TASK-168). */
+  potentialExtraEdges?: T1EdgeDef[];
   /** When true, edges are stored only in the given direction (no reverse). */
   directedEdges?: boolean;
   meridianIoMap: Record<string, number>;

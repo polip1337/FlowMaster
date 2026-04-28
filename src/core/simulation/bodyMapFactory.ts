@@ -79,6 +79,7 @@ export function buildInitialGameState(): GameState {
       state: def.id === "MULADHARA" ? T2NodeState.ACTIVE : T2NodeState.LOCKED,
       t1Nodes: cluster.nodes,
       t1Edges: cluster.edges,
+      unlockedEdges: [],
       ioNodeMap: ioNodeMapFromTopology(topology),
       rank: 1,
       level: 1,

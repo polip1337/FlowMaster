@@ -37,6 +37,11 @@ export const binduTopology: T1ClusterTopology = {
     { from: 9, to: 10, defaultWeight: 50 },
     { from: 5, to: 11, defaultWeight: 50 }
   ],
+  potentialExtraEdges: [
+    { from: 0, to: 2, defaultWeight: 0 },
+    { from: 3, to: 5, defaultWeight: 0 },
+    { from: 6, to: 8, defaultWeight: 0 }
+  ],
   meridianIoMap: {
     SAHASRARA: 0
   },
