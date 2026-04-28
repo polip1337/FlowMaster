@@ -96,6 +96,28 @@ export const st = {
   activeBodyRouteNodeIds: [] as string[],
   selectedBodyMapMeridianId: null as string | null,
   galaxyViewEnabled: false,
+  bodyHeat: 12,
+  maxBodyHeat: 100,
+  refiningPulseActive: false,
+  temperingLevel: 1,
+  temperingXp: 0,
+  temperingAction: "Breath Training",
+  daoSelected: null as string | null,
+  daoInsights: 0,
+  daoComprehensionLevel: 0,
+  daoNodes: [] as Array<{ id: string; name: string; state: "LOCKED" | "SEALING" | "ACTIVE" }>,
+  daoSkills: [] as string[],
+  combatEncountered: false,
+  inventoryItems: [
+    { id: "pill_qi", name: "Condensed Essence Pill", quantity: 2, effect: "+280 Qi to target node" },
+    { id: "stone_refine", name: "Refining Stone", quantity: 1, effect: "+1 quality to target node" }
+  ] as Array<{ id: string; name: string; quantity: number; effect: string }>,
+  ingredientItems: [
+    { id: "amber_root", name: "Amber Root", quantity: 5 },
+    { id: "moonleaf", name: "Moonleaf", quantity: 3 }
+  ] as Array<{ id: string; name: string; quantity: number }>,
+  selectedInventoryItemId: null as string | null,
+  inventoryTargetingActive: false,
 
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
@@ -153,3 +175,23 @@ export const galaxyToggleBtnEl = document.getElementById("galaxyViewToggleBtn");
 export const routeMetricsEl = document.getElementById("routeMetrics");
 export const meridianDetailEl = document.getElementById("meridianDetailPanel");
 export const reverseMeridianBtnEl = document.getElementById("reverseMeridianBtn");
+export const bodyHeatGaugeEl = document.getElementById("bodyHeatGauge");
+export const bodyHeatLabelEl = document.getElementById("bodyHeatLabel");
+export const bodyHeatWarningEl = document.getElementById("bodyHeatWarning");
+export const cultivationPanelBodyEl = document.getElementById("cultivationPanelBody");
+export const combatPanelBodyEl = document.getElementById("combatPanelBody");
+export const refiningPulseBtnEl = document.getElementById("refiningPulseBtn");
+export const refiningPulseInfoEl = document.getElementById("refiningPulseInfo");
+export const activeRouteDisplayEl = document.getElementById("activeRouteDisplay");
+export const stopRouteBtnEl = document.getElementById("stopRouteBtn");
+export const temperingLevelEl = document.getElementById("temperingLevel");
+export const temperingXpEl = document.getElementById("temperingXp");
+export const temperingActionEl = document.getElementById("temperingAction");
+export const temperingBonusesEl = document.getElementById("temperingBonuses");
+export const daoSummaryEl = document.getElementById("daoSummary");
+export const daoSelectEl = document.getElementById("daoSelect");
+export const daoNodesEl = document.getElementById("daoNodes");
+export const daoSkillsEl = document.getElementById("daoSkills");
+export const inventoryGridEl = document.getElementById("inventoryGrid");
+export const inventoryDetailEl = document.getElementById("inventoryDetail");
+export const ingredientInventoryEl = document.getElementById("ingredientInventory");

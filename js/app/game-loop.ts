@@ -27,6 +27,7 @@ import { redrawNetwork, updateBonusSummary, updateNodeUI } from './hud.ts';
 import { hideFlowPopup, updateFlowPopupPosition } from './flow-popup.ts';
 import { getNodeState } from './queries.ts';
 import { STATE_META } from './constants.ts';
+import { stepPhase29UiSystems, updatePhase29Panels } from './phase29-panels.ts';
 
 export function processTick() {
   if (st.gameWon) return;
@@ -137,6 +138,7 @@ export function processTick() {
   stepRefinementFromSi(nodeData);
   syncEnergyPoolsFromGameplay(nodeData);
   updateClusterRepairDom(nodeData);
+  stepPhase29UiSystems();
 
   // Visibility depends on unlock state; refresh full network immediately
   // when any node unlocks so newly unlocked nodes/edges stay visible.
@@ -144,6 +146,7 @@ export function processTick() {
   else updateNodeUI();
   if (sourceTotalEl) sourceTotalEl.textContent = fmt(sourceNode.si);
   updateBonusSummary();
+  updatePhase29Panels();
   if (!st.gameWon && st.tickCounter % 50 === 0) {
     const patternState = attr.resonancePatternReady ? "aligned" : "misaligned";
     if (statusEl) statusEl.textContent = `Resonance ${fmt(st.resonance)} (${patternState}) | Gen ${fmt(generation * TICKS_PER_SECOND)} SI/s`;

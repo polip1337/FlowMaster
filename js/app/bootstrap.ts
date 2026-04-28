@@ -31,6 +31,7 @@ import { tick, refreshOpenTooltip } from './game-loop.ts';
 import { bindClusterRepairUi } from './cluster-view.ts';
 import { devSimulateT1Damage } from './dev-tools.ts';
 import { bindBodyMapUi, ensureBodyMapUiState, redrawBodyMapMeridians } from './body-map.ts';
+import { bindPhase29PanelUi, updatePhase29Panels } from './phase29-panels.ts';
 
 // Wire up circular-dep bridges
 bindToggleConnection(toggleConnection);
@@ -40,6 +41,7 @@ bindRedrawNetwork(redrawNetwork);
 bindFlowPopupFns(hideFlowPopup, updateFlowPopupPosition);
 bindEdgeControlsRedraw(redrawNetwork);
 bindBodyMapUi();
+bindPhase29PanelUi();
 
 async function loadBodyTexture() {
   const candidateUrls = [
@@ -212,6 +214,7 @@ setupPixi().then(() => {
   hideFlowPopup();
   redrawNetwork();
   updateBonusSummary();
+  updatePhase29Panels();
   setInterval(tick, TICK_MS);
   setInterval(refreshOpenTooltip, 1000);
 });

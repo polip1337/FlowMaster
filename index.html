@@ -682,6 +682,68 @@
       font-size: 0.8rem;
     }
 
+    .phase29-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+
+    .phase29-chip {
+      display: inline-block;
+      border: 1px solid rgba(139, 105, 20, 0.45);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      font-size: 0.75rem;
+      background: rgba(200, 168, 112, 0.18);
+    }
+
+    .phase29-item-btn {
+      border: 1px solid rgba(139, 105, 20, 0.5);
+      border-radius: 4px;
+      background: rgba(240, 232, 208, 0.72);
+      color: #2a2318;
+      text-align: left;
+      padding: 7px 9px;
+      font-size: 0.78rem;
+    }
+
+    .phase29-item-btn.active {
+      outline: 1.5px solid rgba(139, 105, 20, 0.8);
+      background: rgba(200, 168, 112, 0.34);
+    }
+
+    .heat-gauge {
+      position: relative;
+      border: 1px solid rgba(139, 105, 20, 0.5);
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+      background: rgba(139, 105, 20, 0.12);
+    }
+
+    .heat-gauge::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--heat-fill, 0%);
+      background: var(--heat-color, #2a6a4a);
+      transition: width 0.18s linear, background 0.18s linear;
+    }
+
+    .heat-gauge[data-zone="red"]::before {
+      animation: heatPulse 0.6s infinite alternate;
+    }
+
+    @keyframes heatPulse {
+      from { filter: brightness(0.85); }
+      to { filter: brightness(1.2); }
+    }
+
     .good {
       color: #2a6a4a;
       font-size: 0.8rem;
@@ -807,7 +869,12 @@
       <div class="top-hud">
         <div><strong>刻 Ticks:</strong> <span id="ticks">0</span></div>
         <div><strong>元氣 Core Qi:</strong> <span id="sourceTotal">0.00</span></div>
-        <div><strong>生 Base Gen:</strong> 100 SI / 1000 ticks</div>
+        <div>
+          <strong>Body Heat</strong>
+          <div id="bodyHeatGauge" class="heat-gauge" data-zone="green"></div>
+          <div class="muted" id="bodyHeatLabel">0 / 100 (0%)</div>
+          <div id="bodyHeatWarning" class="muted">Heat stable</div>
+        </div>
         <div class="muted">導引 — guide each meridian's flow every tick.</div>
       </div>
       <div id="zoomHud" class="zoom-hud">Zoom: 1.00x</div>
@@ -829,6 +896,29 @@
           <button class="btn ghost" id="devSpeedToggle">Dev Speed: Off</button>
         </div>
         <div id="routeMetrics" class="route-metrics">Route metrics will appear here.</div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Refining Pulse</div>
+          <button class="btn ghost" id="refiningPulseBtn">Refining Pulse: Off (R)</button>
+          <div class="muted" id="refiningPulseInfo">Qi→YangQi 3:1 | eff 0% | heat 0/tick</div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Active Route</div>
+          <div id="activeRouteDisplay" class="muted">No active circulation route.</div>
+          <button class="btn ghost" id="stopRouteBtn">Stop Route</button>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Body Tempering</div>
+          <div class="phase29-row"><span>Level</span><strong id="temperingLevel">1</strong></div>
+          <div class="phase29-row"><span>XP</span><strong id="temperingXp">0 / 0</strong></div>
+          <label class="muted" for="temperingAction">Training Action</label>
+          <select id="temperingAction" class="form-select form-select-sm">
+            <option>Breath Training</option>
+            <option>Sprint Training</option>
+            <option>Stone Lifting</option>
+            <option>Meditation</option>
+          </select>
+          <div id="temperingBonuses" class="muted">HP +0 | Jing gen +0.00/tick</div>
+        </div>
         <div class="button-row" id="devToolsRow" style="display:none;">
           <button class="btn ghost" id="showAllNodesBtn">Show All Nodes: Off</button>
           <button class="btn ghost" id="editNodesBtn">Node Tools</button>
@@ -863,6 +953,18 @@
           <div id="stateWarnings" class="warning"></div>
         </div>
         <div class="bonus-panel">
+          <details open>
+            <summary class="bonus-title">Cultivation Attributes</summary>
+            <div id="cultivationPanelBody" class="bonus-grid"></div>
+          </details>
+        </div>
+        <div class="bonus-panel">
+          <details open>
+            <summary class="bonus-title">Combat Attributes (press C to unlock)</summary>
+            <div id="combatPanelBody" class="bonus-grid"></div>
+          </details>
+        </div>
+        <div class="bonus-panel">
           <div class="bonus-title">Resonance Pattern Checklist</div>
           <div id="resonanceChecklist" class="bonus-grid"></div>
         </div>
@@ -876,6 +978,30 @@
             Click a body-map meridian to inspect details.
           </div>
           <button class="btn ghost" id="reverseMeridianBtn" data-meridian-id="" disabled>Open Reverse Meridian</button>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Dao Panel</div>
+          <div id="daoSummary" class="muted">No Dao selected.</div>
+          <select id="daoSelect" class="form-select form-select-sm">
+            <option value="">Select Dao...</option>
+            <option value="Earth">Earth</option>
+            <option value="Fire">Fire</option>
+            <option value="Water">Water</option>
+            <option value="Wind">Wind</option>
+            <option value="Void">Void</option>
+            <option value="Life">Life</option>
+            <option value="Sword">Sword</option>
+            <option value="Thunder">Thunder</option>
+          </select>
+          <div id="daoNodes"></div>
+          <div id="daoSkills"></div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Inventory</div>
+          <div id="inventoryGrid" class="bonus-grid"></div>
+          <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>
+          <div class="bonus-title">Ingredients</div>
+          <div id="ingredientInventory"></div>
         </div>
       </div>
     </aside>

@@ -10,6 +10,7 @@ import {
   reverseMeridianBtnEl
 } from "./state.ts";
 import { cubicBezierPoint } from "./utils.ts";
+import { applyInventoryToTier2Target } from "./phase29-panels.ts";
 
 type BodyMapLinkDef = {
   from: string;
@@ -171,6 +172,9 @@ export function setRouteDrawingMode(enabled: boolean) {
 }
 
 export function handleTier2MarkerRouteClick(tier2Id: string): boolean {
+  if (applyInventoryToTier2Target(tier2Id)) {
+    return true;
+  }
   if (!st.symbolModeEnabled || !st.routeDrawingMode) {
     return false;
   }
