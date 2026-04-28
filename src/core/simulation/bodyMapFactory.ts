@@ -81,7 +81,11 @@ export function buildInitialGameState(): GameState {
       meridianSlotIds: Object.keys(topology.meridianIoMap),
       latentT1NodeIds: cluster.latentT1NodeIds,
       flowBonusPercent: 0,
-      nodeDamageState: "healthy",
+      nodeDamageState: {
+        cracked: false,
+        shattered: false,
+        repairProgress: 0
+      },
       refinedResonanceBonusApplied: false
     };
     node.upgradeConditions = computeStandardUpgradeRequirements(node);
@@ -109,8 +113,10 @@ export function buildInitialGameState(): GameState {
     maxBodyHeat: 1000,
     environmentModifier: 1,
     refiningPulseActive: false,
-    bodyHp: 100,
-    bodyMaxHp: 100,
+    hp: 100,
+    maxHp: 100,
+    soulHp: 50,
+    maxSoulHp: 50,
     jingDepletionWarning: false,
     activeRoute: null,
     technique: { ...BASIC_TECHNIQUE },
@@ -146,6 +152,7 @@ export function buildInitialGameState(): GameState {
     },
     specialEventFlags: new Set<string>(),
     tick: 0,
-    immediateConditionCheck: true
+    immediateConditionCheck: true,
+    activeRepairNodeId: null
   };
 }

@@ -48,7 +48,11 @@ function isTerminalT2(nodeId: string): boolean {
 }
 
 function isT2Active(node: T2Node | undefined): boolean {
-  return Boolean(node && (node.state === T2NodeState.ACTIVE || node.state === T2NodeState.REFINED));
+  return Boolean(
+    node &&
+      !node.nodeDamageState.shattered &&
+      (node.state === T2NodeState.ACTIVE || node.state === T2NodeState.REFINED)
+  );
 }
 
 function meridianForDirectedEdge(

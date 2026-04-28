@@ -3,7 +3,11 @@ import type { T1Node } from "./T1Node";
 import type { T2NodeState, T2NodeType } from "./T2Types";
 import type { UnlockCondition, UpgradeCondition } from "../../data/conditions";
 
-export type T2NodeDamageState = "healthy" | "cracked" | "shattered";
+export interface T2NodeDamageState {
+  cracked: boolean;
+  shattered: boolean;
+  repairProgress: number;
+}
 
 export interface T2Node {
   id: string;

@@ -92,6 +92,9 @@ export function getT2PressureForRouting(node: T2Node): number {
 }
 
 export function getT2Resonance(node: T2Node): number {
+  if (node.nodeDamageState.shattered) {
+    return 0;
+  }
   const t1Count = node.t1Nodes.size;
   if (t1Count === 0) {
     return 0;
@@ -108,7 +111,11 @@ export function getT2Resonance(node: T2Node): number {
     activeNodes.reduce((sum, nodeRef) => sum + nodeRef.resonanceMultiplier, 0) / activeNodes.length;
   const typeMultiplier = T2_RESONANCE_TYPE_MULTIPLIER[node.type];
 
-  return activeRatio * qualityFactor * multiplierAvg * typeMultiplier;
+  const resonance = activeRatio * qualityFactor * multiplierAvg * typeMultiplier;
+  if (node.nodeDamageState.cracked) {
+    return Math.min(0.5, resonance);
+  }
+  return resonance;
 }
 
 export function computeStandardUpgradeRequirements(node: T2Node): UpgradeCondition[] {

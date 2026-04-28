@@ -36,7 +36,7 @@ function makeT2Stub(id: string, level: number, rank: number): T2Node {
     meridianSlotIds: [],
     latentT1NodeIds: [],
     flowBonusPercent: 0,
-    nodeDamageState: "healthy",
+    nodeDamageState: { cracked: false, shattered: false, repairProgress: 0 },
     refinedResonanceBonusApplied: false
   };
 }

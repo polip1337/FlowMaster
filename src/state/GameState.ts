@@ -58,9 +58,12 @@ export interface GameState {
   environmentModifier: number;
   /** TASK-079 — player toggle for Manipura Qi→YangQi furnace. */
   refiningPulseActive: boolean;
-  /** TASK-083 — body integrity pool (separate from T1/T2 node damage). */
-  bodyHp: number;
-  bodyMaxHp: number;
+  /** TASK-120 — body HP pool outside combat. */
+  hp: number;
+  maxHp: number;
+  /** TASK-120 — body Soul HP pool outside combat. */
+  soulHp: number;
+  maxSoulHp: number;
   /** TASK-083 — true when total Jing is below 10% of storable Jing capacity. */
   jingDepletionWarning: boolean;
   activeRoute: CirculationRoute | null;
@@ -78,4 +81,6 @@ export interface GameState {
   tick: number;
   /** S-021 — next tick runs full unlock/upgrade condition pass regardless of throttle. */
   immediateConditionCheck: boolean;
+  /** TASK-125 — optional node id receiving direct Jing repair this tick. */
+  activeRepairNodeId: string | null;
 }

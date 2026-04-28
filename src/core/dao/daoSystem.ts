@@ -75,7 +75,11 @@ function buildDaoNode(def: (typeof DAO_NODE_DEFS_BY_TYPE)[DaoType][number]): T2N
     meridianSlotIds: Object.keys(topology.meridianIoMap),
     latentT1NodeIds: cluster.latentT1NodeIds,
     flowBonusPercent: 0,
-    nodeDamageState: "healthy",
+    nodeDamageState: {
+      cracked: false,
+      shattered: false,
+      repairProgress: 0
+    },
     refinedResonanceBonusApplied: false
   };
   node.upgradeConditions = computeStandardUpgradeRequirements(node);

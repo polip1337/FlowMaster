@@ -31,7 +31,7 @@ function minimalT2(id: string, cluster: ReturnType<typeof createT2Cluster>): T2N
     meridianSlotIds: [],
     latentT1NodeIds: cluster.latentT1NodeIds,
     flowBonusPercent: 0,
-    nodeDamageState: "healthy",
+    nodeDamageState: { cracked: false, shattered: false, repairProgress: 0 },
     refinedResonanceBonusApplied: false
   };
 }
@@ -99,17 +99,17 @@ describe("Phase 8 — TASK-082 non-affinity overflow", () => {
 });
 
 describe("Phase 8 — TASK-083 Jing depletion", () => {
-  it("sets warning and drains bodyHp when global Jing is below 10% of capacity budget", () => {
+  it("sets warning and drains hp when global Jing is below 10% of capacity budget", () => {
     let state = buildInitialGameState();
     for (const t2 of state.t2Nodes.values()) {
       for (const t1 of t2.t1Nodes.values()) {
         t1.energy[EnergyType.Jing] = 0;
       }
     }
-    const hp0 = state.bodyHp;
+    const hp0 = state.hp;
     state = simulationTick(state);
     expect(state.jingDepletionWarning).toBe(true);
-    expect(state.bodyHp).toBeLessThanOrEqual(hp0);
+    expect(state.hp).toBeLessThanOrEqual(hp0);
   });
 });
 

@@ -29,6 +29,8 @@ export interface CombatState {
   combatTick: number;
   log: CombatLogEntry[];
   dodgeCharges: number;
+  hp30RollDone: boolean;
+  hp10RollDone: boolean;
 }
 
 export interface CombatTickResult {

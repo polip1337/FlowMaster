@@ -4,6 +4,7 @@ import type { SkillCategory, SkillDef } from "../dao/types";
 import { EnergyType, emptyPool } from "../energy/EnergyType";
 import type { T2Node } from "../nodes/T2Node";
 import { T2NodeState } from "../nodes/T2Types";
+import { applyHpThresholdNodeDamageRolls, crackNode } from "./nodeDamage";
 import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState, Treasure } from "../../state/GameState";
 import type { CombatEndResult, CombatState, CombatTickContext, CombatTickResult } from "./types";
@@ -105,7 +106,7 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
   if (preferred && random() < 0.3) {
     const node = t2Nodes.get(preferred);
     if (node) {
-      node.nodeDamageState = "cracked";
+      crackNode(node);
       combat.log.push({ tick: combat.combatTick, message: `${node.id} was directly cracked by enemy strike.` });
       return;
     }
@@ -113,6 +114,25 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
 
   combat.playerHp = Math.max(0, combat.playerHp - combat.enemy.physicalAttack);
   combat.playerSoulHp = Math.max(0, combat.playerSoulHp - combat.enemy.soulAttack);
+  const hpRatio = combat.playerMaxHp > 0 ? combat.playerHp / combat.playerMaxHp : 0;
+  if (!combat.hp30RollDone && hpRatio <= 0.3) {
+    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random);
+    combat.stabilizationUsed = roll.stabilizationUsed;
+    combat.hp30RollDone = true;
+    if (roll.cracked) {
+      combat.log.push({ tick: combat.combatTick, message: "Low HP shock cracked one active node." });
+    }
+  }
+  if (!combat.hp10RollDone && hpRatio <= 0.1) {
+    const roll = applyHpThresholdNodeDamageRolls(hpRatio, t2Nodes, combat.stabilizationUsed, random);
+    combat.stabilizationUsed = roll.stabilizationUsed;
+    combat.hp10RollDone = true;
+    if (roll.shattered) {
+      combat.log.push({ tick: combat.combatTick, message: "Critical HP collapse shattered one active node." });
+    } else if (roll.stabilizationUsed) {
+      combat.log.push({ tick: combat.combatTick, message: "Bindu stabilization reserve prevented node shatter." });
+    }
+  }
   combat.log.push({
     tick: combat.combatTick,
     message: `Enemy hit for ${combat.enemy.physicalAttack} physical and ${combat.enemy.soulAttack} soul.`
@@ -125,13 +145,17 @@ export function startCombat(state: GameState, enemy: EnemyDef): GameState {
   const rotation = next.playerDao.availableSkillIds.slice(0, 6);
   const playerMaxHp = 100 + next.combatAttributes.physicalDurability;
   const playerMaxSoulHp = 50 + next.combatAttributes.soulDurability;
+  next.maxHp = playerMaxHp;
+  next.maxSoulHp = playerMaxSoulHp;
+  const playerHp = Math.min(Math.max(0, next.hp), playerMaxHp);
+  const playerSoulHp = Math.min(Math.max(0, next.soulHp), playerMaxSoulHp);
 
   next.combat = {
     active: true,
     enemy,
-    playerHp: playerMaxHp,
+    playerHp,
     playerMaxHp,
-    playerSoulHp: playerMaxSoulHp,
+    playerSoulHp,
     playerMaxSoulHp,
     combatEnergyPool: combatPool,
     enemyHp: enemy.hp,
@@ -143,7 +167,9 @@ export function startCombat(state: GameState, enemy: EnemyDef): GameState {
     heatSnapshot: next.bodyHeat,
     combatTick: 0,
     log: [{ tick: 0, message: `Combat started against ${enemy.name}.` }],
-    dodgeCharges: 0
+    dodgeCharges: 0,
+    hp30RollDone: false,
+    hp10RollDone: false
   };
   return next;
 }
@@ -223,7 +249,7 @@ export function rollTreasureDrops(enemy: EnemyDef, random: () => number = Math.r
 function applySevereNodeDamage(state: GameState): void {
   const active = [...state.t2Nodes.values()].filter((node) => node.state === T2NodeState.ACTIVE);
   for (const node of active.slice(0, 2)) {
-    node.nodeDamageState = "cracked";
+    crackNode(node);
   }
   state.globalTrackers.nodeDamageCount += Math.min(2, active.length);
 }
@@ -247,6 +273,9 @@ export function endCombat(
     applySevereNodeDamage(next);
     reduceBodyEnergyByPercent(next, 0.2);
   }
+
+  next.hp = Math.min(next.maxHp, Math.max(0, next.combat.playerHp));
+  next.soulHp = Math.min(next.maxSoulHp, Math.max(0, next.combat.playerSoulHp));
 
   next.combat = null;
   return { state: next, outcome, droppedTreasures };

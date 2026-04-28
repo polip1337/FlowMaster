@@ -36,6 +36,7 @@ import { checkAndUnlockT2Nodes } from "../progression/unlockController";
 import { checkLevelUps } from "../progression/levelController";
 import { checkRankBreakthroughs } from "../progression/rankController";
 import { checkDaoSelectionTrigger, generateDaoInsights, updateDaoNodeProgression } from "../dao/daoSystem";
+import { applyNodeRepairTick } from "../combat/nodeDamage";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -375,6 +376,11 @@ export function simulationTick(state: GameState): GameState {
     next.combatAttributes = attrs.combat;
   }
 
+  next.maxHp = 100 + next.combatAttributes.physicalDurability;
+  next.maxSoulHp = 50 + next.combatAttributes.soulDurability;
+  next.hp = clamp(next.hp, 0, next.maxHp);
+  next.soulHp = clamp(next.soulHp, 0, next.maxSoulHp);
+
   // Step 12: final state counters and trackers
   next.tick += 1;
   const globalTypeTotals = emptyPool();
@@ -405,7 +411,14 @@ export function simulationTick(state: GameState): GameState {
   }
   next.jingDepletionWarning = jingCapacityBudget > 0 && totalJing < jingCapacityBudget * 0.1;
   if (next.jingDepletionWarning && activeT2ForHp > 0) {
-    next.bodyHp = clamp(next.bodyHp - 0.001 * activeT2ForHp, 0, next.bodyMaxHp);
+    next.hp = clamp(next.hp - 0.001 * activeT2ForHp, 0, next.maxHp);
+  }
+
+  applyNodeRepairTick(next.t2Nodes, next.cultivationAttributes.meridianRepairRate, next.activeRepairNodeId);
+
+  if (!next.combat) {
+    next.hp = clamp(next.hp + 0.1, 0, next.maxHp);
+    next.soulHp = clamp(next.soulHp + 0.1, 0, next.maxSoulHp);
   }
 
   if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {

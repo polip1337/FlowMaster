@@ -23,7 +23,7 @@ function makeT2Node(): T2Node {
     meridianSlotIds: [],
     latentT1NodeIds: [],
     flowBonusPercent: 0,
-    nodeDamageState: "healthy",
+    nodeDamageState: { cracked: false, shattered: false, repairProgress: 0 },
     refinedResonanceBonusApplied: false
   };
 }
@@ -55,6 +55,25 @@ describe("T2 logic", () => {
     t2.t1Nodes.set(b.id, b);
 
     expect(getT2Resonance(t2)).toBeCloseTo(1);
+  });
+
+  it("caps cracked resonance at 0.5 and zeros shattered resonance", () => {
+    const t2 = makeT2Node();
+    const a = createT1Node(1, T1NodeType.INTERNAL, false, 100);
+    const b = createT1Node(2, T1NodeType.INTERNAL, false, 100);
+    a.state = T1NodeState.ACTIVE;
+    b.state = T1NodeState.ACTIVE;
+    a.quality = 9;
+    b.quality = 9;
+    t2.t1Nodes.set(a.id, a);
+    t2.t1Nodes.set(b.id, b);
+
+    t2.nodeDamageState.cracked = true;
+    expect(getT2Resonance(t2)).toBeLessThanOrEqual(0.5);
+
+    t2.nodeDamageState.cracked = false;
+    t2.nodeDamageState.shattered = true;
+    expect(getT2Resonance(t2)).toBe(0);
   });
 
   it("completes sealing when enough weighted energy arrives", () => {

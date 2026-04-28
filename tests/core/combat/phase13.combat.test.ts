@@ -152,7 +152,7 @@ describe("phase 13 combat system", () => {
 
     expect(afterLossEnergy).toBeCloseTo(beforeLossEnergy * 0.8, 5);
     expect(
-      [...lossResult.state.t2Nodes.values()].filter((n) => n.nodeDamageState === "cracked").length
+      [...lossResult.state.t2Nodes.values()].filter((n) => n.nodeDamageState.cracked).length
     ).toBeGreaterThan(0);
   });
 
@@ -173,7 +173,7 @@ describe("phase 13 combat system", () => {
     });
 
     const target = started.t2Nodes.get("AJNA");
-    expect(target?.nodeDamageState).toBe("cracked");
+    expect(target?.nodeDamageState.cracked).toBe(true);
     expect(combat.playerHp).toBe(combat.playerMaxHp);
   });
 

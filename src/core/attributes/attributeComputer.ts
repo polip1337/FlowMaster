@@ -60,6 +60,9 @@ export function computeAllAttributes(state: GameState): {
   const combat = createEmptyCombatAttributes();
 
   for (const node of state.t2Nodes.values()) {
+    if (node.nodeDamageState.shattered) {
+      continue;
+    }
     if (node.state !== T2NodeState.ACTIVE && node.state !== T2NodeState.REFINED) {
       continue;
     }
@@ -67,7 +70,8 @@ export function computeAllAttributes(state: GameState): {
     const resonance = getT2Resonance(node);
     const rankMul = RANK_MULTIPLIERS[Math.max(0, node.rank - 1)] ?? 1;
     const levelMul = LEVEL_MULTIPLIERS[Math.max(0, node.level - 1)] ?? 1;
-    const scalar = resonance * rankMul * levelMul;
+    const damageScalar = node.nodeDamageState.cracked ? 0.5 : 1;
+    const scalar = resonance * rankMul * levelMul * damageScalar;
 
     applyCultivationPartial(cultivation, base.cultivation, scalar);
     applyCombatPartial(combat, base.combat, scalar);
