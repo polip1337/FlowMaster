@@ -36,9 +36,9 @@ Tasks are grouped into phases. Each phase has a goal milestone. Tasks within a p
 # PHASE 0 — PROJECT FOUNDATION
 *Goal: runnable empty project with all constants and math helpers*
 
-**TASK-001** Set up TypeScript project with `/src/core`, `/src/state`, `/src/ui`, `/src/data`, `/src/utils`, `/tests` directory structure. Configure tsconfig, eslint, vitest. All core logic must be importable without DOM.
+**TASK-001** Adapt the project to `/src/core`, `/src/state`, `/src/ui`, `/src/data`, `/src/utils`, `/tests` directory structure. Configure tsconfig, eslint, vitest. All core logic must be importable without DOM.
 
-**TASK-002** Create `src/core/constants.ts` with all simulation constants: TICK_RATE=10, DELTA_T=0.1, T1_MAX_FLOW_RATE=0.01, T1_BASE_SOURCE_RATE=0.5, T1_SECONDARY_SOURCE_RATE=0.05, BETA_PORT=0.15, JING_STRUCTURE_CONST=20000, PURITY_SCALE_CONST=200000, FLOW_BONUS_K=4.0, SCALE_W=8.0, RANK_MULTIPLIERS=[1,2,3.5,6,10,16,25,38,60], LEVEL_MULTIPLIERS=[1,1.12,1.26,1.41,1.58,1.78,2,2.24,2.51].
+**TASK-002** Create `src/core/constants.ts` with all simulation constants: TICK_RATE=10, DELTA_T=0.1, T1_MAX_FLOW_RATE=0.01, T1_BASE_SOURCE_RATE=0.5, T1_SECONDARY_SOURCE_RATE=0.05, BETA_PORT=0.15, JING_STRUCTURE_CONST=20000, PURITY_SCALE_CONST=200000, FLOW_BONUS_K=4.0, SCALE_W=8.0, RANK_MULTIPLIERS=[1,2,3.5,6,10,16,25,38,60], LEVEL_MULTIPLIERS=[1,1.12,1.26,1.41,1.58,1.78,2,2.24,2.51], move any currents constants to this file.
 
 **TASK-003** Create `src/core/energy/EnergyType.ts` with `EnergyType` enum (Qi, Jing, YangQi, Shen), `EnergyPool = Record<EnergyType, number>`, `emptyPool()`, `totalEnergy(pool)`, `addPools(a,b)`, `scaledPool(pool, factor)` helpers.
 
@@ -521,21 +521,10 @@ Tasks are grouped into phases. Each phase has a goal milestone. Tasks within a p
 # PHASE 27 — UI: CLUSTER VIEW
 *Goal: player can see and interact with any T1 cluster*
 
-**TASK-176** Create `ClusterView` canvas component. Renders T1 nodes as circles positioned per topology geometry (store x,y coords per node in topology def). Node fill = energy/capacity. Glow intensity = quality. LOCKED = dark grey. UNSEALED = faint. ACTIVE = full color.
 
 **TASK-177** Implement per-T1-node color blending: fill color blends energy types proportionally. Qi = #6ab4ff, Jing = #c8a830, YangQi = #ff6420, Shen = #c890ff. Use weighted CSS gradient or canvas fillStyle interpolation.
 
-**TASK-178** Render T1 edges as directed arrows. Thickness = weight/100 × maxEdgeThickness. Animate flow particles along edge when `actualFlow > 0` this tick. Particle speed proportional to flow rate. Color = dominant energy type.
-
-**TASK-179** Implement edge weight interaction: click an edge to select it. Selected edge shows a slider (0–100). Drag or type to set weight. Dispatch setEdgeWeight action. Show current flow rate (units/tick) as a badge on the edge.
-
-**TASK-180** Render IO node badges: IO_IN nodes have an inward arrow badge, IO_OUT have outward, IO_BIDIR have a bidirectional arrow. Badge color changes per current tick direction.
-
 **TASK-181** Render quality ring on each T1 node: thin arc (0°–360°) showing refinementPoints/nextThreshold as progress. Full ring at max quality becomes a star border.
-
-**TASK-182** Implement T1 node tooltip on hover: show id, type, state, energy by type, capacity, quality, refinementPoints/threshold, lifetimeFlowOut, any special role (sourceNode, furnaceNode, stabilizationReserve, passiveAbsorber).
-
-**TASK-183** Render cluster T2 header: above cluster canvas, show T2 node name, state badge, rank/level, resonance bar, aggregate pressure bar, total energy/capacity.
 
 **TASK-184** Implement active node repair toggle: when a T2 node has damaged T1 nodes, show a "Direct Jing" toggle button. When active, renders a Jing-colored pulsing overlay on damaged T1 nodes and activates active repair logic.
 
@@ -544,13 +533,7 @@ Tasks are grouped into phases. Each phase has a goal milestone. Tasks within a p
 # PHASE 28 — UI: BODY MAP
 *Goal: player sees the full 24-node body and can navigate it*
 
-**TASK-185** Create `BodyMapView` component. SVG or Canvas. Renders a human body silhouette background. Places all 24 T2 node circles at their displayPosition coordinates. Node size = rank. Node brightness = resonance. Node color = primary energy affinity.
-
-**TASK-186** Render meridians on body map: lines connecting T2 nodes. Line width = log scale of W. Opacity = purity. Color = type affinity (or neutral white). Animate flow particles in canonical direction when established. Reverse meridians: second parallel line offset 4px.
-
 **TASK-187** Render unestablished meridian connections as dotted grey lines (potential connections not yet opened).
-
-**TASK-188** Implement T2 node click handler: clicking a T2 node opens its ClusterView in a side panel. Hovering shows tooltip (name, state, rank, level, resonance, pressure).
 
 **TASK-189** Implement route drawing mode: when player activates "Draw Route" mode, clicking T2 nodes adds them to sequence. Show green dotted overlay path. Show real-time metrics (efficiency, bottleneck, heat). Close-loop click shows Confirm button.
 
@@ -562,8 +545,6 @@ Tasks are grouped into phases. Each phase has a goal milestone. Tasks within a p
 
 # PHASE 29 — UI: HUD AND PANELS
 *Goal: all critical game state visible at a glance*
-
-**TASK-192** Create global energy HUD: four colored bars (Qi, Jing, YangQi, Shen). Each shows current/max, generation rate (+X/tick), and a trend arrow (up/down/stable based on last 10 ticks).
 
 **TASK-193** Create body heat indicator: thermometer or arc gauge. Color zones: green (<40%), yellow (40–65%), orange (65–85%), red (>85%). Pulsing animation at critical. Shows "CRITICAL — Node Damage Risk" text at >85%.
 

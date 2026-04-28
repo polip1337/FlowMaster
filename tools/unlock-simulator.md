@@ -1,6 +1,6 @@
 # Unlock Simulator
 
-Standalone CLI tool for estimating full-run unlock time on arbitrary layouts (`nodes.js` style).
+Standalone CLI tool for estimating full-run unlock time on arbitrary layouts (`nodes.ts` or legacy `window.*` script layout).
 
 ## What it does
 
@@ -19,12 +19,12 @@ Standalone CLI tool for estimating full-run unlock time on arbitrary layouts (`n
 ## Usage
 
 ```bash
-node tools/unlock-simulator.js --layout nodes.js
+node tools/unlock-simulator.js --layout nodes.ts
 ```
 
 Options:
 
-- `--layout <path>`: layout file path (default: `nodes.js`)
+- `--layout <path>`: layout file path (default: `nodes.ts`)
 - `--strategies cheapest,expensive,random`: comma-separated list
 - `--random-runs <n>`: number of random strategy runs (default: `50`)
 - `--max-ticks <n>`: stop each run after this many ticks (default: `50000000`)

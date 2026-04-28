@@ -1,0 +1,665 @@
+# CULTIVATION SIMULATOR — ADVERSE ANALYSIS & SUPPLEMENTARY TASK LIST
+
+---
+
+## ADVERSE ANALYSIS
+
+The following issues were identified across the original 245 tasks, grouped by severity and category.
+
+---
+
+### CATEGORY A — SIMULATION CORRECTNESS BUGS
+*These will cause wrong game behavior silently.*
+
+**A1 — IO_OUT reservation race condition (TASK-067/069)**
+Steps 2 and 4 are coupled: step 2 computes how much the meridian withdraws from IO_OUT, but step 3 (T1 weight flows) runs between them and may move energy AWAY from IO_OUT before step 4 tries to withdraw it. Step 4 will then under-deliver what step 2 promised. The committed withdrawal must be reserved (locked) at the IO_OUT node before T1 flows run.
+
+**A2 — IO_BIDIR direction conflict (TASK-058 vs TASK-053)**
+TASK-058 resolves BIDIR direction using T2 aggregate pressure (P_T2). TASK-053 computes passive flow using local IO node pressure (P_local). These two pressure values can point in opposite directions: the T2 aggregate can be higher on one side while the specific IO node is lower. The direction resolution and flow computation must both use the same pressure source — local IO pressure only.
+
+**A3 — T1 multi-edge over-drain not guarded (TASK-013)**
+A node with N outgoing edges at weight 100 drains N% of its energy per tick. The snapshot prevents dest overflow but does NOT prevent the source from being collectively drained of 4-5% in one tick. At high edge counts (Anahata has 6 inner hex edges, Manipura has 10+ spokes), this causes extreme oscillation. The total outgoing flow from any single node per tick must be capped at 1% of its start-of-tick energy.
+
+**A4 — T1 unlock predecessor graph never built (TASK-016/044)**
+TASK-016 says "all predecessors in cluster graph are ACTIVE" but no task constructs the predecessor set from `unlockAfter[]` at cluster creation time. The clusterFactory (TASK-044) does not compute or cache topological unlock order. At runtime, every state-check would need to traverse the full edge graph, and no such traversal is specified.
+
+**A5 — Muladhara initial state contradiction (TASK-063)**
+TASK-063 sets Muladhara T2 state to ACTIVE at initialization, but TASK-044 creates all T1 nodes as LOCKED (except the source node as UNSEALED). Muladhara is ACTIVE with all its T1 nodes LOCKED — meaning resonance = 0, pressure = 0, and no attributes. No task defines the correct initial T1 state for Muladhara specifically.
+
+**A6 — Overflow pressure not wired into passive flow (TASK-082 + TASK-053)**
+TASK-082 defines an overflow pressure formula for non-affinity energy types. TASK-053 defines passive meridian flow using P_local(io_out). No task adds the overflow pressure to the effective IO pressure before computing flow. The mechanic is defined but never connected.
+
+**A7 — Great Circulation Shen bonus violates I/O boundary (TASK-088)**
+"Shen generation +0.003/tick at Anahata IO_IN" adds energy directly to an IO_IN T1 node. IO_IN nodes are exclusively receivers from meridians — they cannot receive from source generation. This bypasses the player's weight routing and violates the core architectural rule. The Shen should be added to a non-IO INTERNAL node in Anahata instead.
+
+**A8 — Ankle mini-circulation topology error (TASK-042/089)**
+The Ankle topology defines upper loop UL_A(0), UL_B(1), UL_C(2) as a ring and lower loop LL_A(3), LL_B(4), LL_C(5) as a ring. For internal mini-circulation to work, each loop must form a directed ring. But UL_A (id=0) is IO_BIDIR (→KNEE), meaning energy entering from Knee flows in, not around the ring. The mini-circulation requires the ring edges to be defined in BOTH directions. The topology as specified only mentions the bridge UL_B↔LL_B but does not specify directed ring edges for the loops themselves.
+
+---
+
+### CATEGORY B — MISSING TYPES AND INTERFACES
+*These will cause immediate TypeScript compilation errors.*
+
+**B1 — CultivationTechnique type never defined**
+Referenced in TASK-054 (active meridian flow), TASK-064 (GameState.technique), and TASK-087 (circulation execution). Never defined in any task. The fields (strength: number, name: string, rankRequirement: number) must be specified.
+
+**B2 — TreasureDropDef type never defined**
+TASK-110 puts `dropTable: TreasureDropDef[]` on EnemyDef. TASK-127 defines TreasureType but never defines TreasureDropDef (which needs: treasureType, probability, quantityRange, tierMin/Max).
+
+**B3 — hp/soulHp absent from GameState (TASK-064 → TASK-120)**
+TASK-120 adds `hp` and `soulHp` to GameState but TASK-064 defines the GameState interface without them. Any code compiled against TASK-064's interface before TASK-120 runs will type-error when TASK-120 adds the fields. The fields must be in the original interface.
+
+**B4 — Circular type dependency T2Node ↔ Conditions**
+TASK-020 (T2Node) references UnlockCondition and UpgradeCondition. TASK-022 (conditions) likely imports T2Node for condition evaluation. This creates a circular import. A shared `src/core/types/index.ts` barrel file exporting all primitives (EnergyType, enums, basic interfaces) must be established first.
+
+**B5 — T2 REFINED state never triggered**
+T2NodeState includes REFINED as a valid state. No task in any phase defines what causes a node to enter REFINED state, what REFINED means differently from ACTIVE, or how it affects resonance/attributes. The state is dead code as written.
+
+**B6 — Topology node x,y positions not in topology definition**
+TASK-176 says "positioned per topology geometry (store x,y coords per node in topology def)" but no topology task (TASK-028 through TASK-043) adds x,y coordinates to any node definition. Without these, the cluster renderer has no data to position nodes.
+
+---
+
+### CATEGORY C — ARCHITECTURAL FLAWS
+*These will cause the project to be rearchitected mid-build.*
+
+**C1 — No state management / React binding strategy**
+TASK-001 specifies a TypeScript + React project. TASK-006 creates a SimulationClock with onTick(). TASK-065 creates a pure simulationTick() function. No task connects the clock to React state, defines whether to use Zustand/Redux/Jotai/Context, or specifies how the UI re-renders on each tick. This is the most critical architectural gap — without it, all UI tasks have no agreed contract for reading state.
+
+**C2 — Pure function + deep copy at 10Hz**
+TASK-065 specifies simulationTick as a pure function returning new state. With 240+ T1 nodes (each with EnergyPool of 4 floats), 24 T2 nodes, 27+ meridians, all their training accumulators — a full structural copy every 100ms creates severe GC pressure. In a browser, GC pauses will interrupt the setInterval and cause timing drift. No task addresses whether to use Immer (structural sharing), mutable updates with manual diffing, or a Web Worker for the simulation.
+
+**C3 — setInterval is unsuitable for a game loop**
+TASK-006 uses setInterval at TICK_RATE. Browsers enforce a minimum 4ms interval and the actual interval jitters under load, making timing unreliable. TASK-245 mentions tick rate multipliers (1×, 2×, 5×, 10×) but the setInterval approach cannot cleanly support this — 10× would require executing 100 ticks/second, which is beyond setInterval's reliability. No task defines the actual loop strategy.
+
+**C4 — No topology data validation layer**
+24 topologies are hand-authored with node IDs, edge lists, and I/O mappings. Any typo (wrong ID in unlockAfter[], meridianIoMap pointing to non-existent node) silently corrupts the simulation. No task validates topology integrity at load time.
+
+**C5 — Map serialization incompatible with JSON.stringify**
+TASK-213 serializes GameState to JSON but GameState contains Map<string,T2Node>, Map<number,T1Node>, Map<string,Meridian> etc. JSON.stringify converts Maps to empty objects `{}`. No task specifies how Maps are serialized (replacer function, Array.from, or a wrapper library). This will cause silent data loss on every save.
+
+**C6 — No event bus / observer defined**
+Multiple systems need to react to events: UI responds to T1StateChangeEvent, TutorialState responds to UnlockEvent, InsightLibrary responds to LevelUpEvent, UI responds to BreakthroughEvent. No task defines an event bus or observer pattern. Without this, every system that fires events must know about every system that listens — tight coupling that will cause circular dependencies.
+
+---
+
+### CATEGORY D — FORWARD DEPENDENCIES AND ORDERING ERRORS
+*These will cause tasks to fail because they reference systems built later.*
+
+**D1 — TASK-083 references HP before HP exists**
+TASK-083 (Phase 8) applies HP damage from Jing depletion. HP is defined in TASK-120 (Phase 14). Phase 8 runs before Phase 14. The simulation tick will try to modify a field that doesn't exist for 6 phases.
+
+**D2 — TASK-119 (enemy node targeting) before TASK-121 (node damage)**
+TASK-119 describes enemies cracking nodes. TASK-121 defines what cracking means. They are in the same phase (Phase 13/14) but wrong order. TASK-119 must call functions defined in TASK-121 and should be numbered after it.
+
+**D3 — TASK-100 is UI work inside a logic phase**
+TASK-100 (Phase 11) says "add to upgrade requirements UI a Reverse Meridians Available section." Phase 11 is progression logic. This task belongs in Phase 28 or 29 (UI phases).
+
+**D4 — Jing depletion in Phase 8 references maxBodyHeat from Phase 7**
+TASK-083 references total Jing capacity as "total Jing capacity across all nodes." But T2 capacity is scaled by FlowBonus (Phase 5) and qualityMultiplier (Phase 1). The "total Jing capacity" is not a simple sum — it requires computing per-type soft caps (TASK-082) which is also Phase 8. The ordering within Phase 8 matters and is not specified.
+
+---
+
+### CATEGORY E — UNDERSPECIFIED MECHANICS
+*These will cause the implementing agent to make arbitrary decisions that conflict with the GDD.*
+
+**E1 — No enemy encounter trigger system**
+TASK-113 initializes combat from `startCombat(state, enemy)`. Nothing defines HOW the player encounters an enemy. Is there a world map? Random encounters during cultivation? Manual "Enter Combat" from a zone list? No task creates the encounter trigger. Without it, combat cannot be entered.
+
+**E2 — Formation Arrays require a "rest location" that doesn't exist**
+TASK-130 says Formation Arrays are placed at "player's rest location." No task in the entire list defines a rest location, a home base, a world system, or any location-based infrastructure. Formation Arrays cannot be implemented without this.
+
+**E3 — DaoComprehensionChallenge event never created**
+TASK-099 says Sahasrara rank advancement requires a "DaoComprehensionChallenge event (flag set by special combat/event)." Neither Phase 12 (Dao) nor Phase 13 (Combat) includes a task that creates or fires this event. The Rank 9 cap for Sahasrara is permanently blocked as written.
+
+**E4 — Companion body initialization undefined (TASK-158/159)**
+The companion has `cultivation (GameState subset — own T2 nodes and meridians)`. What is a "GameState subset"? Does the companion have all 24 T2 nodes? A fixed subset? The same Dao? The same topology? The companion body is never initialized, making TASK-159 (companion simulation) impossible to implement.
+
+**E5 — Active repair Jing routing to shattered nodes (TASK-124/125)**
+TASK-124 computes repair progress from "jingInNode/node.capacity." A shattered T2 node is LOCKED and treated as inactive — its T1 nodes are set to UNSEALED (TASK-123). UNSEALED T1 nodes with all weights at zero (because edges were last set for routing away from the node) will have no Jing flowing in. No task describes how Jing reaches the shattered node's T1 cluster for repair.
+
+**E6 — IO node default weights when receiving (TASK-028 et al.)**
+Each topology defines default weights for outgoing edges. But IO_BIDIR nodes sometimes act as IO_IN (receiving from a meridian). The energy that arrives at the IO_IN T1 node must then be routed inward by the player's weight settings — but what weights? The default weights on edges FROM the IO node (outward into the cluster) are defined. What is the initial weight on those edges for a new, freshly-receiving IO_IN node? This is never stated. The player may have set weights for export (IO_OUT mode) that are wrong for distribution (IO_IN mode).
+
+**E7 — TASK-102 and TASK-103 contradict each other**
+TASK-102 says it creates "Dao node topologies" but ends by describing "each Dao has 5–7 Dao nodes with their own T1 cluster topologies." TASK-103 says "define skills for each Dao" but TASK-102 also mentions skills. The boundary between what 102 and 103 implement is ambiguous. Additionally, 8 Daos × 5–7 Dao nodes = 40–56 new T1 cluster topologies to design — buried as a single task. This is a massive underestimate.
+
+**E8 — Tribulation pausing cultivation mid-heat (TASK-146)**
+"Cultivation pauses" during a tribulation. But heat dissipation (TASK-070) is part of the simulation tick. If the tick is paused, heat stops dissipating. If the player entered tribulation while running Yang Qi, their heat level freezes during the fight, then heat resumes post-tribulation at whatever level it was, possibly triggering immediate node damage. No task addresses heat state during tribulation pause.
+
+**E9 — Calendar "once per in-game day" mechanism unspecified (TASK-155)**
+"Add advanceCalendar called from tick (once per in-game day)." One in-game day = 720 real seconds = 7,200 ticks. No task specifies how the tick function knows it's been 7,200 ticks (a modulo check on tick counter), or whether advancing by fast-forward multiplier accelerates the calendar. Unspecified.
+
+**E10 — Sect selection trigger missing (TASK-137–140)**
+Dao selection has an explicit trigger event (TASK-104). Sect selection has no equivalent. TASK-140 says "player can join one Sect (irreversible)" but no task creates the selection UI, trigger condition, or the moment it is presented to the player.
+
+**E11 — Multiple saved circulation routes not supported**
+GameState has `activeRoute: CirculationRoute | null` — one route at a time. No task adds a route library (saved named routes the player can swap between). Late-game players who use different routes for different goals (Shen accumulation, Yang Qi training, pre-combat heating) have no way to save their configurations.
+
+---
+
+### CATEGORY F — PERFORMANCE AND STABILITY
+*These will cause the game to become unplayable under normal conditions.*
+
+**F1 — Condition evaluation at 240 evaluations/second**
+TASK-075 evaluates unlock conditions for all LOCKED nodes and upgrade conditions for all ACTIVE nodes every tick. At full 24 nodes × 10 ticks/second = 240 evaluations/second. Some conditions (energy_accumulated scanning all nodes) are O(N) each. No task throttles this evaluation.
+
+**F2 — No NaN/infinity guards**
+With 240+ T1 nodes each performing float arithmetic simultaneously, a single division-by-zero (e.g., getT2Pressure when capacity=0 before T1 nodes have any quality) will produce NaN. NaN propagates multiplicatively — one NaN in one node's pressure will corrupt meridian flow, then adjacent nodes, then attributes. No task adds defensive guards.
+
+**F3 — Fast-forward requires multi-tick per interval, not shorter interval**
+TASK-245 mentions 10× speed. If implemented as setInterval at 10× the rate, ticks would need to fire at 100Hz. Browser setInterval cannot reliably fire at this rate. The correct approach is to execute N ticks per interval call. No task addresses this implementation detail, and TASK-006's SimulationClock has no multi-tick support.
+
+**F4 — Meridian ID collision for reverse meridians**
+TASK-047 creates meridian with id like `'muladhara→svadhisthana'`. TASK-057 creates the reverse with id `'svadhisthana→muladhara'`. This convention works IF all meridian IDs are unique. But no task creates a centralized ID generation function. Different tasks creating meridians may use different separator characters or ordering conventions, causing silent ID collisions.
+
+---
+
+### CATEGORY G — MISSING FEEDBACK SYSTEMS
+*The player cannot understand what is happening.*
+
+**G1 — No notification/event display system**
+Many tasks fire events (UnlockEvent, LevelUpEvent, BreakthroughEvent, NodeDamageEvent, StateChangeEvent). No task creates a UI notification queue to display them to the player. Events are emitted into a void.
+
+**G2 — No routing feedback when energy cannot flow**
+If a player sets all weights routing toward IO_OUT but the IO_OUT node is full (at capacity from unemptied energy), energy backs up with no visual indication. Similarly if IO_IN fills up and the meridian can no longer inject. No task defines a "routing blocked" indicator.
+
+**G3 — No undo for weight changes**
+A player who accidentally drags an edge weight to 0 (cutting off a critical path) or sets all outgoing weights incorrectly has no recovery mechanism. No task implements undo for weight changes. Given that weight management is the primary moment-to-moment interaction, this is a significant usability gap.
+
+---
+
+## SUPPLEMENTARY TASK LIST
+
+Tasks are numbered S-001 onward and reference the original tasks they fix.
+
+---
+
+# SUPPLEMENT PHASE A — ARCHITECTURAL PREREQUISITES
+*Must be done before any other code is written. Fixes C1, C2, C3, C4, C6.*
+
+**S-001 — Define shared primitive types barrel**
+*Fixes B4, circular dependency*
+Create `src/core/types/primitives.ts` exporting only pure data types with no imports from other project files: EnergyType, EnergyPool, T1NodeType, T1NodeState, T2NodeType, T2NodeState, MeridianState, and all enum types. All other files import enums from here, not from each other. This breaks the circular dependency between T2Node and Conditions.
+
+**S-002 — Define CultivationTechnique type**
+*Fixes B1*
+Create `src/core/simulation/CultivationTechnique.ts`:
+```typescript
+export interface CultivationTechnique {
+  id: string;
+  name: string;
+  strength: number;       // 0.5–2.0 by rank
+  rankRequirement: number;
+  description: string;
+}
+export const BASIC_TECHNIQUE: CultivationTechnique = { id:'basic', name:'Basic Circulation', strength:0.5, rankRequirement:1, description:'...' };
+export const TECHNIQUES: CultivationTechnique[] = [ /* one per rank */ ];
+```
+Add `technique: CultivationTechnique` to GameState. Remove the ambiguous reference in TASK-064 and replace with this definition.
+
+**S-003 — Choose and implement state management strategy**
+*Fixes C1 — must be decided before any UI task*
+Decide on one of: Zustand store wrapping GameState, Redux Toolkit with GameState as a slice, or a custom pub/sub where SimulationClock calls a setState callback. Document the choice in `src/state/README.md`. Create the store/context with a `useGameState()` hook that UI components use. The store must hold the current GameState and expose a `dispatch(action)` method that the simulation tick calls after each step.
+
+**S-004 — Design and implement simulation loop architecture**
+*Fixes C2, C3, F3*
+Replace the setInterval approach with a proper game loop in `src/core/simulation/GameLoop.ts`:
+```typescript
+class GameLoop {
+  private accumulator: number = 0;
+  private lastTime: number = 0;
+  private speedMultiplier: number = 1;   // 1, 2, 5, 10
+  
+  start(): void {
+    requestAnimationFrame(this.frame.bind(this));
+  }
+  
+  frame(timestamp: number): void {
+    const elapsed = timestamp - this.lastTime;
+    this.lastTime = timestamp;
+    this.accumulator += elapsed * this.speedMultiplier;
+    
+    const stepMs = 1000 / TICK_RATE;
+    let maxTicksPerFrame = 20;   // cap; prevents spiral of death
+    while (this.accumulator >= stepMs && maxTicksPerFrame-- > 0) {
+      this.store.dispatch(simulateTick());
+      this.accumulator -= stepMs;
+    }
+    requestAnimationFrame(this.frame.bind(this));
+  }
+  
+  setSpeed(multiplier: 1|2|5|10): void { this.speedMultiplier = multiplier; }
+}
+```
+This correctly handles fast-forward (multiple ticks per frame), prevents spiral of death, and uses the browser's animation scheduler instead of setInterval. Replace TASK-006's SimulationClock with this.
+
+**S-005 — Decide mutable vs immutable state update strategy**
+*Fixes C2, performance*
+Given GC concerns with deep-copying 240+ nodes at 10Hz, adopt Immer for structural sharing. Add `immer` to dependencies. Wrap `simulationTick` with `produce()` from Immer, allowing mutable-style code inside while producing a new reference outside. Document this in `src/core/simulation/tick.ts` file header. All tick steps (TASK-066 through TASK-076) must be written as Immer draft mutations, not as pure array/object spreads.
+
+**S-006 — Implement event bus**
+*Fixes C6*
+Create `src/core/events/EventBus.ts`:
+```typescript
+type Handler<T> = (event: T) => void;
+class EventBus {
+  private handlers: Map<string, Handler<any>[]> = new Map();
+  emit<T>(eventType: string, event: T): void { ... }
+  on<T>(eventType: string, handler: Handler<T>): () => void { /* returns unsub */ }
+}
+export const gameBus = new EventBus();
+```
+Define event type constants: `NODE_ACTIVATED`, `MERIDIAN_STATE_CHANGED`, `LEVEL_UP`, `RANK_BREAKTHROUGH`, `NODE_DAMAGED`, `NODE_REPAIRED`, `DAO_SELECTED`, `CODEX_ENTRY_ADDED`, `COMBAT_STARTED`, `COMBAT_ENDED`, `TREASURE_DROPPED`. All systems emit to and subscribe from gameBus. No direct cross-module function calls for side effects.
+
+**S-007 — Implement topology data validator**
+*Fixes C4*
+Create `src/data/topologies/validateTopology.ts` with `validateTopology(t: T1ClusterTopology): ValidationError[]`. Checks: all unlockAfter IDs reference valid node IDs in the topology; all meridianIoMap node IDs exist and are IO type; no duplicate node IDs; edges reference valid node IDs; at most one isSourceNode=true; yangQiConversionNode/passiveAbsorberNode/stabilizationReserveNode IDs exist if set. Call at application startup in dev mode, throw on any error.
+
+**S-008 — Add x,y coordinates to all topology node definitions**
+*Fixes B6*
+Update T1NodeDef in TASK-027 to include `position: { x: number, y: number }` (normalized 0–1 within a bounding box). Update all 24 topology files (TASK-028 through TASK-043) to include positions. Positions should reflect the actual visual layout described in the GDD for each cluster shape. These coordinates are the only positional truth for the cluster renderer.
+
+---
+
+# SUPPLEMENT PHASE B — DATA MODEL FIXES
+*Fixes B3, B5, A5, E6.*
+
+**S-009 — Fix GameState interface to include all fields upfront**
+*Fixes B3, D1*
+Modify TASK-064 to include from the start:
+```typescript
+export interface GameState {
+  // ... existing fields ...
+  hp: number;
+  maxHp: number;      // 100 + physicalDurability (recomputed on attribute change)
+  soulHp: number;
+  maxSoulHp: number;  // 50 + soulDurability
+  ingredientInventory: Ingredient[];
+  alchemySession: AlchemySession | null;
+  savedRoutes: CirculationRoute[];   // named library of saved routes
+  encounterQueue: EnemyDef[];        // pending encounters
+  worldLocation: WorldLocation;
+  sectMembership: SectId | null;
+  bodyTemperingState: BodyTemperingState;
+  insightLibrary: InsightLibrary;
+  celestialCalendar: CelestialCalendar;
+  companionState: CompanionState | null;
+  phantomNodes: PhantomNode[];
+}
+```
+All subsequent tasks read hp/soulHp from this interface without needing to retroactively modify it.
+
+**S-010 — Define T2 REFINED state trigger**
+*Fixes B5*
+Add to TASK-098 (rank breakthrough) or as a new condition: a T2 node enters REFINED state when it reaches Rank 5+ AND has all T1 nodes at quality 8+. REFINED state grants: resonanceMultiplier on ALL T1 nodes within the cluster ×1.15 (stacks with individual node multipliers). This uses the existing state enum and gives it meaning. Document the REFINED state trigger in t2Logic.ts.
+
+**S-011 — Define TreasureDropDef type**
+*Fixes B2*
+Add to `src/core/treasures/types.ts`:
+```typescript
+export interface TreasureDropDef {
+  treasureType: TreasureType;
+  probability: number;       // 0–1, rolled independently
+  quantityMin: number;
+  quantityMax: number;
+  tierMin: number;           // quality tier of the drop (1–5)
+  tierMax: number;
+  energyTypeFilter?: EnergyType;  // for typed pills, null = random
+}
+```
+Update TASK-110 to reference this type in EnemyDef. Update TASK-136 to add an `ingredientDropTable: IngredientDropDef[]` to EnemyDef as well, with a parallel type definition.
+
+**S-012 — Fix Muladhara initial T1 state**
+*Fixes A5*
+Modify TASK-063 (bodyMapFactory): when Muladhara is initialized as ACTIVE, its T1 cluster must be partially seeded. Set the source node P_N(0) to ACTIVE (not UNSEALED), with energy = 30% of capacity. Set all other T1 nodes to LOCKED. Update TASK-044 (clusterFactory) to accept an optional `initialSeedNode?: {id: number, energyFraction: number}` parameter used for Muladhara only. Document this as the "bootstrap" exception.
+
+---
+
+# SUPPLEMENT PHASE C — SIMULATION LOGIC FIXES
+*Fixes A1, A2, A3, A4, A6, A7, A8, F2.*
+
+**S-013 — IO_OUT energy reservation system**
+*Fixes A1 — critical correctness bug*
+Between tick steps 2 and 4, IO_OUT T1 nodes must have their committed withdrawal amount reserved before T1 internal flows (step 3) can move that energy away. Implement `reserveWithdrawal(node: T1Node, amount: EnergyPool): void` which adds to a `reservedEnergy: EnergyPool` field on T1Node. T1 internal flows (step 3) cannot reduce a node's energy below its reservedEnergy. Step 4 then withdraws exactly the reserved amount and clears the reserve. Add `reservedEnergy: EnergyPool` to T1Node interface (TASK-008).
+
+**S-014 — Fix BIDIR direction resolution to use local IO pressure**
+*Fixes A2*
+Rewrite TASK-058 to use local IO pressure instead of T2 aggregate pressure:
+```typescript
+function resolveBidirDirection(ioNode: T1Node, neighborIoNode: T1Node): 'send'|'receive'|'idle' {
+  const localP = totalEnergy(ioNode.energy) / ioNode.capacity;
+  const neighborP = totalEnergy(neighborIoNode.energy) / neighborIoNode.capacity;
+  const delta = localP - neighborP;
+  if (Math.abs(delta) < 0.05) return 'idle';
+  return delta > 0 ? 'send' : 'receive';
+}
+```
+This uses the same pressure signal as passive flow computation (TASK-053), eliminating the conflict.
+
+**S-015 — Total outgoing flow cap per T1 node**
+*Fixes A3*
+Modify TASK-013 (computeT1Flows): after computing all outgoing flows from a node independently, sum them. If total > `E(from) × 0.01` (1% of start-of-tick energy), scale all outgoing flows proportionally downward so total equals exactly 1%. This preserves relative weight ratios while preventing over-drain:
+```typescript
+const maxDrain = snapshot[fromId].totalEnergy * T1_MAX_FLOW_RATE;
+const totalDrain = flows.reduce((sum, f) => sum + totalEnergy(f.amount), 0);
+if (totalDrain > maxDrain) {
+  const scale = maxDrain / totalDrain;
+  flows.forEach(f => f.amount = scaledPool(f.amount, scale));
+}
+```
+
+**S-016 — Build unlock predecessor graph at cluster creation**
+*Fixes A4*
+Modify TASK-044 (clusterFactory): after creating T1 nodes, compute and cache `predecessorIds: number[]` on each T1Node from the topology's unlockAfter[] data. Also compute `unlockDepth: number` (topological sort position) for each node so TASK-016's state transition can quickly check all predecessors without traversing edges at runtime.
+
+**S-017 — Wire overflow pressure into passive meridian flow**
+*Fixes A6*
+Modify TASK-053 (computePassiveMeridianFlow): add overflow pressure to effective local IO pressure before computing ΔP:
+```typescript
+const overflowPressure = computeOverflowPressure(fromT2, dominantEnergyType);
+const effectiveP_out = P_local(io_out) + overflowPressure;
+const deltaP = effectiveP_out - P_local(io_in);
+```
+Create `computeOverflowPressure(node: T2Node, type: EnergyType): number` implementing TASK-082's formula.
+
+**S-018 — Fix Great Circulation Shen bonus target**
+*Fixes A7*
+Replace TASK-088's "Shen generation +0.003/tick at Anahata IO_IN" with "add 0.003 Shen/tick to Anahata's inner hexagon node HX_1 (id=6, an INTERNAL node)." This respects the IO boundary. The internal node then distributes via normal weight-driven flow. Also add this Shen generation to the source generation step (step 1) of the tick, not as meridian injection.
+
+**S-019 — Fix Ankle topology directed ring edges**
+*Fixes A8*
+Modify TASK-042 (ankle.ts): specify directed ring edges explicitly for both loops:
+```
+Upper loop directed ring: UL_A(0)→UL_B(1)→UL_C(2)→UL_A(0)
+Lower loop directed ring: LL_A(3)→LL_B(4)→LL_C(5)→LL_A(3)
+```
+Also add reverse edges at default weight 0:
+```
+UL_A(0)←UL_B(1)←UL_C(2)  (weight 0, player must set to enable reverse flow)
+```
+The player must set weights on both forward and reverse edges to enable internal mini-circulation. Add this as documented strategic mechanic on the topology.
+
+**S-020 — Add NaN/infinity guards to simulation tick**
+*Fixes F2*
+Create `src/core/simulation/guards.ts` with `assertValidEnergyPool(pool: EnergyPool, context: string): void` that throws a descriptive error if any value is NaN, infinite, or negative. Create `sanitizeEnergyPool(pool: EnergyPool): EnergyPool` that clamps values to [0, 1e9] and replaces NaN with 0. Call sanitize on every flow result in step 3 and every meridian delivery in step 4. Call assert in dev mode at end of tick on all T1 node energy pools.
+
+**S-021 — Condition evaluation throttling**
+*Fixes F1*
+Modify TASK-075 (tick step 10): evaluate unlock conditions (LOCKED→SEALING check) only every 30 ticks (3 seconds real time). Evaluate upgrade conditions (level-up check) only every 10 ticks. Use `state.tick % 30 === 0` and `state.tick % 10 === 0` guards. Add an `immediateCheckFlag: boolean` on GameState that forces a full evaluation when set (e.g., after a meridian state change), then clears.
+
+**S-022 — Centralize meridian ID generation**
+*Fixes F4*
+Create `src/core/meridians/meridianId.ts`:
+```typescript
+export function makeMeridianId(fromNodeId: string, toNodeId: string): string {
+  return `${fromNodeId}::${toNodeId}`;  // double-colon to avoid clashes with single-arrow
+}
+export function parseForwardId(id: string): [string, string] {
+  const [from, to] = id.split('::');
+  return [from, to];
+}
+```
+Every task that creates a meridian ID (TASK-048, TASK-057, TASK-063) must call `makeMeridianId()`. No task may construct a meridian ID string directly.
+
+---
+
+# SUPPLEMENT PHASE D — MISSING SYSTEMS
+*Fixes E1, E2, E3, E4, E5, E10, E11.*
+
+**S-023 — Define WorldLocation and encounter system**
+*Fixes E1, E2 — prerequisite for combat, formation arrays, phantom nodes*
+Create `src/core/world/types.ts`:
+```typescript
+export interface WorldLocation {
+  id: string;
+  name: string;
+  tier: number;          // 1–9, determines enemy tier range
+  elementalAffinity: EnergyType;   // affects formation array generation, foot absorption
+  encounterTable: EnemyEncounterDef[];
+  description: string;
+}
+export interface EnemyEncounterDef {
+  enemyId: string;
+  probability: number;
+  cooldownTicks: number;  // minimum ticks between this enemy appearing again
+}
+export interface RestLocation {
+  locationId: string;
+  formationArraySlots: (FormationArray | null)[];  // max 3
+  ambientEnergyModifier: EnergyPool;   // per-type modifier to source generation
+}
+```
+Add `worldLocation: WorldLocation`, `restLocation: RestLocation`, and `currentEncounterCooldowns: Map<string,number>` to GameState.
+
+**S-024 — Implement encounter trigger system**
+*Fixes E1*
+Create `src/core/world/encounterSystem.ts` with `checkEncounters(state: GameState): EnemyDef | null`. Each tick (throttled to every 60 ticks), roll against the current location's encounterTable. If a roll hits and the cooldown for that enemy has expired, return the enemy and set its cooldown. The UI presents the encounter as a notification (accept/decline). If accepted, call startCombat. Add this check to the simulation tick as step 12 (after attribute recalc).
+
+**S-025 — Create DaoComprehensionChallenge event**
+*Fixes E3*
+Create `src/core/dao/comprehensionChallenge.ts`. DaoComprehensionChallenge is a special scripted combat encounter that fires when: Dao comprehension ≥ 8 AND Sahasrara is at max level for its current rank AND has not been challenged yet for this rank. The challenge uses a unique enemy def `{id:'comprehension_spirit_rank_N', ...}` that deals only Shen/soul damage. On victory: set `state.playerDao.comprehensionChallengeCompleted[rank] = true`, allowing Sahasrara rank advancement. This event is added to the encounter system (S-024) as a priority override.
+
+**S-026 — Define companion initialization**
+*Fixes E4*
+Create `src/core/companion/companionFactory.ts` with `createCompanion(name: string, daoType: DaoType): CompanionState`. The companion starts with all 24 T2 nodes LOCKED, a single auto-progressing cultivation simulation (no player weight control), and a fixed Dao. Companion cultivation uses a simplified tick: each tick, companion auto-routes energy along the optimal path (computed once per 100 ticks as `optimalWeights = computeGreedyWeights(companion)`). Companion nodes can be gifted treasures by the player. CompanionState must include a full `bodyState: { t2Nodes, meridians }` — a complete second body.
+
+**S-027 — Specify shattered node Jing repair routing**
+*Fixes E5*
+Modify TASK-123 (shattered node): when a node shatters, set all of its T1 nodes to UNSEALED (preserving energy) AND set all edge weights from IO_IN nodes inward to their default values from the topology (not 0). This ensures energy can still diffuse through the cluster after shattering. Modify TASK-125 (active repair toggle): when active repair is enabled, add the damaged T2 node's IO_IN T1 node to a "repair injection" list. Each tick, inject `0.1 Jing/tick` directly into that IO_IN T1 node from the body's total Jing pool. This is an exception to the "IO_IN only receives from meridians" rule, clearly documented as the repair pathway.
+
+**S-028 — Define sect selection event and UI trigger**
+*Fixes E10*
+Modify TASK-139: add `checkSectSelectionTrigger(state): boolean` — returns true when player is Rank 3+ for the first time AND has visited at least one combat location of each sect's alignment type AND has not yet joined a sect. This fires a SectSelectionEvent that presents the three sects in a modal (similar to Dao selection). Also add sect selection as a separate task in Phase 33 (Celestial & Sect UI).
+
+**S-029 — Add route library to GameState**
+*Fixes E11*
+Modify TASK-064/S-009: `savedRoutes: SavedRoute[]` where `SavedRoute = { id: string, name: string, route: CirculationRoute, lastUsed: number }`. Maximum 8 saved routes. Implement `saveRoute(state, route, name): GameState` and `loadRoute(state, routeId): GameState`. Add route save/load UI to Phase 29 (TASK-197 expansion). Route saving is distinct from the active route — saving records the node sequence, loading sets it as the active route after re-validation (conditions may have changed).
+
+**S-030 — Specify tribulation cultivation pause behavior**
+*Fixes E8*
+Modify TASK-146: when a tribulation starts, do NOT pause the full simulation tick. Instead, pause only: T1 weight-driven flows (step 3), active circulation route (step 2 active portion), and IO_OUT withdrawals (step 4). Continue running: source generation (step 1), heat dissipation (step 5 dissipation only, no accumulation), T1 state updates (step 9), and attribute recalc (step 11). This means the body cools down and passive generation continues during tribulation, but no cultivation decisions are needed. Document this explicitly in heatSystem.ts.
+
+**S-031 — Specify calendar tick-counting mechanism**
+*Fixes E9*
+Modify TASK-155: advanceCalendar is called from the simulation tick when `state.tick % TICKS_PER_INGAME_DAY === 0`, where `TICKS_PER_INGAME_DAY = 7200` (720 real-seconds × 10 ticks/second). Add `TICKS_PER_INGAME_DAY = 7200` to constants (TASK-002). When speedMultiplier > 1 (fast-forward), the calendar advances proportionally faster since multiple ticks fire per real second. No special handling needed — the tick counter naturally reflects compressed time.
+
+---
+
+# SUPPLEMENT PHASE E — FEEDBACK SYSTEMS
+*Fixes G1, G2, G3.*
+
+**S-032 — Implement notification queue**
+*Fixes G1*
+Create `src/core/notifications/types.ts`:
+```typescript
+export interface GameNotification {
+  id: string;
+  type: 'node_activated' | 'meridian_upgraded' | 'level_up' | 'breakthrough' | 'node_damaged' | 'codex_entry' | 'encounter' | 'dao_insight';
+  message: string;
+  nodeId?: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  ttlTicks: number;   // how long to show; critical stays until dismissed
+  timestamp: number;  // tick number
+}
+```
+Add `notificationQueue: GameNotification[]` to GameState. All systems that fire events (gameBus.emit) also push to notificationQueue. Create `NotificationDisplay` UI component that renders the top 3 notifications in a corner overlay, auto-dismissing low/medium priority ones after ttlTicks.
+
+**S-033 — Implement routing bottleneck indicator**
+*Fixes G2*
+Create `src/core/nodes/flowDiagnostics.ts` with `detectFlowBlockages(node: T2Node, edges: T1EdgeMap): FlowBlockage[]`. FlowBlockage = `{ nodeId: number, type: 'io_full' | 'no_outgoing_weight' | 'locked_dest', severity: number }`. Run this every 30 ticks for all ACTIVE T2 nodes. Results stored in `state.flowDiagnostics: Map<string, FlowBlockage[]>`. The cluster renderer (TASK-176) reads flowDiagnostics and renders a small warning icon on problematic T1 nodes. Add a "Diagnostics" panel that lists all current blockages.
+
+**S-034 — Implement edge weight undo history**
+*Fixes G3*
+Add `weightHistory: WeightHistoryEntry[]` to each T2Node (last 20 changes). WeightHistoryEntry = `{ tick, edgeKey, oldWeight, newWeight }`. When player sets an edge weight (TASK-179), push to history first. Add an "Undo Last Weight Change" button to the cluster view that reverts the most recent entry in the active T2 node's history. Limit history to 20 entries per node to cap memory.
+
+---
+
+# SUPPLEMENT PHASE F — PHASE ORDERING FIXES
+*Fixes D1, D2, D3, D4.*
+
+**S-035 — Move HP-dependent code out of Phase 8**
+*Fixes D1*
+TASK-083 (Jing depletion HP damage) must move to after TASK-120 (HP system exists). Re-number as part of Phase 14. Replace the HP damage in Phase 8 with a notification only: "JING CRITICAL — Body integrity at risk" pushed to notificationQueue with priority 'critical'. Actual HP damage wires in Phase 14.
+
+**S-036 — Reorder enemy node targeting after node damage**
+*Fixes D2*
+TASK-119 must execute AFTER TASK-121. In the implementation phase, renumber TASK-119 to run after TASK-121 and TASK-122. The enemy node targeting logic calls `crackNode(nodeId, state)` from TASK-122, which must exist first.
+
+**S-037 — Move TASK-100 to UI phase**
+*Fixes D3*
+Remove TASK-100 from Phase 11. Create a new task in Phase 29 (HUD and Panels):
+**S-037-UI** Create reverse meridian opportunity indicator in the upgrade requirements panel: when a T2 node is at the required level and its forward meridian is DEVELOPED, highlight the "Open Reverse Meridian" button in the MeridianDetailPanel and show a pulsing indicator on the meridian in the body map.
+
+**S-038 — Specify Phase 8 internal ordering**
+*Fixes D4*
+Add explicit ordering within Phase 8 tasks: TASK-082 (soft capacity caps) must complete before TASK-083 (Jing depletion check), because TASK-083 compares current Jing to Jing capacity, which TASK-082 affects. TASK-078 (Foot absorption) must complete before TASK-083. Add a comment block at the top of `src/core/simulation/tick.ts` documenting the sub-ordering within step 1.
+
+---
+
+# SUPPLEMENT PHASE G — UNDERSPECIFIED TASK EXPANSIONS
+*Fixes E7 — splits massively underestimated tasks.*
+
+**S-039 — Split TASK-102 into topology authoring and node data**
+*Fixes E7*
+TASK-102 as written hides 40–56 new T1 cluster topologies (one per Dao node). Replace with:
+
+**S-039a** Create `src/data/dao/daoNodeTopologyTypes.ts` defining DaoNodeTopology as a simplified T1ClusterTopology (Dao nodes use only 6 T1 nodes each, same basic patterns as joint topologies, no I/O nodes — Dao nodes connect to the body network via special phantom meridians, not regular meridians).
+
+**S-039b** Implement Earth Dao topology set (5 Dao nodes) as 5 simple 6-node topologies with a stable, rooted structure. Each file: `src/data/dao/earth/earthNode[1–5].ts`.
+
+**S-039c** Implement Fire Dao topology set (5 Dao nodes). Radiating, high-convergence topologies.
+
+**S-039d** Implement Water Dao topology set (5 Dao nodes). Ring-heavy, flow-maximizing topologies.
+
+**S-039e** Implement Wind Dao topology set (5 Dao nodes). Branch-heavy, distributing topologies.
+
+**S-039f** Implement Void Dao topology set (5 Dao nodes). Linear chains with single chokepoints.
+
+**S-039g** Implement Life Dao topology set (5 Dao nodes). Dual-layer topologies with regeneration structure.
+
+**S-039h** Implement Sword Dao topology set (5 Dao nodes). Single-path high-quality chains.
+
+**S-039i** Implement Thunder Dao topology set (5 Dao nodes). Convergence-and-burst topologies.
+
+**S-040 — Split TASK-103 skill definitions into per-Dao tasks**
+*Fixes E7*
+Define skills per Dao in separate authoring tasks:
+
+**S-040a** Earth Dao skills (6): Stone Body (passive, physDurability), Earth Pillar (physical, high damage, high YangQi cost), Ground Sealing (movement, immobilize enemy), Bedrock Stance (passive, grounding), Mountain's Weight (physical, DoT), Earthen Recovery (soul, restores Jing in combat).
+
+**S-040b** Fire Dao skills (6): Flame Burst (physical, high burst), Molten Fist (physical, DoT), Fire Step (movement, teleport), Scorched Path (passive, adds burn DoT to physicals), Heaven Cremation (physical, AoE), Phoenix Ascent (soul, consume own HP for massive damage).
+
+**S-040c** Water Dao skills (6): Flowing Strike (physical, speed-scaled), Tide Step (movement, repositioning), Current Sense (passive, +dodge vs melee), Still Pool (soul, reduce enemy YangQi), Deep Erosion (physical, stacking purity debuff on enemy), Endless River (passive, energy recovery ×2 in combat).
+
+**S-040d** Wind Dao skills (6): Swift Strike (physical, attack speed), Gale Step (movement, multiple dodges), Eye of Storm (passive, +crit vs stationary enemies), Wind Cutter (physical, ranged), Dispersal (soul, scatter enemy energy), Cyclone Form (passive, dodge generates energy).
+
+**S-040e** Void Dao skills (6): Void Strike (soul, bypasses physical defence), Phase Step (movement, become untargetable for 1 tick), Empty Mirror (passive, reflect % of soul damage), Nullification (soul, remove enemy buff), Abyss Stare (soul, stun), Void Mastery (passive, crit on soul attacks always).
+
+**S-040f** Life Dao skills (6): Vitality Surge (passive, regen HP per tick), Mending Touch (soul, repair a cracked node mid-combat), Living Root (movement, place a root that generates Jing for 5 ticks), Healing Rain (passive, resonance above 80% = HP regen), Body Rebirth (soul, prevent one death per combat), Abundant Flow (passive, Jing generation ×1.5 in combat).
+
+**S-040g** Sword Dao skills (6): Sword Qi (physical, high-precision single-target), Flowing Draw (physical, first attack per combat ×3), Refining Edge (passive, each hit improves next hit damage by 5%), Piercing Light (physical, ignores 50% durability), Sword Heart (soul, sense enemy weakness — reveal node with lowest resonance), Myriad Strikes (physical, chain attack scales with attack speed).
+
+**S-040h** Thunder Dao skills (6): Lightning Bolt (physical, instant cast), Paralysis Strike (soul, reduces enemy attack speed 50% for 3 ticks), Thunder Step (movement, deals damage to nearby enemies on reposition), Storm Armor (passive, 20% chance to negate incoming physical), Heaven's Judgement (physical, massive cooldown, scales with Shen stored), Chain Lightning (physical, hits multiple enemies if present).
+
+---
+
+# SUPPLEMENT PHASE H — MISSING UNIT TESTS
+*The original task list has only 6 test tasks for 245 implementation tasks.*
+
+**S-041** Write unit tests for all 8 math utility functions (TASK-005): known input/output pairs for logScaleWidth, logScalePurityFlow, jingStructuralPurity, flowBonusPercent, qualityMultiplier at all 10 quality levels.
+
+**S-042** Write unit tests for computeT1Flows edge cases: source with 0 energy flows 0. Dest at full capacity accepts 0 flow. Multiple edges capped correctly by S-015 total drain cap. Energy type ratios preserved correctly in split flows.
+
+**S-043** Write unit tests for all UnlockCondition and UpgradeCondition evaluators (TASK-022/023): one test per condition variant with passing and failing state.
+
+**S-044** Write unit tests for meridian purity computation: confirm asymptotic approach to 0.99 cap. Confirm jingDeposit changes structural purity monotonically. Confirm shenScatterBonus accumulates correctly.
+
+**S-045** Write unit tests for attribute scaling formula: Rank 1 Level 1 returns base × 1.0 × 1.0. Rank 9 Level 9 returns base × 60.0 × 2.51. Resonance 0.5 halves contribution.
+
+**S-046** Write unit tests for circulation route validator: 2-node loop valid with double meridian, invalid without. Terminal node (Hand/Foot) rejected. Node appearing twice rejected. Route with LOCKED intermediate node rejected.
+
+**S-047** Write integration test for heat system: confirm heat accumulates only from YangQi loss, not Qi or Jing. Confirm dissipation stops at 0 (no negative heat). Confirm critical threshold triggers node crack roll.
+
+**S-048** Write integration test for the IO_OUT reservation system (S-013): confirm that T1 flows in step 3 cannot reduce IO_OUT below its reserved withdrawal amount.
+
+**S-049** Write regression test for total outgoing flow cap (S-015): node with 5 outgoing edges all at weight 100 drains exactly 1% of its energy total, not 5%.
+
+**S-050** Write integration test for save/load round-trip: build full initial GameState, run 500 ticks, serialize, deserialize, run 500 more ticks, confirm state is identical to running 1000 ticks without save/load.
+
+---
+
+## SUPPLEMENTARY TASK SUMMARY
+
+| Supplement Phase | Tasks | Fixes |
+|-----------------|-------|-------|
+| A — Architecture Prerequisites | 8 | C1, C2, C3, C4, C6, B4, F3, F4 |
+| B — Data Model Fixes | 4 | B3, B5, A5, B2 |
+| C — Simulation Logic Fixes | 10 | A1, A2, A3, A4, A6, A7, A8, F1, F2, F4 |
+| D — Missing Systems | 9 | E1, E2, E3, E4, E5, E8, E9, E10, E11 |
+| E — Feedback Systems | 3 | G1, G2, G3 |
+| F — Phase Ordering Fixes | 4 | D1, D2, D3, D4 |
+| G — Task Expansions | 14 | E7 |
+| H — Missing Tests | 10 | Coverage gaps |
+| **TOTAL** | **62** | |
+
+---
+
+## ISSUES BY SEVERITY
+
+| Severity | Count | Examples |
+|---------|-------|---------|
+| **CRITICAL** — Will corrupt simulation or prevent compilation | 12 | A1, A3, A4, A5, B1, B3, B4, C1, C2, C5, E1, F2 |
+| **HIGH** — Will cause wrong behavior or blocked systems | 14 | A2, A6, A7, B5, B6, C3, C4, D1, D2, E3, E4, E5, E10, F4 |
+| **MEDIUM** — Will cause confusion or missing features | 12 | A8, D3, D4, E6, E7, E8, E9, E11, F1, G1, G2, G3 |
+| **LOW** — Polish and completeness gaps | 4 | B2, D4, F3 partial, test coverage |
+
+---
+
+## RECOMMENDED INSERTION POINTS
+
+Insert supplementary tasks into the original list at these positions before starting implementation:
+
+- **S-001 through S-008**: Before TASK-001. These are architectural decisions that affect every other task.
+- **S-009 through S-012**: After TASK-006, before TASK-007. Data model corrections must precede all model usage.
+- **S-013 through S-022**: After TASK-059 (end of Phase 5), before TASK-060 (Phase 6). Simulation logic corrections must be locked before the full tick is assembled.
+- **S-023 through S-031**: After TASK-100 (end of Phase 11), before Phase 12. Missing systems must exist before systems that depend on them.
+- **S-032 through S-034**: After TASK-184 (end of Phase 27 cluster UI), before Phase 28. Feedback systems are UI adjacent.
+- **S-035 through S-038**: Inline replacements within their respective phases.
+- **S-039 through S-040h**: Replacing TASK-102 and TASK-103 in Phase 12.
+- **S-041 through S-050**: After TASK-227 (end of Phase 35), before Phase 36 balance passes.
+
+---
+
+## IMPLEMENTATION STATUS IN THIS REPO (2026-04-27)
+
+The following supplementary items are **implemented** in `src/` (tests updated where applicable):
+
+| ID | Status |
+|----|--------|
+| S-001 | Done — `src/core/types/primitives.ts` |
+| S-002 | Done — `src/core/simulation/CultivationTechnique.ts`; `GameState.technique` uses `strength` / `rankRequirement` / `description` |
+| S-003 | Not done — no dedicated Zustand/Redux layer (see JS app state separately) |
+| S-004 | Not done — core still uses functional `simulationTick`; no `GameLoop.ts` in `src` |
+| S-005 | Not done — no Immer |
+| S-006 | Not done — no `EventBus` |
+| S-007 | Done — `src/data/topologies/validateTopology.ts`; dev throw in `buildInitialGameState` |
+| S-008 | Partial — `position?:` on `T1NodeDef`; coordinates not filled on all topologies |
+| S-009 | Partial — `immediateConditionCheck` added; full GameState expansion not applied |
+| S-010 | Done — REFINED gate + ×1.15 cluster resonance in `tick.ts`; `refinedResonanceBonusApplied` on `T2Node` |
+| S-011 | Done — `src/core/treasures/types.ts` |
+| S-012 | Done — Muladhara source `ACTIVE` + ~30% Qi seed in `bodyMapFactory` |
+| S-013 | Done — `reservedEnergy`, plan → T1 flows → `applyMeridianFlow` |
+| S-014 | Done — `resolveBidirDirection` uses local IO T1 pressures |
+| S-015 | Done — `computeT1Flows` aggregate outgoing cap |
+| S-016 | Done — `predecessorIds` / `unlockDepth` on `T1Node`; unlock uses `predecessorIds` when set |
+| S-017 | Done — `computeOverflowPressure` + passive flow |
+| S-018 | Done — Anahata Shen → T1 id 6 at 0.003/tick |
+| S-019 | Done — `ankle.ts` directed rings + zero-weight reverse edges |
+| S-020 | Done — `src/core/simulation/guards.ts` |
+| S-021 | Done — unlock every 30 ticks, upgrade every 10, `immediateConditionCheck` |
+| S-022 | Done — `meridianId.ts`; `bodyMeridianId` uses `::` (breaking id format vs old `->`) |
+
+**Not started in this pass:** S-023–S-034, S-035–S-038, S-039–S-040h, S-041–S-050, and architecture items S-003–S-006.
+
+**Note:** Meridian ids changed from `A->B` to `A::B`; any saved routes or external data using the old separator must migrate.

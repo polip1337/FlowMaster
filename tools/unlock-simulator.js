@@ -25,7 +25,7 @@ const DEFAULTS = {
 
 function parseArgs(argv) {
   const args = {
-    layout: "nodes.js",
+    layout: "nodes.ts",
     strategies: ["cheapest", "expensive", "random"],
     randomRuns: DEFAULTS.randomRuns,
     maxTicks: DEFAULTS.maxTicks,
@@ -68,7 +68,10 @@ function deepClone(value) {
 
 function loadLayout(layoutPath) {
   const absolute = path.resolve(layoutPath);
-  const code = fs.readFileSync(absolute, "utf8");
+  let code = fs.readFileSync(absolute, "utf8");
+  if (absolute.endsWith(".ts")) {
+    code = code.replace(/^export const /gm, "window.");
+  }
   const sandbox = { window: {} };
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox, { filename: absolute });
