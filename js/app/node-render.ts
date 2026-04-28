@@ -41,6 +41,8 @@ export function createNodeVisual(node: any) {
   const wedges = new PIXI.Graphics();
   const lockGlyph = new PIXI.Graphics();
   const burstRays = new PIXI.Graphics();
+  const damageOverlay = new PIXI.Graphics();
+  const corona = new PIXI.Graphics();
 
   const watermark = makeSerifText("", 46, 0x8b7a5a, { cjk: true });
   watermark.anchor.set(0.5);
@@ -69,14 +71,14 @@ export function createNodeVisual(node: any) {
 
   container.addChild(
     calloutLayer, ripples, qualityRing, repairGlow, arcTrack, arcFill, compassTicks,
-    orb, orbDashed, wedges, burstRays, lockGlyph, statDots,
+    orb, orbDashed, wedges, burstRays, damageOverlay, corona, lockGlyph, statDots,
     watermark, siText, netText, etaText, stateText, nameText
   );
 
   st.nodeLayer.addChild(container);
   nodeVisuals[node.id] = {
     container, ripples, qualityRing, repairGlow, arcTrack, arcFill, compassTicks, statDots,
-    orb, orbDashed, wedges, lockGlyph, burstRays,
+    orb, orbDashed, wedges, lockGlyph, burstRays, damageOverlay, corona,
     watermark, siText, netText, etaText, stateText, nameText,
     callouts, calloutLayer
   };
@@ -197,6 +199,19 @@ export function redrawNode(node: any) {
   visual.orb.fill({ color: orbFill, alpha: 0.95 });
   const orbStrokeWidth = selected ? 2.2 : hovered ? 1.8 : 1.2;
   visual.orb.stroke({ width: orbStrokeWidth, color: selected ? 0x8b6914 : meta.primaryStroke, alpha: 0.9 });
+  const shenPool = Math.max(0, Number(node.energyShen) || 0);
+  const qiPool = Math.max(0, Number(node.energyQi) || 0);
+  const shenRatio = shenPool / Math.max(1, shenPool + qiPool);
+  visual.corona.clear();
+  if (shenRatio > 0.25) {
+    visual.corona.circle(0, 0, NODE_ORB_RADIUS + 6 + shenRatio * 8);
+    visual.corona.stroke({ width: 1.6, color: 0xa975ff, alpha: Math.min(0.8, 0.25 + shenRatio * 0.6) });
+  }
+  if (st.refiningPulseActive && node.id === 11) {
+    const furnacePulse = 0.75 + 0.25 * Math.sin(st.tickCounter * 0.35);
+    visual.corona.circle(0, 0, NODE_ORB_RADIUS + 14 * furnacePulse);
+    visual.corona.stroke({ width: 2.2, color: 0xffa34b, alpha: 0.55 });
+  }
 
   visual.orbDashed.clear();
   drawDashedCircle(visual.orbDashed, 0, 0, NODE_INNER_DASHED_RADIUS, 0.14, 0.1, {
@@ -228,6 +243,22 @@ export function redrawNode(node: any) {
     visual.lockGlyph.stroke({ width: 1.1, color: glyphColor, alpha: 0.7 });
     visual.lockGlyph.circle(gx, gy + 2.2, 1);
     visual.lockGlyph.fill({ color: 0xe8dfc0, alpha: 0.9 });
+  }
+  visual.damageOverlay.clear();
+  if (node.damageState === "cracked" || node.damageState === "shattered") {
+    const fractureColor = node.damageState === "shattered" ? 0x1d1d1d : 0x342313;
+    const fractureWidth = node.damageState === "shattered" ? 2.2 : 1.2;
+    const heal = Math.max(0, Math.min(1, Number(node.repairAccumulator) || 0));
+    const crackScale = 1 - heal;
+    visual.damageOverlay.moveTo(-NODE_ORB_RADIUS * 0.55, -NODE_ORB_RADIUS * 0.2);
+    visual.damageOverlay.lineTo(NODE_ORB_RADIUS * 0.45 * crackScale, NODE_ORB_RADIUS * 0.18);
+    visual.damageOverlay.moveTo(-NODE_ORB_RADIUS * 0.15, -NODE_ORB_RADIUS * 0.5);
+    visual.damageOverlay.lineTo(NODE_ORB_RADIUS * 0.2 * crackScale, NODE_ORB_RADIUS * 0.55);
+    if (node.damageState === "shattered") {
+      visual.damageOverlay.moveTo(-NODE_ORB_RADIUS * 0.45, NODE_ORB_RADIUS * 0.05);
+      visual.damageOverlay.lineTo(NODE_ORB_RADIUS * 0.5 * crackScale, -NODE_ORB_RADIUS * 0.08);
+    }
+    visual.damageOverlay.stroke({ width: fractureWidth, color: fractureColor, alpha: 0.75 });
   }
 
   if (state === STATE_LOCKED) {

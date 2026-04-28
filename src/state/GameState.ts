@@ -168,4 +168,11 @@ export interface GameState {
   activeRepairNodeId: string | null;
   /** TASK-171 — body-map display hooks for harmonic meridian resonance. */
   meridianHarmonics: MeridianHarmonicsState;
+  /** TASK-244 — recalculate attributes only when node progression changed. */
+  attributesDirty: boolean;
+  /** TASK-244 — lightweight tick performance telemetry. */
+  performance: {
+    lastTickDurationMs: number;
+    overBudgetTickCount: number;
+  };
 }

@@ -41,7 +41,12 @@ import {
   saveGameBtnEl,
   loadGameBtnEl,
   exportSaveBtnEl,
-  importSaveInputEl
+  importSaveInputEl,
+  settingsTickRateEl,
+  settingsSoundToggleEl,
+  settingsParticleDensityEl,
+  settingsGalaxyDefaultEl,
+  settingsColorModeEl
 } from "./state.ts";
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
@@ -669,6 +674,19 @@ function initializeDaoForSelection(daoName: string) {
   st.daoInsights = Math.max(st.daoInsights, 120);
 }
 
+function applyColorAccessibilityMode(mode: "default" | "deuteranopia" | "tritanopia") {
+  const root = document.documentElement;
+  if (!root) return;
+  const schemes: Record<typeof mode, { qi: string; shen: string }> = {
+    default: { qi: "#4ea3ff", shen: "#c890ff" },
+    deuteranopia: { qi: "#2f8fef", shen: "#d77cff" },
+    tritanopia: { qi: "#4f86f7", shen: "#f07ac8" }
+  };
+  const palette = schemes[mode] ?? schemes.default;
+  root.style.setProperty("--flow-color-qi", palette.qi);
+  root.style.setProperty("--flow-color-shen", palette.shen);
+}
+
 export function applyInventoryToTier2Target(tier2Id: string): boolean {
   if (!st.inventoryTargetingActive || !st.selectedInventoryItemId) return false;
   const item = st.inventoryItems.find((entry) => entry.id === st.selectedInventoryItemId && entry.quantity > 0);
@@ -685,6 +703,12 @@ export function bindPhase29PanelUi() {
     return;
   }
   phase29PanelUiBound = true;
+  if (settingsTickRateEl) (settingsTickRateEl as HTMLSelectElement).value = String(st.tickRateMultiplier);
+  if (settingsSoundToggleEl) (settingsSoundToggleEl as HTMLInputElement).checked = st.soundEnabled;
+  if (settingsParticleDensityEl) (settingsParticleDensityEl as HTMLSelectElement).value = String(st.particleDensity);
+  if (settingsGalaxyDefaultEl) (settingsGalaxyDefaultEl as HTMLInputElement).checked = st.galaxyViewDefault;
+  if (settingsColorModeEl) (settingsColorModeEl as HTMLSelectElement).value = st.colorAccessibilityMode;
+  applyColorAccessibilityMode(st.colorAccessibilityMode);
   saveGameBtnEl?.addEventListener("click", () => {
     const ok = saveCoreStateToLocalStorage();
     if (statusEl) {
@@ -717,6 +741,34 @@ export function bindPhase29PanelUi() {
     }
     updatePhase29Panels();
     input.value = "";
+  });
+  settingsTickRateEl?.addEventListener("change", () => {
+    const select = settingsTickRateEl as HTMLSelectElement;
+    const value = Number(select.value);
+    if (Number.isFinite(value) && value >= 1) {
+      st.tickRateMultiplier = value;
+    }
+  });
+  settingsSoundToggleEl?.addEventListener("change", () => {
+    const checkbox = settingsSoundToggleEl as HTMLInputElement;
+    st.soundEnabled = checkbox.checked;
+  });
+  settingsParticleDensityEl?.addEventListener("change", () => {
+    const select = settingsParticleDensityEl as HTMLSelectElement;
+    const value = Number(select.value);
+    if (Number.isFinite(value) && value > 0) {
+      st.particleDensity = value;
+    }
+  });
+  settingsGalaxyDefaultEl?.addEventListener("change", () => {
+    const checkbox = settingsGalaxyDefaultEl as HTMLInputElement;
+    st.galaxyViewDefault = checkbox.checked;
+  });
+  settingsColorModeEl?.addEventListener("change", () => {
+    const select = settingsColorModeEl as HTMLSelectElement;
+    const mode = (select.value as "default" | "deuteranopia" | "tritanopia");
+    st.colorAccessibilityMode = mode;
+    applyColorAccessibilityMode(mode);
   });
   refiningPulseBtnEl?.addEventListener("click", () => {
     if ((refiningPulseBtnEl as HTMLButtonElement).disabled) return;
@@ -857,6 +909,12 @@ export function stepPhase29UiSystems() {
   }
   if (st.combatCrackFlashTicks > 0) {
     st.combatCrackFlashTicks -= 1;
+  }
+  if (st.breakthroughFxTicks > 0) {
+    st.breakthroughFxTicks -= 1;
+  }
+  if (st.binduStabilizationFlashTicks > 0) {
+    st.binduStabilizationFlashTicks -= 1;
   }
   if (!st.combatEncountered && nodeData.some((n) => n.damageState === "cracked" || n.damageState === "shattered")) {
     st.combatEncountered = true;

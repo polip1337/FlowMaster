@@ -1208,6 +1208,36 @@
           <input type="file" id="importSaveInput" accept="application/json,.json" class="form-control form-control-sm" />
         </div>
         <div class="bonus-panel">
+          <div class="bonus-title">Settings</div>
+          <label class="muted" for="settingsTickRate">Tick Rate</label>
+          <select id="settingsTickRate" class="form-select form-select-sm">
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="5">5x</option>
+            <option value="10">10x</option>
+          </select>
+          <label class="muted" for="settingsParticleDensity">Particle Density</label>
+          <select id="settingsParticleDensity" class="form-select form-select-sm">
+            <option value="0.5">Low</option>
+            <option value="1" selected>Normal</option>
+            <option value="1.5">High</option>
+          </select>
+          <label class="muted" for="settingsColorMode">Color Accessibility</label>
+          <select id="settingsColorMode" class="form-select form-select-sm">
+            <option value="default">Default</option>
+            <option value="deuteranopia">Deuteranopia</option>
+            <option value="tritanopia">Tritanopia</option>
+          </select>
+          <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="settingsSoundToggle" checked />
+            Sound enabled
+          </label>
+          <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="settingsGalaxyDefault" />
+            Galaxy View default
+          </label>
+        </div>
+        <div class="bonus-panel">
           <div class="bonus-title">Inventory</div>
           <div id="inventoryGrid" class="bonus-grid"></div>
           <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>

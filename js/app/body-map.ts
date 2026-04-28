@@ -57,6 +57,7 @@ export type MeridianUiRecord = {
 };
 
 const meridianVisuals = new Map<string, { line: any; routeOverlay: any }>();
+let greatCirculationWave: any = null;
 
 function getMarkerNodeById(id: string) {
   return TIER2_NODES.find((n) => n.id === id) ?? null;
@@ -346,9 +347,14 @@ export function redrawBodyMapMeridians() {
     const c2 = { x: start.x + dx * 0.7 + perpX * bend * 0.6, y: start.y + dy * 0.7 + perpY * bend * 0.6 };
     const galaxy = Boolean(st.galaxyViewEnabled);
 
-    const lineColor = m.isEstablished ? (galaxy ? 0x9ec4ff : 0x4ea3ff) : 0x8a8a8a;
+    const breakthroughActive = st.breakthroughFxTicks > 0;
+    const lineColor = breakthroughActive
+      ? 0xffffff
+      : m.isEstablished ? (galaxy ? 0x9ec4ff : 0x4ea3ff) : 0x8a8a8a;
     const width = m.isEstablished ? Math.max(1.5, m.width) : 1.3;
-    const alpha = m.isEstablished ? Math.max(0.2, Math.min(1, m.purity)) : 0.65;
+    const alpha = breakthroughActive
+      ? 0.95
+      : m.isEstablished ? Math.max(0.2, Math.min(1, m.purity)) : 0.65;
     const dashed = !m.isEstablished;
     drawBezier(visual.line, start, c1, c2, end, {
       color: lineColor,
@@ -365,6 +371,22 @@ export function redrawBodyMapMeridians() {
         dashed: true
       });
     }
+  }
+  if (st.coreActiveRouteLength >= 24) {
+    if (!greatCirculationWave) {
+      greatCirculationWave = new PIXI.Graphics();
+      st.bodyMapMeridianLayer.addChild(greatCirculationWave);
+    }
+    const t = st.tickCounter * (0.01 + Math.max(0, st.circulationSpeedPercent) * 0.00025);
+    const x = 740 + Math.sin(t) * 190;
+    const y = 1060 + Math.cos(t * 0.8) * 860;
+    greatCirculationWave.clear();
+    greatCirculationWave.circle(x, y, 18);
+    greatCirculationWave.stroke({ width: 3.2, color: 0xffd866, alpha: 0.85 });
+    greatCirculationWave.circle(x, y, 7);
+    greatCirculationWave.fill({ color: 0xffe7a8, alpha: 0.65 });
+  } else if (greatCirculationWave) {
+    greatCirculationWave.clear();
   }
 }
 

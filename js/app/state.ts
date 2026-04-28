@@ -51,6 +51,11 @@ export const st = {
   developerMode: false,
   devSpeedEnabled: false,
   simSpeedMultiplier: 1,
+  tickRateMultiplier: 1,
+  soundEnabled: true,
+  particleDensity: 1,
+  colorAccessibilityMode: "default" as "default" | "deuteranopia" | "tritanopia",
+  galaxyViewDefault: false,
   forceShowAllNodes: false,
   balancePane: null as any,
 
@@ -178,6 +183,19 @@ export const st = {
   sectElderFavorLevels: {} as Record<string, number>,
   unlockedTechniques: [] as string[],
   t2NodeRanks: {} as Record<string, number>,
+  coreActiveRouteLength: 0,
+  circulationSpeedPercent: 0,
+  t2DamageById: {} as Record<string, { cracked: boolean; shattered: boolean; repairProgress: number }>,
+  breakthroughFxTicks: 0,
+  breakthroughFxDurationTicks: 300,
+  breakthroughSourceNodeId: null as string | null,
+  binduStabilizationFlashTicks: 0,
+  binduReserveRatio: 0,
+  ajnaYinRatio: 0.5,
+  ajnaYangRatio: 0.5,
+  ajnaImbalanceSeverity: 0,
+  firstShenEventSeen: false,
+  phase37LastSoundEvents: [] as Array<{ type: string; tick: number; payload?: Record<string, unknown> }>,
 
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
@@ -282,3 +300,8 @@ export const tutorialStepCounterEl = document.getElementById("tutorialStepCounte
 export const tutorialNextBtnEl = document.getElementById("tutorialNextBtn");
 export const tutorialSkipBtnEl = document.getElementById("tutorialSkipBtn");
 export const resetTutorialBtnEl = document.getElementById("resetTutorialBtn");
+export const settingsTickRateEl = document.getElementById("settingsTickRate");
+export const settingsSoundToggleEl = document.getElementById("settingsSoundToggle");
+export const settingsParticleDensityEl = document.getElementById("settingsParticleDensity");
+export const settingsGalaxyDefaultEl = document.getElementById("settingsGalaxyDefault");
+export const settingsColorModeEl = document.getElementById("settingsColorMode");

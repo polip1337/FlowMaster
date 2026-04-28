@@ -211,6 +211,11 @@ export function buildInitialGameState(): GameState {
       activeMeridianIds: [],
       pulsePhase: 0,
       tintByMeridianId: {}
+    },
+    attributesDirty: true,
+    performance: {
+      lastTickDurationMs: 0,
+      overBudgetTickCount: 0
     }
   };
   refreshCelestialStateForCurrentDay(initialState);

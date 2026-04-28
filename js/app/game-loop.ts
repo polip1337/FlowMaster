@@ -156,7 +156,9 @@ export function processTick() {
 }
 
 export function tick() {
-  const steps = st.devSpeedEnabled ? st.simSpeedMultiplier : 1;
+  const speedSteps = st.devSpeedEnabled ? st.simSpeedMultiplier : 1;
+  const settingsSteps = Math.max(1, Math.floor(st.tickRateMultiplier || 1));
+  const steps = speedSteps * settingsSteps;
   for (let i = 0; i < steps; i += 1) {
     if (st.gameWon) break;
     st.tickCounter += 1;

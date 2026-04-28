@@ -202,6 +202,8 @@ function getManipuraResonance(state: GameState): number {
  * then apply meridian transfers.
  */
 export function simulationTick(state: GameState): GameState {
+  const timer = (globalThis as { performance?: { now: () => number } }).performance;
+  const tickStartMs = timer ? timer.now() : Date.now();
   const next = cloneGameState(state);
   if (next.companion) {
     evaluateSharedRouteActivation(next.companion, next.activeRoute);
@@ -448,22 +450,24 @@ export function simulationTick(state: GameState): GameState {
     }
   }
 
-  // Step 7: meridian training updates on flowed meridians
-  for (const transfer of transfers) {
-    const gross = flowByMeridian.get(transfer.meridian.id) ?? emptyPool();
-    if (totalEnergy(gross) <= 0) {
-      continue;
-    }
-    const harmonicMultiplier = harmonicThroughputMulByMeridian.get(transfer.meridian.id) ?? 1;
-    let trainFlow = harmonicMultiplier > 1 ? scaledPool(gross, 1 / harmonicMultiplier) : gross;
-    if (routeMeridians.has(transfer.meridian.id) && circulation.greatCirculationTrainingPoolScale > 1) {
-      trainFlow = scaledPool(trainFlow, circulation.greatCirculationTrainingPoolScale);
-    }
+  // Step 7 (throttled to every 5 ticks): meridian training updates on flowed meridians.
+  if ((next.tick + 1) % 5 === 0) {
+    for (const transfer of transfers) {
+      const gross = flowByMeridian.get(transfer.meridian.id) ?? emptyPool();
+      if (totalEnergy(gross) <= 0) {
+        continue;
+      }
+      const harmonicMultiplier = harmonicThroughputMulByMeridian.get(transfer.meridian.id) ?? 1;
+      let trainFlow = harmonicMultiplier > 1 ? scaledPool(gross, 1 / harmonicMultiplier) : gross;
+      if (routeMeridians.has(transfer.meridian.id) && circulation.greatCirculationTrainingPoolScale > 1) {
+        trainFlow = scaledPool(trainFlow, circulation.greatCirculationTrainingPoolScale);
+      }
 
-    updateMeridianWidth(transfer.meridian, trainFlow);
-    transfer.meridian.purity = computeMeridianPurity(transfer.meridian);
-    updateMeridianAffinity(transfer.meridian, trainFlow);
-    // Deposits already updated via applyMeridianFlow; this keeps width/purity/affinity synchronized.
+      updateMeridianWidth(transfer.meridian, trainFlow);
+      transfer.meridian.purity = computeMeridianPurity(transfer.meridian);
+      updateMeridianAffinity(transfer.meridian, trainFlow);
+      // Deposits already updated via applyMeridianFlow; this keeps width/purity/affinity synchronized.
+    }
   }
 
   // Step 8 (throttled): flow bonus recalc
@@ -501,6 +505,9 @@ export function simulationTick(state: GameState): GameState {
   }
   next.progression.breakthroughEvents.push(...breakthroughEvents);
   next.immediateConditionCheck = false;
+  if (unlockEvents.length > 0 || levelEvents.length > 0 || breakthroughEvents.length > 0) {
+    next.attributesDirty = true;
+  }
 
   // Phase 12: Dao selection gate and Dao progression.
   checkDaoSelectionTrigger(next);
@@ -524,11 +531,12 @@ export function simulationTick(state: GameState): GameState {
     }
   }
 
-  // Step 11 (throttled): attribute recalc.
-  if ((next.tick + 1) % 10 === 0) {
+  // Step 11 (dirty-flag): attribute recalc only after node progression changes.
+  if (next.attributesDirty) {
     const attrs = computeAllAttributes(next);
     next.cultivationAttributes = attrs.cultivation;
     next.combatAttributes = attrs.combat;
+    next.attributesDirty = false;
   }
 
   applyBodyTemperingTick(next);
@@ -590,5 +598,10 @@ export function simulationTick(state: GameState): GameState {
     }
   }
 
+  const tickDurationMs = (timer ? timer.now() : Date.now()) - tickStartMs;
+  next.performance.lastTickDurationMs = tickDurationMs;
+  if (tickDurationMs > 5) {
+    next.performance.overBudgetTickCount += 1;
+  }
   return next;
 }

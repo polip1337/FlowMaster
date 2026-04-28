@@ -2,6 +2,11 @@ import { simulationTick } from "../core/simulation/tick";
 import { createEmptyRoute } from "../core/circulation/types";
 import { makeMeridianId, parseForwardId } from "../core/meridians/meridianId";
 import type { GameState } from "../state/GameState";
+import {
+  computeAjnaLobeBalance,
+  computeBinduReserveRatio,
+  toUiTier2Id
+} from "./t2UiMapping";
 
 export interface UiRouteInput {
   activeBodyRouteNodeIds: string[];
@@ -41,6 +46,13 @@ export interface UiMirrorState {
   sectElderFavorLevels: Record<string, number>;
   unlockedTechniques: string[];
   t2NodeRanks: Record<string, number>;
+  coreActiveRouteLength: number;
+  circulationSpeedPercent: number;
+  t2DamageById: Record<string, { cracked: boolean; shattered: boolean; repairProgress: number }>;
+  binduReserveRatio: number;
+  ajnaYinRatio: number;
+  ajnaYangRatio: number;
+  ajnaImbalanceSeverity: number;
 }
 
 export function normalizeToCoreMeridianId(id: string): string {
@@ -106,9 +118,25 @@ export function mirrorCoreStateToUi(core: GameState, ui: UiMirrorState): void {
   ui.unlockedTechniques = [...core.unlockedTechniques];
   const t2NodeRanks: Record<string, number> = {};
   for (const [nodeId, node] of core.t2Nodes) {
-    t2NodeRanks[nodeId] = node.rank;
+    t2NodeRanks[toUiTier2Id(nodeId)] = node.rank;
   }
   ui.t2NodeRanks = t2NodeRanks;
+  ui.coreActiveRouteLength = core.activeRoute?.nodeSequence.length ?? 0;
+  ui.circulationSpeedPercent = core.cultivationAttributes.circulationSpeed;
+  const t2DamageById: Record<string, { cracked: boolean; shattered: boolean; repairProgress: number }> = {};
+  for (const [nodeId, node] of core.t2Nodes) {
+    t2DamageById[toUiTier2Id(nodeId)] = {
+      cracked: node.nodeDamageState.cracked,
+      shattered: node.nodeDamageState.shattered,
+      repairProgress: node.nodeDamageState.repairProgress
+    };
+  }
+  ui.t2DamageById = t2DamageById;
+  ui.binduReserveRatio = computeBinduReserveRatio(core);
+  const ajna = computeAjnaLobeBalance(core);
+  ui.ajnaYinRatio = ajna.yinRatio;
+  ui.ajnaYangRatio = ajna.yangRatio;
+  ui.ajnaImbalanceSeverity = ajna.imbalance;
   ui.combatEncountered = ui.combatEncountered || core.combat !== null || core.globalTrackers.combatCount > 0;
   if (!core.combat) {
     ui.combatPhase = "prep";
