@@ -10,6 +10,7 @@ function makeElement() {
     textContent: "",
     disabled: false,
     value: "",
+    checked: false,
     style: { setProperty: vi.fn() as any },
     classList: {
       toggle: vi.fn(),
@@ -67,7 +68,15 @@ function makeDocumentMock() {
     "daoSkills",
     "inventoryGrid",
     "inventoryDetail",
-    "ingredientInventory"
+    "ingredientInventory",
+    "alchemySlots",
+    "alchemyPhase",
+    "alchemyQualityPreview",
+    "alchemyRefineBtn",
+    "alchemyRecipeList",
+    "alchemyFilterType",
+    "alchemyFilterTier",
+    "alchemyFilterAvailable"
   ];
   for (const id of ids) elements.set(id, makeElement());
   return {
@@ -171,5 +180,44 @@ describe("phase 29 hud and panels", () => {
     const summaryEl = documentMock.getElementById("combatSummaryBody");
     expect(summaryEl.innerHTML).toContain("Outcome");
     (await import("../../js/app/config.ts")).nodeData[1].damageState = "healthy";
+  });
+
+  it("renders alchemy workbench, recipe browser, and highlights required ingredients", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    mod.bindPhase29PanelUi();
+    mod.updatePhase29Panels();
+    const recipeListEl = documentMock.getElementById("alchemyRecipeList");
+    expect(recipeListEl.innerHTML).toContain("Available");
+    const recipeId = "essence-condensation:basic";
+    recipeListEl.dispatch("click", {
+      target: {
+        closest: () => ({ getAttribute: () => recipeId })
+      }
+    });
+    mod.updatePhase29Panels();
+    expect(stateModule.st.alchemySelectedRecipeId).toBe(recipeId);
+    const ingredientsEl = documentMock.getElementById("ingredientInventory");
+    expect(ingredientsEl.innerHTML).toContain("phase31-ingredient-highlight");
+  });
+
+  it("filters alchemy recipes and refines quality by spending YangQi", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    mod.bindPhase29PanelUi();
+    stateModule.st.alchemySelectedRecipeId = "stone-hardening:basic";
+    mod.updatePhase29Panels();
+    const qualityEl = documentMock.getElementById("alchemyQualityPreview");
+    qualityEl.dispatch("click", { target: { id: "alchemyStartMixingBtn" } });
+    qualityEl.dispatch("click", { target: { id: "alchemyAdvanceRefiningBtn" } });
+    const preQuality = stateModule.st.alchemyQualityPreview;
+    const preYangQi = stateModule.st.combatEnergyPool.yangQi;
+    const refineEl = documentMock.getElementById("alchemyRefineBtn");
+    refineEl.dispatch("click");
+    expect(stateModule.st.alchemyQualityPreview).toBeGreaterThan(preQuality);
+    expect(stateModule.st.combatEnergyPool.yangQi).toBe(preYangQi - 5);
+
+    const filterTierEl = documentMock.getElementById("alchemyFilterTier");
+    filterTierEl.value = "transcendent";
+    filterTierEl.dispatch("change");
+    expect(documentMock.getElementById("alchemyRecipeList").innerHTML).toContain("Tier: transcendent");
   });
 });

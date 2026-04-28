@@ -27,9 +27,19 @@ import {
   daoSkillsEl,
   inventoryGridEl,
   inventoryDetailEl,
-  ingredientInventoryEl
+  ingredientInventoryEl,
+  alchemySlotsEl,
+  alchemyPhaseEl,
+  alchemyQualityPreviewEl,
+  alchemyRefineBtnEl,
+  alchemyRecipeListEl,
+  alchemyFilterTypeEl,
+  alchemyFilterTierEl,
+  alchemyFilterAvailableEl
 } from "./state.ts";
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
+import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
+import type { Recipe } from "../../src/core/alchemy/types.ts";
 
 type HeatZone = "green" | "yellow" | "orange" | "red";
 
@@ -58,6 +68,19 @@ const COMBAT_ATTRS = [
   "Energy Recovery",
   "Critical Insight"
 ] as const;
+
+const RECIPE_TYPE_LABELS: Record<string, string> = {
+  condensed_essence_pill: "Condensed Essence Pill",
+  refining_stone: "Refining Stone",
+  meridian_salve: "Meridian Salve",
+  meridian_restoration: "Meridian Restoration",
+  jing_deposit: "Jing Deposit",
+  dao_fragment: "Dao Fragment",
+  recovery_elixir: "Recovery Elixir",
+  formation_array: "Formation Array",
+  cultivation_manual: "Cultivation Manual"
+};
+const ALCHEMY_REFINE_COST = 5;
 
 function routeMetrics(nodeIds: string[]) {
   if (nodeIds.length < 2) {
@@ -378,8 +401,131 @@ function renderInventoryPanel() {
     });
   }
   ingredientInventoryEl.innerHTML = st.ingredientItems
-    .map((item) => `<div class="phase29-row"><span>${item.name}</span><strong>x${item.quantity}</strong></div>`)
+    .map((item) => {
+      const activeRecipe = ALCHEMY_RECIPES.find((recipe) => recipe.id === st.alchemySelectedRecipeId) ?? null;
+      const highlighted = activeRecipe?.ingredients.includes(item.id);
+      return `<div class="phase29-row ${highlighted ? "phase31-ingredient-highlight" : ""}"><span>${item.name}</span><strong>x${item.quantity}</strong></div>`;
+    })
     .join("");
+}
+
+function ingredientCountById(): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of st.ingredientItems) {
+    counts.set(item.id, item.quantity);
+  }
+  return counts;
+}
+
+function recipeIngredientNeeds(recipe: Recipe): Map<string, number> {
+  const needs = new Map<string, number>();
+  for (const ingredientId of recipe.ingredients) {
+    needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + 1);
+  }
+  return needs;
+}
+
+function craftCountForRecipe(recipe: Recipe): number {
+  const counts = ingredientCountById();
+  const needs = recipeIngredientNeeds(recipe);
+  let craftCount = Number.POSITIVE_INFINITY;
+  for (const [ingredientId, needed] of needs) {
+    const stock = counts.get(ingredientId) ?? 0;
+    craftCount = Math.min(craftCount, Math.floor(stock / needed));
+  }
+  return Number.isFinite(craftCount) ? craftCount : 0;
+}
+
+function recipeAvailable(recipe: Recipe): boolean {
+  return craftCountForRecipe(recipe) > 0;
+}
+
+function computeAlchemyQualityPreview(recipe: Recipe): number {
+  const bodyScore = Math.min(1.2, 0.5 + st.temperingLevel / 10);
+  const daoScore = Math.min(1.1, 0.6 + st.daoComprehensionLevel * 0.06);
+  const harmonyPenalty = Math.max(0.7, 1 - st.bodyHeat / Math.max(1, st.maxBodyHeat) * 0.18);
+  return Math.max(1, Math.min(200, recipe.baseQuality * bodyScore * daoScore * harmonyPenalty));
+}
+
+function selectedRecipe(): Recipe | null {
+  return ALCHEMY_RECIPES.find((recipe) => recipe.id === st.alchemySelectedRecipeId) ?? null;
+}
+
+function resetWorkbench() {
+  st.alchemyWorkbenchSlots = [];
+  st.alchemyPhase = "IDLE";
+  st.alchemyQualityPreview = 0;
+}
+
+function startAlchemyMixing() {
+  const recipe = selectedRecipe();
+  if (!recipe) return;
+  st.alchemyWorkbenchSlots = recipe.ingredients.slice(0, 4);
+  st.alchemyPhase = "MIXING";
+  st.alchemyQualityPreview = computeAlchemyQualityPreview(recipe);
+}
+
+function advanceToRefining() {
+  if (st.alchemyPhase !== "MIXING") return;
+  st.alchemyPhase = "REFINING";
+}
+
+function refineSelectedAlchemy() {
+  if (st.alchemyPhase !== "REFINING") return;
+  if (st.combatEnergyPool.yangQi < ALCHEMY_REFINE_COST) return;
+  st.combatEnergyPool.yangQi -= ALCHEMY_REFINE_COST;
+  st.alchemyQualityPreview = Math.min(200, st.alchemyQualityPreview + ALCHEMY_REFINE_COST);
+}
+
+function filteredRecipes(): Recipe[] {
+  return ALCHEMY_RECIPES.filter((recipe) => {
+    if (st.alchemyFilterType !== "all" && recipe.resultType !== st.alchemyFilterType) return false;
+    if (st.alchemyFilterTier !== "all" && recipe.tier !== st.alchemyFilterTier) return false;
+    if (st.alchemyFilterAvailableOnly && !recipeAvailable(recipe)) return false;
+    return true;
+  });
+}
+
+function renderAlchemyPanel() {
+  if (!alchemySlotsEl || !alchemyPhaseEl || !alchemyQualityPreviewEl || !alchemyRefineBtnEl || !alchemyRecipeListEl) return;
+  const recipe = selectedRecipe();
+  const slots = Array.from({ length: 4 }, (_, idx) => st.alchemyWorkbenchSlots[idx] ?? "Empty");
+  alchemySlotsEl.innerHTML = slots
+    .map((slot) => `<div class="phase31-slot ${slot === "Empty" ? "empty" : ""}">${slot}</div>`)
+    .join("");
+  alchemyPhaseEl.textContent = st.alchemyPhase;
+  if (recipe) {
+    const current = st.alchemyPhase === "IDLE" ? computeAlchemyQualityPreview(recipe) : st.alchemyQualityPreview;
+    const craftCount = craftCountForRecipe(recipe);
+    alchemyQualityPreviewEl.innerHTML = `
+      <div class="phase29-row"><span>Recipe</span><strong>${recipe.name}</strong></div>
+      <div class="phase29-row"><span>Expected quality</span><strong>${current.toFixed(1)}</strong></div>
+      <div class="phase29-row"><span>Craft count</span><strong>${craftCount}</strong></div>
+      <div class="phase29-row"><span>Required</span><strong>${recipe.ingredients.join(", ")}</strong></div>
+      <div class="phase31-controls">
+        <button type="button" id="alchemyStartMixingBtn" class="btn ghost" ${craftCount <= 0 ? "disabled" : ""}>Start Mixing</button>
+        <button type="button" id="alchemyAdvanceRefiningBtn" class="btn ghost" ${st.alchemyPhase !== "MIXING" ? "disabled" : ""}>Advance to Refining</button>
+      </div>
+    `;
+  } else {
+    alchemyQualityPreviewEl.innerHTML = `<div class="muted">Select a recipe to preview quality and craft count.</div>`;
+  }
+  const canRefine = st.alchemyPhase === "REFINING" && st.combatEnergyPool.yangQi >= ALCHEMY_REFINE_COST;
+  alchemyRefineBtnEl.toggleAttribute("disabled", !canRefine);
+  alchemyRefineBtnEl.textContent = `Refine (+${ALCHEMY_REFINE_COST} quality, costs ${ALCHEMY_REFINE_COST} YangQi)`;
+  const list = filteredRecipes();
+  alchemyRecipeListEl.innerHTML = list.map((recipeEntry) => {
+    const available = recipeAvailable(recipeEntry);
+    const selected = recipeEntry.id === st.alchemySelectedRecipeId;
+    const label = RECIPE_TYPE_LABELS[recipeEntry.resultType] ?? recipeEntry.resultType;
+    return `
+      <button type="button" class="phase29-item-btn ${selected ? "active" : ""}" data-recipe-id="${recipeEntry.id}">
+        <div><strong>${recipeEntry.name}</strong></div>
+        <div class="muted">Type: ${label} | Tier: ${recipeEntry.tier}</div>
+        <div class="${available ? "good" : "warning"}">${available ? "Available" : "Locked"} | craft x${craftCountForRecipe(recipeEntry)}</div>
+      </button>
+    `;
+  }).join("");
 }
 
 function initializeDaoForSelection(daoName: string) {
@@ -458,6 +604,49 @@ export function bindPhase29PanelUi() {
     if (target.id === "combatPriorityJing") applyCombatEnergyPriority("jing", Number(target.value));
     if (target.id === "combatPriorityYangQi") applyCombatEnergyPriority("yangQi", Number(target.value));
     if (target.id === "combatPriorityShen") applyCombatEnergyPriority("shen", Number(target.value));
+  });
+  alchemyRecipeListEl?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    const btn = target?.closest("[data-recipe-id]") as HTMLElement | null;
+    if (!btn) return;
+    const recipeId = btn.getAttribute("data-recipe-id");
+    if (!recipeId) return;
+    st.alchemySelectedRecipeId = recipeId;
+    resetWorkbench();
+    renderAlchemyPanel();
+    renderInventoryPanel();
+  });
+  alchemyQualityPreviewEl?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.id === "alchemyStartMixingBtn") {
+      startAlchemyMixing();
+      renderAlchemyPanel();
+      return;
+    }
+    if (target.id === "alchemyAdvanceRefiningBtn") {
+      advanceToRefining();
+      renderAlchemyPanel();
+    }
+  });
+  alchemyRefineBtnEl?.addEventListener("click", () => {
+    refineSelectedAlchemy();
+    renderAlchemyPanel();
+  });
+  alchemyFilterTypeEl?.addEventListener("change", () => {
+    const select = alchemyFilterTypeEl as HTMLSelectElement;
+    st.alchemyFilterType = select.value;
+    renderAlchemyPanel();
+  });
+  alchemyFilterTierEl?.addEventListener("change", () => {
+    const select = alchemyFilterTierEl as HTMLSelectElement;
+    st.alchemyFilterTier = select.value as typeof st.alchemyFilterTier;
+    renderAlchemyPanel();
+  });
+  alchemyFilterAvailableEl?.addEventListener("change", () => {
+    const checkbox = alchemyFilterAvailableEl as HTMLInputElement;
+    st.alchemyFilterAvailableOnly = checkbox.checked;
+    renderAlchemyPanel();
   });
   document.addEventListener("keydown", onPhase29KeyDown);
 }
@@ -542,4 +731,5 @@ export function updatePhase29Panels() {
   renderTemperingPanel();
   renderDaoPanel();
   renderInventoryPanel();
+  renderAlchemyPanel();
 }

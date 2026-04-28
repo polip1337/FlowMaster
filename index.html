@@ -754,6 +754,44 @@
       gap: 6px;
     }
 
+    .phase31-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .phase31-slot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(70px, 1fr));
+      gap: 6px;
+    }
+
+    .phase31-slot {
+      border: 1px dashed rgba(139, 105, 20, 0.5);
+      border-radius: 4px;
+      padding: 6px;
+      font-size: 0.74rem;
+      background: rgba(240, 232, 208, 0.65);
+      min-height: 30px;
+    }
+
+    .phase31-slot.empty {
+      opacity: 0.7;
+    }
+
+    .phase31-filters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(110px, 1fr));
+      gap: 6px;
+      align-items: end;
+    }
+
+    .phase31-ingredient-highlight {
+      border-left: 3px solid rgba(139, 105, 20, 0.7);
+      padding-left: 6px;
+      background: rgba(200, 168, 112, 0.14);
+    }
+
     .heat-gauge {
       position: relative;
       border: 1px solid rgba(139, 105, 20, 0.5);
@@ -1045,6 +1083,43 @@
           <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>
           <div class="bonus-title">Ingredients</div>
           <div id="ingredientInventory"></div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Alchemy Workbench</div>
+          <div class="phase29-row"><span>Alchemy Phase</span><strong id="alchemyPhase">IDLE</strong></div>
+          <div id="alchemySlots" class="phase31-slot-grid"></div>
+          <div id="alchemyQualityPreview"></div>
+          <button type="button" id="alchemyRefineBtn" class="btn ghost" disabled>Refine</button>
+          <div class="bonus-title">Recipe Browser</div>
+          <div class="phase31-filters">
+            <label class="muted">Type
+              <select id="alchemyFilterType" class="form-select form-select-sm">
+                <option value="all">All types</option>
+                <option value="condensed_essence_pill">Condensed Essence Pill</option>
+                <option value="refining_stone">Refining Stone</option>
+                <option value="meridian_salve">Meridian Salve</option>
+                <option value="meridian_restoration">Meridian Restoration</option>
+                <option value="jing_deposit">Jing Deposit</option>
+                <option value="dao_fragment">Dao Fragment</option>
+                <option value="recovery_elixir">Recovery Elixir</option>
+                <option value="formation_array">Formation Array</option>
+                <option value="cultivation_manual">Cultivation Manual</option>
+              </select>
+            </label>
+            <label class="muted">Tier
+              <select id="alchemyFilterTier" class="form-select form-select-sm">
+                <option value="all">All tiers</option>
+                <option value="basic">Basic</option>
+                <option value="refined">Refined</option>
+                <option value="transcendent">Transcendent</option>
+              </select>
+            </label>
+          </div>
+          <label class="muted" style="display: inline-flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="alchemyFilterAvailable" />
+            Available ingredients only
+          </label>
+          <div id="alchemyRecipeList" class="bonus-grid"></div>
         </div>
       </div>
     </aside>

@@ -6,6 +6,7 @@ import {
   BODY_MODE_FOCUS_TIER2_ID
 } from './constants.ts';
 import { initialEdges } from './config.ts';
+import type { RecipeTier } from "../../src/core/alchemy/types.ts";
 
 // All primitives and PIXI object bindings that get reassigned live here.
 // ES modules can't reassign exported `let`s from other files, so we use a
@@ -142,11 +143,22 @@ export const st = {
     { id: "stone_refine", name: "Refining Stone", quantity: 1, effect: "+1 quality to target node" }
   ] as Array<{ id: string; name: string; quantity: number; effect: string }>,
   ingredientItems: [
-    { id: "amber_root", name: "Amber Root", quantity: 5 },
-    { id: "moonleaf", name: "Moonleaf", quantity: 3 }
+    { id: "spirit-grass", name: "Spirit Grass", quantity: 5 },
+    { id: "iron-bark", name: "Iron Bark", quantity: 3 },
+    { id: "jade-moss", name: "Jade Moss", quantity: 4 },
+    { id: "ember-bloom", name: "Ember Bloom", quantity: 2 },
+    { id: "moon-tear", name: "Moon Tear", quantity: 3 },
+    { id: "void-thorn", name: "Void Thorn", quantity: 1 }
   ] as Array<{ id: string; name: string; quantity: number }>,
   selectedInventoryItemId: null as string | null,
   inventoryTargetingActive: false,
+  alchemySelectedRecipeId: null as string | null,
+  alchemyWorkbenchSlots: [] as string[],
+  alchemyPhase: "IDLE" as "IDLE" | "MIXING" | "REFINING",
+  alchemyQualityPreview: 0,
+  alchemyFilterType: "all" as string,
+  alchemyFilterTier: "all" as RecipeTier | "all",
+  alchemyFilterAvailableOnly: false,
 
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
@@ -228,3 +240,11 @@ export const daoSkillsEl = document.getElementById("daoSkills");
 export const inventoryGridEl = document.getElementById("inventoryGrid");
 export const inventoryDetailEl = document.getElementById("inventoryDetail");
 export const ingredientInventoryEl = document.getElementById("ingredientInventory");
+export const alchemySlotsEl = document.getElementById("alchemySlots");
+export const alchemyPhaseEl = document.getElementById("alchemyPhase");
+export const alchemyQualityPreviewEl = document.getElementById("alchemyQualityPreview");
+export const alchemyRefineBtnEl = document.getElementById("alchemyRefineBtn");
+export const alchemyRecipeListEl = document.getElementById("alchemyRecipeList");
+export const alchemyFilterTypeEl = document.getElementById("alchemyFilterType");
+export const alchemyFilterTierEl = document.getElementById("alchemyFilterTier");
+export const alchemyFilterAvailableEl = document.getElementById("alchemyFilterAvailable");
