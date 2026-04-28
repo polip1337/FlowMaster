@@ -32,7 +32,7 @@ import { bindClusterRepairUi } from './cluster-view.ts';
 import { devSimulateT1Damage } from './dev-tools.ts';
 import { bindBodyMapUi, ensureBodyMapUiState, redrawBodyMapMeridians } from './body-map.ts';
 import { bindPhase29PanelUi, updatePhase29Panels } from './phase29-panels.ts';
-import { initializeCoreBridgeFromUi } from "./core-bridge.ts";
+import { initializeCoreBridgeFromUi, startCoreAutoSave } from "./core-bridge.ts";
 import { applyTutorialSuppressionForReturningPlayer, bindTutorialUi, stepTutorialSystem } from "./tutorial.ts";
 
 // Wire up circular-dep bridges
@@ -46,6 +46,7 @@ bindBodyMapUi();
 bindPhase29PanelUi();
 bindTutorialUi();
 initializeCoreBridgeFromUi();
+startCoreAutoSave();
 applyTutorialSuppressionForReturningPlayer();
 
 async function loadBodyTexture() {

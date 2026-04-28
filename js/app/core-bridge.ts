@@ -6,8 +6,15 @@ import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import type { GameState } from "../../src/state/GameState.ts";
 import { applyUiInputsToCoreState, mirrorCoreStateToUi, runUiDrivenCoreTick } from "../../src/uiCore/bridge.ts";
 import { joinSect } from "../../src/core/sect/sectSystem.ts";
+import {
+  autoSaveState,
+  deserializeGameState,
+  PRIMARY_SAVE_KEY,
+  serializeGameState
+} from "../../src/state/persistence.ts";
 
 let coreState: GameState = buildInitialGameState();
+let autoSaveTimer: number | null = null;
 
 function combatTickContextFromState(state: GameState) {
   return {
@@ -34,6 +41,7 @@ function syncUiFromCore() {
 }
 
 export function initializeCoreBridgeFromUi(): void {
+  loadCoreStateFromLocalStorage();
   coreState = applyUiInputsToCoreState(coreState, {
     refiningPulseActive: st.refiningPulseActive,
     activeBodyRouteNodeIds: st.activeBodyRouteNodeIds
@@ -98,4 +106,57 @@ export function joinCoreSectFromUi(sectId: string): boolean {
   } finally {
     syncUiFromCore();
   }
+}
+
+function getBrowserStorage(): Storage | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage;
+}
+
+export function saveCoreStateToLocalStorage(): boolean {
+  const storage = getBrowserStorage();
+  if (!storage) return false;
+  autoSaveState(coreState, storage);
+  return true;
+}
+
+export function loadCoreStateFromLocalStorage(): boolean {
+  const storage = getBrowserStorage();
+  if (!storage) return false;
+  const raw = storage.getItem(PRIMARY_SAVE_KEY);
+  if (!raw) return false;
+  try {
+    coreState = deserializeGameState(raw);
+    syncUiFromCore();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function exportCoreStateAsJson(): string {
+  return serializeGameState(coreState);
+}
+
+export function importCoreStateFromJson(json: string): boolean {
+  try {
+    coreState = deserializeGameState(json);
+    syncUiFromCore();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function startCoreAutoSave(intervalMs = 60_000): void {
+  const storage = getBrowserStorage();
+  if (!storage) return;
+  if (autoSaveTimer !== null) {
+    window.clearInterval(autoSaveTimer);
+  }
+  autoSaveTimer = window.setInterval(() => {
+    autoSaveState(coreState, storage);
+  }, intervalMs);
 }

@@ -37,7 +37,11 @@ import {
   alchemyFilterTierEl,
   alchemyFilterAvailableEl,
   celestialCalendarWidgetEl,
-  sectPanelBodyEl
+  sectPanelBodyEl,
+  saveGameBtnEl,
+  loadGameBtnEl,
+  exportSaveBtnEl,
+  importSaveInputEl
 } from "./state.ts";
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
@@ -49,7 +53,11 @@ import {
   beginCoreAlchemyFromUi,
   refineCoreAlchemyFromUi,
   startCoreCombatFromUi,
-  joinCoreSectFromUi
+  joinCoreSectFromUi,
+  exportCoreStateAsJson,
+  importCoreStateFromJson,
+  loadCoreStateFromLocalStorage,
+  saveCoreStateToLocalStorage
 } from "./core-bridge.ts";
 import { getBodyIdForNodeId, CELESTIAL_YEAR_DAYS, CELESTIAL_PEAK_DURATION_DAYS } from "../../src/core/celestial/calendar";
 import { T2_NODE_DEFS } from "../../src/data/t2NodeDefs";
@@ -638,6 +646,16 @@ function renderSectPanel() {
   }).join("");
 }
 
+function downloadTextFile(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function initializeDaoForSelection(daoName: string) {
   st.daoSelected = daoName;
   st.daoNodes = [
@@ -661,6 +679,39 @@ export function applyInventoryToTier2Target(tier2Id: string): boolean {
 }
 
 export function bindPhase29PanelUi() {
+  saveGameBtnEl?.addEventListener("click", () => {
+    const ok = saveCoreStateToLocalStorage();
+    if (statusEl) {
+      statusEl.textContent = ok ? "Save complete." : "Save unavailable.";
+    }
+  });
+  loadGameBtnEl?.addEventListener("click", () => {
+    const ok = loadCoreStateFromLocalStorage();
+    if (statusEl) {
+      statusEl.textContent = ok ? "Loaded latest local save." : "No valid save found.";
+    }
+    updatePhase29Panels();
+  });
+  exportSaveBtnEl?.addEventListener("click", () => {
+    const content = exportCoreStateAsJson();
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadTextFile(`cultivation-save-${stamp}.json`, content);
+    if (statusEl) {
+      statusEl.textContent = "Save exported.";
+    }
+  });
+  importSaveInputEl?.addEventListener("change", async () => {
+    const input = importSaveInputEl as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const json = await file.text();
+    const ok = importCoreStateFromJson(json);
+    if (statusEl) {
+      statusEl.textContent = ok ? "Save imported." : "Import failed: invalid save file.";
+    }
+    updatePhase29Panels();
+    input.value = "";
+  });
   refiningPulseBtnEl?.addEventListener("click", () => {
     if ((refiningPulseBtnEl as HTMLButtonElement).disabled) return;
     st.refiningPulseActive = !st.refiningPulseActive;

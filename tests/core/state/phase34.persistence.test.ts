@@ -1,0 +1,78 @@
+import { describe, expect, it, vi } from "vitest";
+import { buildInitialGameState } from "../../../src/core/simulation/bodyMapFactory";
+import {
+  autoSaveState,
+  BACKUP_SAVE_KEY,
+  deserializeGameState,
+  migrateState,
+  PRIMARY_SAVE_KEY,
+  SAVE_SCHEMA_VERSION,
+  serializeGameState
+} from "../../../src/state/persistence";
+
+describe("phase34 persistence", () => {
+  it("serializes and deserializes GameState maps and sets", () => {
+    const state = buildInitialGameState();
+    state.specialEventFlags.add("event:test");
+    state.tick = 777;
+
+    const json = serializeGameState(state);
+    const roundTripped = deserializeGameState(json);
+
+    expect(roundTripped.tick).toBe(777);
+    expect(roundTripped.t2Nodes instanceof Map).toBe(true);
+    expect(roundTripped.meridians instanceof Map).toBe(true);
+    expect(roundTripped.playerDao.daoNodes instanceof Map).toBe(true);
+    expect(roundTripped.specialEventFlags instanceof Set).toBe(true);
+    expect(roundTripped.specialEventFlags.has("event:test")).toBe(true);
+  });
+
+  it("migrates missing fields from legacy saves using defaults", () => {
+    const legacy = {
+      tick: 55,
+      bodyHeat: 21
+    };
+
+    const migrated = migrateState(legacy, 0);
+    expect(migrated.tick).toBe(55);
+    expect(migrated.bodyHeat).toBe(21);
+    expect(migrated.maxBodyHeat).toBeGreaterThan(0);
+    expect(migrated.t2Nodes instanceof Map).toBe(true);
+    expect(migrated.specialEventFlags instanceof Set).toBe(true);
+  });
+
+  it("deserializes both versioned and raw legacy payloads", () => {
+    const state = buildInitialGameState();
+    state.tick = 18;
+    const versioned = serializeGameState(state);
+    const parsedVersioned = deserializeGameState(versioned);
+    expect(parsedVersioned.tick).toBe(18);
+
+    const rawLegacyJson = JSON.stringify({ tick: 9, bodyHeat: 2 });
+    const parsedLegacy = deserializeGameState(rawLegacyJson);
+    expect(parsedLegacy.tick).toBe(9);
+    expect(parsedLegacy.bodyHeat).toBe(2);
+  });
+
+  it("autosaves with backup rotation before overwrite", () => {
+    const state = buildInitialGameState();
+    state.tick = 5;
+    const storage = {
+      getItem: vi.fn<(_key: string) => string | null>().mockReturnValueOnce(null).mockReturnValueOnce("older-save"),
+      setItem: vi.fn<(key: string, value: string) => void>()
+    };
+
+    autoSaveState(state, storage);
+    autoSaveState(state, storage);
+
+    expect(storage.setItem).toHaveBeenCalledWith(PRIMARY_SAVE_KEY, expect.any(String));
+    expect(storage.setItem).toHaveBeenCalledWith(BACKUP_SAVE_KEY, "older-save");
+  });
+
+  it("writes schema version marker into serialized output", () => {
+    const state = buildInitialGameState();
+    const json = serializeGameState(state);
+    const parsed = JSON.parse(json) as { version: number };
+    expect(parsed.version).toBe(SAVE_SCHEMA_VERSION);
+  });
+});

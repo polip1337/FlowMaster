@@ -1198,6 +1198,16 @@
           <div id="sectPanelBody" class="bonus-grid"></div>
         </div>
         <div class="bonus-panel">
+          <div class="bonus-title">Save / Load</div>
+          <div class="button-row">
+            <button type="button" class="btn ghost" id="saveGameBtn">Save to Local</button>
+            <button type="button" class="btn ghost" id="loadGameBtn">Load Local Save</button>
+            <button type="button" class="btn ghost" id="exportSaveBtn">Export Save JSON</button>
+          </div>
+          <label class="muted" for="importSaveInput">Import Save JSON</label>
+          <input type="file" id="importSaveInput" accept="application/json,.json" class="form-control form-control-sm" />
+        </div>
+        <div class="bonus-panel">
           <div class="bonus-title">Inventory</div>
           <div id="inventoryGrid" class="bonus-grid"></div>
           <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>
