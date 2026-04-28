@@ -32,6 +32,7 @@ export interface CombatState {
   dodgeCharges: number;
   hp30RollDone: boolean;
   hp10RollDone: boolean;
+  temperingDamageReduction: number;
 }
 
 export interface CombatTickResult {

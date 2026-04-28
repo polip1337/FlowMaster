@@ -160,6 +160,12 @@ export function buildInitialGameState(): GameState {
       joinedSectId: null,
       elderFavorLevels: {}
     },
+    bodyTemperingState: {
+      temperingLevel: 1,
+      temperingXP: 0,
+      currentTrainingAction: null,
+      trainingCooldown: 0
+    },
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null

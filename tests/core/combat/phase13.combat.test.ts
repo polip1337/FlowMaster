@@ -39,7 +39,7 @@ describe("phase 13 combat system", () => {
     const after = snapshotBodyEnergyForCombat(started);
     const pool = started.combat?.combatEnergyPool;
 
-    expect(started.combat?.playerMaxHp).toBe(130);
+    expect(started.combat?.playerMaxHp).toBe(140);
     expect(started.combat?.playerMaxSoulHp).toBe(70);
     expect(pool).toBeTruthy();
     for (const type of Object.values(EnergyType)) {
@@ -161,6 +161,7 @@ describe("phase 13 combat system", () => {
     state.playerDao.availableSkillIds = ["earth-rumble-fist"];
     const started = startCombat(state, ENEMY_ARCHETYPES[2]);
     const combat = started.combat as CombatState;
+    const initialHp = combat.playerHp;
     combat.enemy.attackSpeedTicks = 1;
     combat.ticksUntilNextSkill = 99;
     combat.rotation = [];
@@ -174,7 +175,7 @@ describe("phase 13 combat system", () => {
 
     const target = started.t2Nodes.get("AJNA");
     expect(target?.nodeDamageState.cracked).toBe(true);
-    expect(combat.playerHp).toBe(combat.playerMaxHp);
+    expect(combat.playerHp).toBe(initialHp);
   });
 
   it("dao skill catalog remains available for combat rotation", () => {

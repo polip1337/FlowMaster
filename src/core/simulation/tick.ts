@@ -38,6 +38,7 @@ import { checkRankBreakthroughs } from "../progression/rankController";
 import { checkDaoSelectionTrigger, generateDaoInsights, updateDaoNodeProgression } from "../dao/daoSystem";
 import { applyNodeRepairTick } from "../combat/nodeDamage";
 import { applyFormationArrayPassiveGeneration } from "../treasures/treasureSystem";
+import { applyBodyTemperingTick } from "../bodyTempering/bodyTemperingSystem";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -378,7 +379,9 @@ export function simulationTick(state: GameState): GameState {
     next.combatAttributes = attrs.combat;
   }
 
-  next.maxHp = 100 + next.combatAttributes.physicalDurability;
+  applyBodyTemperingTick(next);
+
+  next.maxHp = 100 + next.combatAttributes.physicalDurability + next.bodyTemperingState.temperingLevel * 10;
   next.maxSoulHp = 50 + next.combatAttributes.soulDurability;
   next.hp = clamp(next.hp, 0, next.maxHp);
   next.soulHp = clamp(next.soulHp, 0, next.maxSoulHp);

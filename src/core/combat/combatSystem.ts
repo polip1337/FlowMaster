@@ -125,7 +125,9 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
     }
   }
 
-  combat.playerHp = Math.max(0, combat.playerHp - combat.enemy.physicalAttack);
+  const physicalReduction = Math.min(0.9, Math.max(0, combat.temperingDamageReduction));
+  const reducedPhysicalDamage = combat.enemy.physicalAttack * (1 - physicalReduction);
+  combat.playerHp = Math.max(0, combat.playerHp - reducedPhysicalDamage);
   combat.playerSoulHp = Math.max(0, combat.playerSoulHp - combat.enemy.soulAttack);
   const hpRatio = combat.playerMaxHp > 0 ? combat.playerHp / combat.playerMaxHp : 0;
   if (!combat.hp30RollDone && hpRatio <= 0.3) {
@@ -148,7 +150,7 @@ function applyEnemyAttack(combat: CombatState, t2Nodes: Map<string, T2Node>, ran
   }
   combat.log.push({
     tick: combat.combatTick,
-    message: `Enemy hit for ${combat.enemy.physicalAttack} physical and ${combat.enemy.soulAttack} soul.`
+    message: `Enemy hit for ${reducedPhysicalDamage.toFixed(1)} physical and ${combat.enemy.soulAttack} soul.`
   });
 }
 
@@ -156,7 +158,8 @@ export function startCombat(state: GameState, enemy: EnemyDef): GameState {
   const next = structuredClone(state);
   const combatPool = drainBodyEnergyToCombatPool(next, 0.4);
   const rotation = next.playerDao.availableSkillIds.slice(0, 6);
-  const playerMaxHp = 100 + next.combatAttributes.physicalDurability;
+  const temperingLevel = next.bodyTemperingState.temperingLevel;
+  const playerMaxHp = 100 + next.combatAttributes.physicalDurability + temperingLevel * 10;
   const playerMaxSoulHp = 50 + next.combatAttributes.soulDurability;
   next.maxHp = playerMaxHp;
   next.maxSoulHp = playerMaxSoulHp;
@@ -182,7 +185,8 @@ export function startCombat(state: GameState, enemy: EnemyDef): GameState {
     log: [{ tick: 0, message: `Combat started against ${enemy.name}.` }],
     dodgeCharges: 0,
     hp30RollDone: false,
-    hp10RollDone: false
+    hp10RollDone: false,
+    temperingDamageReduction: temperingLevel * 0.02
   };
   return next;
 }

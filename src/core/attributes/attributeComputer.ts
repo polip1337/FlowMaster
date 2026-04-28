@@ -12,6 +12,7 @@ import {
   type CultivationAttributes
 } from "./types";
 import { applySectMemberBenefits } from "../sect/sectSystem";
+import { countActiveJingSourceNodes } from "../bodyTempering/bodyTemperingSystem";
 
 function applyCultivationPartial(
   out: CultivationAttributes,
@@ -88,6 +89,10 @@ export function computeAllAttributes(state: GameState): {
 
   applyAjnaLobeBalance(state, cultivation);
   applySectMemberBenefits(state, cultivation, combat);
+  const temperingLevel = state.bodyTemperingState.temperingLevel;
+  combat.physicalDurability += temperingLevel * 10;
+  cultivation.jingGenerationRate += temperingLevel * 0.01;
+  cultivation.jingGenerationRate += countActiveJingSourceNodes(state) * temperingLevel * 0.01;
 
   return { cultivation, combat };
 }

@@ -52,6 +52,13 @@ export interface SectState {
   elderFavorLevels: Record<string, number>;
 }
 
+export interface BodyTemperingState {
+  temperingLevel: number;
+  temperingXP: number;
+  currentTrainingAction: string | null;
+  trainingCooldown: number;
+}
+
 export interface GameState {
   t2Nodes: Map<string, T2Node>;
   meridians: Map<string, Meridian>;
@@ -87,6 +94,7 @@ export interface GameState {
   /** External systems set flags used by progression gates (e.g. Dao challenges). */
   specialEventFlags: Set<string>;
   sect: SectState;
+  bodyTemperingState: BodyTemperingState;
   tick: number;
   /** S-021 — next tick runs full unlock/upgrade condition pass regardless of throttle. */
   immediateConditionCheck: boolean;
