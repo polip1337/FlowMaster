@@ -18,6 +18,7 @@ import { createT1Node } from "../../../src/core/nodes/t1Factory";
 import type { T2Node } from "../../../src/core/nodes/T2Node";
 import { T1NodeState, T1NodeType } from "../../../src/core/nodes/T1Types";
 import { T2NodeState, T2NodeType } from "../../../src/core/nodes/T2Types";
+import { healMeridianScar, recordMeridianScarIfOverloaded } from "../../../src/core/meridians/scarSystem";
 
 function makeT2Stub(id: string, level: number, rank: number): T2Node {
   return {
@@ -192,6 +193,73 @@ describe("meridian system (phase 5)", () => {
       hopCount: 1
     });
     expect(resolveBidirDirection(m, a, b)).toBe("idle");
+  });
+
+  it("records meridian scars for active over-pump overload and caps at 0.25", () => {
+    const m = createBaseMeridian({
+      id: "scarred",
+      nodeFromId: "a",
+      nodeToId: "b",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      width: 10,
+      scarPenalty: 0
+    });
+    const overloaded = recordMeridianScarIfOverloaded(m, 30, true);
+    expect(overloaded).toBe(true);
+    expect(m.isScarred).toBe(true);
+    expect(m.scarPenalty).toBeCloseTo(0.05, 6);
+
+    for (let i = 0; i < 10; i += 1) {
+      recordMeridianScarIfOverloaded(m, 100, true);
+    }
+    expect(m.scarPenalty).toBeCloseTo(0.25, 6);
+  });
+
+  it("does not scar on passive flow even when over threshold", () => {
+    const m = createBaseMeridian({
+      id: "passive-overload",
+      nodeFromId: "a",
+      nodeToId: "b",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      width: 10,
+      scarPenalty: 0
+    });
+    const scarred = recordMeridianScarIfOverloaded(m, 40, false);
+    expect(scarred).toBe(false);
+    expect(m.isScarred).toBe(false);
+    expect(m.scarPenalty).toBe(0);
+  });
+
+  it("scar penalty reduces computed purity and can be healed in 0.05 steps", () => {
+    const m = createBaseMeridian({
+      id: "scar-heal",
+      nodeFromId: "a",
+      nodeToId: "b",
+      ioNodeOutId: 1,
+      ioNodeInId: 2,
+      hopCount: 1,
+      isEstablished: true,
+      basePurity: 0.65,
+      scarPenalty: 0.1,
+      isScarred: true
+    });
+    const withScar = computeMeridianPurity(m);
+    m.scarPenalty = 0;
+    m.isScarred = false;
+    const withoutScar = computeMeridianPurity(m);
+    expect(withoutScar - withScar).toBeCloseTo(0.1, 6);
+
+    m.scarPenalty = 0.1;
+    m.isScarred = true;
+    const healed = healMeridianScar(m, 1);
+    expect(healed).toBeCloseTo(0.05, 6);
+    expect(m.scarPenalty).toBeCloseTo(0.05, 6);
   });
 });
 

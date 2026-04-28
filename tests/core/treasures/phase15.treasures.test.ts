@@ -5,6 +5,7 @@ import { buildInitialGameState } from "../../../src/core/simulation/bodyMapFacto
 import { applyTreasure, rollDrops } from "../../../src/core/treasures/treasureSystem";
 import { TreasureType, type Treasure } from "../../../src/core/treasures/types";
 import { ENEMY_ARCHETYPES } from "../../../src/data/enemies/archetypes";
+import { healMeridianScarWithShen } from "../../../src/core/meridians/scarSystem";
 
 function addInventoryItem(state: ReturnType<typeof buildInitialGameState>, item: Treasure): void {
   state.inventory.push(item);
@@ -17,6 +18,7 @@ describe("phase 15 treasure and inventory system", () => {
         TreasureType.CondensedEssencePill,
         TreasureType.RefiningStone,
         TreasureType.MeridianSalve,
+        TreasureType.MeridianRestoration,
         TreasureType.JingDeposit,
         TreasureType.DaoFragment,
         TreasureType.RecoveryElixir,
@@ -162,5 +164,71 @@ describe("phase 15 treasure and inventory system", () => {
     addInventoryItem(withSeal, ioManual);
     const withIo = applyTreasure(ioManual, "", withSeal);
     expect(withIo.t2Nodes.get("MULADHARA")?.meridianSlotIds).toContain("HIDDEN_IO_1");
+  });
+
+  it("heals meridian scars via shen action or Meridian Restoration treasure", () => {
+    const state = buildInitialGameState();
+    const targetMeridianId = [...state.meridians.keys()][0];
+    const meridian = state.meridians.get(targetMeridianId);
+    expect(meridian).toBeTruthy();
+    if (!meridian) {
+      return;
+    }
+    meridian.isEstablished = true;
+    meridian.isScarred = true;
+    meridian.scarPenalty = 0.1;
+
+    const muladhara = state.t2Nodes.get("MULADHARA");
+    const source = [...(muladhara?.t1Nodes.values() ?? [])][0];
+    expect(source).toBeTruthy();
+    if (source) {
+      source.energy[EnergyType.Shen] = 60_000;
+    }
+
+    const healedByShen = healMeridianScarWithShen(state, targetMeridianId);
+    expect(healedByShen).toBe(true);
+    expect(meridian.scarPenalty).toBeCloseTo(0.05, 6);
+
+    const restoration: Treasure = {
+      id: "restore-1",
+      type: TreasureType.MeridianRestoration,
+      tier: 7,
+      quantity: 1,
+      effect: { scarHealApplications: 1 }
+    };
+    addInventoryItem(state, restoration);
+    const afterTreasure = applyTreasure(restoration, targetMeridianId, state);
+    expect(afterTreasure.meridians.get(targetMeridianId)?.scarPenalty).toBeCloseTo(0, 6);
+    expect(afterTreasure.meridians.get(targetMeridianId)?.isScarred).toBe(false);
+  });
+
+  it("requires 50,000 Shen for direct scar healing action", () => {
+    const state = buildInitialGameState();
+    const targetMeridianId = [...state.meridians.keys()][0];
+    const meridian = state.meridians.get(targetMeridianId);
+    expect(meridian).toBeTruthy();
+    if (!meridian) {
+      return;
+    }
+    meridian.isEstablished = true;
+    meridian.isScarred = true;
+    meridian.scarPenalty = 0.1;
+
+    const muladhara = state.t2Nodes.get("MULADHARA");
+    const source = [...(muladhara?.t1Nodes.values() ?? [])][0];
+    expect(source).toBeTruthy();
+    if (!source) {
+      return;
+    }
+
+    source.energy[EnergyType.Shen] = 49_999;
+    expect(healMeridianScarWithShen(state, targetMeridianId)).toBe(false);
+    expect(meridian.scarPenalty).toBeCloseTo(0.1, 6);
+    expect(source.energy[EnergyType.Shen]).toBe(49_999);
+
+    source.energy[EnergyType.Shen] = 50_000;
+    expect(healMeridianScarWithShen(state, targetMeridianId)).toBe(true);
+    expect(meridian.scarPenalty).toBeCloseTo(0.05, 6);
+    expect(source.energy[EnergyType.Shen]).toBe(0);
   });
 });

@@ -7,7 +7,7 @@ import {
   earthSinkInflowThreshold, earthSinkHardThreshold,
   sunSurgeIntervalTicks, sunSurgeDurationTicks
 } from './constants.ts';
-import { nodeData, edges, initialEdges, initialNodeState, ensureClusterTier1UiFields } from './config.ts';
+import { nodeData, edges, initialEdges, initialNodeState, ensureClusterTier1UiFields, ensureMeridianUiFields } from './config.ts';
 import {
   st, activeProjections, unlockFadeProgress, statusEl, ticksEl, sourceTotalEl, flowPopupEl
 } from './state.ts';
@@ -221,7 +221,11 @@ export function resetGame() {
   }
   unlockFadeProgress.clear();
   for (let i = 0; i < edges.length; i += 1) {
-    edges[i].flow = initialEdges[i].flow;
+    const src = initialEdges[i];
+    for (const key of Object.keys(src)) {
+      (edges[i] as any)[key] = (src as any)[key];
+    }
+    ensureMeridianUiFields(edges[i]);
   }
   activeProjections.length = 0;
   initializeTier2Snapshots();

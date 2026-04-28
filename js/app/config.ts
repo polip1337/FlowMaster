@@ -63,7 +63,10 @@ function loadConfigWithValidation() {
     from: zApi.number(),
     to: zApi.number(),
     flow: zApi.number(),
-    key: zApi.string().optional()
+    key: zApi.string().optional(),
+    isScarred: zApi.boolean().optional(),
+    scarPenalty: zApi.number().optional(),
+    scarHealingCostShen: zApi.number().optional()
   });
   const projectionSchema = zApi.object({ from: zApi.number(), to: zApi.number() });
   const cfgSchema = zApi.object({
@@ -115,5 +118,13 @@ export function ensureClusterTier1UiFields(node: any): void {
   if (node.repairAccumulator == null) node.repairAccumulator = 0;
 }
 
+export function ensureMeridianUiFields(edge: any): void {
+  if (edge.isScarred == null) edge.isScarred = false;
+  if (edge.scarPenalty == null) edge.scarPenalty = 0;
+  if (edge.scarHealingCostShen == null) edge.scarHealingCostShen = 50000;
+}
+
 for (const n of initialNodeState) ensureClusterTier1UiFields(n);
 for (const n of nodeData) ensureClusterTier1UiFields(n);
+for (const e of initialEdges) ensureMeridianUiFields(e);
+for (const e of edges) ensureMeridianUiFields(e);
