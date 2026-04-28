@@ -13,6 +13,7 @@ import type { CelestialBody, CelestialCalendar } from "../core/celestial/types";
 import type { CompanionState } from "../core/companion/types";
 import type { InsightLibraryState } from "../core/insight/insightLibrary";
 import type { HarmonicPair } from "../core/meridians/meridianLogic";
+import type { DaoType } from "../core/dao/types";
 export type { CirculationRoute } from "../core/circulation/types";
 
 export interface TutorialState {
@@ -107,6 +108,17 @@ export interface MeridianHarmonicsState {
   tintByMeridianId: Record<string, string>;
 }
 
+export interface PhantomNode {
+  id: string;
+  daoType: DaoType;
+  bodyOverlayPosition: { x: number; y: number };
+  t2NodeRef: T2Node;
+  isPlanted: boolean;
+  locationId: string | null;
+  generationBonus: EnergyPool;
+  retrievalEndsAtTick: number | null;
+}
+
 export interface GameState {
   t2Nodes: Map<string, T2Node>;
   meridians: Map<string, Meridian>;
@@ -148,6 +160,7 @@ export interface GameState {
   celestialCalendar: CelestialCalendar;
   companion: CompanionState | null;
   insightLibrary: InsightLibraryState;
+  phantomNodes: PhantomNode[];
   tick: number;
   /** S-021 — next tick runs full unlock/upgrade condition pass regardless of throttle. */
   immediateConditionCheck: boolean;

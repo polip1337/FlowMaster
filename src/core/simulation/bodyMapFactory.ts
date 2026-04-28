@@ -202,6 +202,7 @@ export function buildInitialGameState(): GameState {
     celestialCalendar: createInitialCelestialCalendar(),
     companion,
     insightLibrary: createInitialInsightLibraryState(),
+    phantomNodes: [],
     tick: 0,
     immediateConditionCheck: true,
     activeRepairNodeId: null,

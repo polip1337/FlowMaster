@@ -9,6 +9,7 @@ import { allTopologies } from "../../data/topologies";
 import { DAO_NODE_DEFS_BY_TYPE } from "../../data/dao";
 import { DAO_SKILLS } from "../../data/dao/skills";
 import { EnergyType } from "../energy/EnergyType";
+import { isDaoNodeBlockedByPlantedPhantom, tryUnlockPhantomNode } from "../phantom/phantomSystem";
 
 const COMBAT_VICTORY_FLAG = "event:combat_victory";
 const DAO_CHALLENGE_COMPLETE_FLAG = "event:dao_comprehension_complete";
@@ -217,6 +218,9 @@ export function updateDaoNodeProgression(state: GameState): void {
     if (!node) {
       continue;
     }
+    if (isDaoNodeBlockedByPlantedPhantom(state, node.id)) {
+      continue;
+    }
 
     if (node.state === T2NodeState.LOCKED) {
       const prevDef = defs[def.nodeIndex - 1];
@@ -268,6 +272,8 @@ export function updateDaoNodeProgression(state: GameState): void {
         node.rank += 1;
         node.level = 1;
         state.playerDao.comprehensionLevel += 1;
+        // TASK-173: first unlock is a Dao rank-advance reward (gated by rank/comprehension and cap).
+        tryUnlockPhantomNode(state);
       }
     }
   }

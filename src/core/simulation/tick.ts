@@ -53,6 +53,7 @@ import {
   runCompanionCultivationTick
 } from "../companion/simulation";
 import { processInsightLibraryTriggers } from "../insight/insightLibrary";
+import { processPhantomTick } from "../phantom/phantomSystem";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -267,6 +268,7 @@ export function simulationTick(state: GameState): GameState {
     }
   }
   applyFormationArrayPassiveGeneration(next);
+  processPhantomTick(next);
 
   // Phase 8 — step 1 continued: foot Jing, Shen passive, Manipura furnace
   for (const footId of FOOT_CLUSTER_IDS) {
