@@ -34,6 +34,7 @@ describe("phase 17 sect and elder system", () => {
     const elder = ironSect!.homeElder;
 
     expect(canLearnFromElder(elder, state)).toBe(false);
+    joinSect(state, ironSect!.id);
     const muladhara = state.t2Nodes.get("MULADHARA");
     expect(muladhara).toBeTruthy();
     muladhara!.rank = 2;
@@ -43,6 +44,20 @@ describe("phase 17 sect and elder system", () => {
     const learned = learnFromElder(elder, elder.teachableManuals[0], state);
     expect(learned.unlockedTechniques).toContain(elder.teachableManuals[0]);
     expect(learned.sect.elderFavorLevels[elder.id]).toBe(beforeFavor + 5);
+  });
+
+  it("blocks learning from elders outside joined sect", () => {
+    const state = buildInitialGameState();
+    joinSect(state, "heaven-striking-order");
+    const ironSect = SECTS.find((s) => s.id === "iron-foundation-sect");
+    expect(ironSect).toBeTruthy();
+    const elder = ironSect!.homeElder;
+    const muladhara = state.t2Nodes.get("MULADHARA");
+    if (muladhara) {
+      muladhara.rank = 2;
+    }
+    expect(canLearnFromElder(elder, state)).toBe(false);
+    expect(() => learnFromElder(elder, elder.teachableManuals[0], state)).toThrow();
   });
 
   it("allows one irreversible sect membership and exposes rest-only arrays", () => {

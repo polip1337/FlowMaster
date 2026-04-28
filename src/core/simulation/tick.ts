@@ -453,7 +453,7 @@ export function simulationTick(state: GameState): GameState {
   next.globalTrackers.lifetimeEnergyByType = applyPoolMultiplier(globalTypeTotals, 1);
   next.globalTrackers.totalEnergyGenerated = globalTotal;
 
-  // TASK-083 — Jing depletion vs total storable capacity (all T2), HP drain on ACTIVE T2 count
+  // TASK-083 — Jing depletion vs total storable capacity (all T2), HP drain on ACTIVE T2 count.
   let totalJing = 0;
   let jingCapacityBudget = 0;
   let activeT2ForHp = 0;
@@ -467,15 +467,16 @@ export function simulationTick(state: GameState): GameState {
     }
   }
   next.jingDepletionWarning = jingCapacityBudget > 0 && totalJing < jingCapacityBudget * 0.1;
-  if (next.jingDepletionWarning && activeT2ForHp > 0) {
-    next.hp = clamp(next.hp - 0.001 * activeT2ForHp, 0, next.maxHp);
-  }
 
   applyNodeRepairTick(next.t2Nodes, next.cultivationAttributes.meridianRepairRate, next.activeRepairNodeId);
 
-  if (!next.combat) {
+  if (!next.combat && !next.jingDepletionWarning) {
     next.hp = clamp(next.hp + 0.1, 0, next.maxHp);
     next.soulHp = clamp(next.soulHp + 0.1, 0, next.maxSoulHp);
+  }
+
+  if (next.jingDepletionWarning && activeT2ForHp > 0) {
+    next.hp = clamp(next.hp - 0.001 * activeT2ForHp, 0, next.maxHp);
   }
 
   if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {

@@ -102,28 +102,34 @@ export function checkRankBreakthroughs(state: GameState): ProgressionBreakthroug
   if (pending) {
     const successFlag = `event:tribulation_success:${pending.nodeId}:${pending.toRank}`;
     const targetNode = state.t2Nodes.get(pending.nodeId);
-    if (
-      state.specialEventFlags.has(successFlag) &&
-      targetNode &&
-      targetNode.rank === pending.fromRank &&
-      getBodyEnergyTypeAmount(state, EnergyType.Jing) >= pending.jingCost &&
-      getBodyEnergyTypeAmount(state, EnergyType.Shen) >= pending.shenCost &&
-      spendBodyEnergyType(state, EnergyType.Jing, pending.jingCost) &&
-      spendBodyEnergyType(state, EnergyType.Shen, pending.shenCost)
-    ) {
-      targetNode.rank += 1;
-      targetNode.level = 1;
-      const qualityNodesBoosted = applyClusterQualityBreakthrough(targetNode);
-      events.push({
-        nodeId: targetNode.id,
-        fromRank: pending.fromRank,
-        toRank: targetNode.rank,
-        qualityNodesBoosted,
-        tick: tickAfter
-      });
+    const successAchieved = state.specialEventFlags.has(successFlag);
+    if (successAchieved) {
+      if (
+        targetNode &&
+        targetNode.rank === pending.fromRank &&
+        getBodyEnergyTypeAmount(state, EnergyType.Jing) >= pending.jingCost &&
+        getBodyEnergyTypeAmount(state, EnergyType.Shen) >= pending.shenCost &&
+        spendBodyEnergyType(state, EnergyType.Jing, pending.jingCost) &&
+        spendBodyEnergyType(state, EnergyType.Shen, pending.shenCost)
+      ) {
+        targetNode.rank += 1;
+        targetNode.level = 1;
+        const qualityNodesBoosted = applyClusterQualityBreakthrough(targetNode);
+        events.push({
+          nodeId: targetNode.id,
+          fromRank: pending.fromRank,
+          toRank: targetNode.rank,
+          qualityNodesBoosted,
+          tick: tickAfter
+        });
+      } else {
+        state.specialEventFlags.add(`event:tribulation_finalize_skipped:${pending.nodeId}:${pending.toRank}`);
+      }
       finalizeSuccessfulTribulation(state);
     }
-    state.specialEventFlags.delete(successFlag);
+    if (successAchieved) {
+      state.specialEventFlags.delete(successFlag);
+    }
   }
   if (isTribulationActive(state)) {
     return events;

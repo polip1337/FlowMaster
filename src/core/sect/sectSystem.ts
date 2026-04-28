@@ -50,6 +50,11 @@ export function getSectById(sectId: string): Sect | undefined {
 }
 
 export function canLearnFromElder(elder: Elder, state: GameState): boolean {
+  const joinedSect = state.sect.joinedSectId ? getSectById(state.sect.joinedSectId) : undefined;
+  if (!joinedSect || joinedSect.homeElder.id !== elder.id) {
+    return false;
+  }
+
   const conditionState = buildConditionState(state);
   if (!evaluateUnlockConditions(elder.requirement, conditionState)) {
     return false;
