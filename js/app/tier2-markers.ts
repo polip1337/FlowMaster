@@ -4,6 +4,7 @@
 
 import { TIER2_NODES, BODY_MODE_DEFAULT_SCALE } from './constants.ts';
 import { st, tier2MarkerVisuals } from './state.ts';
+import { handleTier2MarkerRouteClick } from './body-map.ts';
 
 // Lazily resolved to avoid the circular dep at init time
 let _enterTier1ForActiveTier2: (() => void) | null = null;
@@ -29,9 +30,17 @@ export function redrawTier2MarkerVisual(tier2Id: string, hovered = false) {
   const radius = (tier2.radius ?? 16) * zoomFactor * 2.5;
   marker.clear();
   marker.circle(0, 0, radius);
-  // Keep markers visible at all times in T2 mode so zoom-out never appears empty.
-  marker.fill({ color: hovered ? 0xffffff : 0xff4d4d, alpha: hovered ? 0.26 : 0.12 });
-  marker.stroke({ width: hovered ? 3.5 : 2.2, color: hovered ? 0xffffff : 0xff4d4d, alpha: hovered ? 1 : 0.88 });
+  // TASK-191: Galaxy mode renders markers as brighter "stars"
+  if (st.galaxyViewEnabled) {
+    marker.fill({ color: 0xb8d8ff, alpha: hovered ? 0.72 : 0.56 });
+    marker.stroke({ width: hovered ? 3.5 : 2.2, color: 0xeaf4ff, alpha: hovered ? 1 : 0.9 });
+    marker.circle(0, 0, Math.max(1, radius * 0.32));
+    marker.fill({ color: 0xffffff, alpha: hovered ? 1 : 0.9 });
+  } else {
+    // Keep markers visible at all times in T2 mode so zoom-out never appears empty.
+    marker.fill({ color: hovered ? 0xffffff : 0xff4d4d, alpha: hovered ? 0.26 : 0.12 });
+    marker.stroke({ width: hovered ? 3.5 : 2.2, color: hovered ? 0xffffff : 0xff4d4d, alpha: hovered ? 1 : 0.88 });
+  }
 }
 
 export function refreshTier2MarkerVisuals() {
@@ -67,6 +76,7 @@ export function createTier2MarkerVisual(tier2: any) {
   marker.on("pointertap", () => {
     if (st.developerMode && st.tier2DraggedDistance > 6) return;
     if (!st.symbolModeEnabled) return;
+    if (handleTier2MarkerRouteClick(tier2.id)) return;
     st.activeTier2NodeId = tier2.id;
     if (_enterTier1ForActiveTier2) _enterTier1ForActiveTier2();
   });

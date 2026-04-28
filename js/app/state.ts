@@ -88,6 +88,15 @@ export const st = {
   directJingRepairActive: false,
   bodyJingPool: 3200,
 
+  /** Phase 28 — Body map route/meridian UI */
+  bodyMapMeridianLayer: null as any,
+  bodyMapMeridians: null as Map<string, any> | null,
+  routeDrawingMode: false,
+  routeDraftNodeIds: [] as string[],
+  activeBodyRouteNodeIds: [] as string[],
+  selectedBodyMapMeridianId: null as string | null,
+  galaxyViewEnabled: false,
+
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
 };
@@ -138,3 +147,9 @@ export const editNodesBtnEl = document.getElementById("editNodesBtn");
 export const saveShapeEl = document.getElementById("saveShapeBtn");
 export const addT2NodeEl = document.getElementById("addT2NodeBtn");
 export const saveT2LayoutEl = document.getElementById("saveT2LayoutBtn");
+export const drawRouteBtnEl = document.getElementById("drawRouteBtn");
+export const confirmRouteBtnEl = document.getElementById("confirmRouteBtn");
+export const galaxyToggleBtnEl = document.getElementById("galaxyViewToggleBtn");
+export const routeMetricsEl = document.getElementById("routeMetrics");
+export const meridianDetailEl = document.getElementById("meridianDetailPanel");
+export const reverseMeridianBtnEl = document.getElementById("reverseMeridianBtn");

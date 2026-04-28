@@ -10,6 +10,7 @@ import { attachDomTooltips } from './tooltips.ts';
 import { redrawEdge, drawBezierPath } from './edge-render.ts';
 import { redrawNode } from './node-render.ts';
 import { syncEdgeControls, updateEdgeControlsLayout } from './edge-controls.ts';
+import { redrawBodyMapMeridians } from './body-map.ts';
 
 export function updateBonusSummary() {
   const attr = getAttributeState();
@@ -72,6 +73,9 @@ export function updateBonusSummary() {
 export function redrawNetwork() {
   st.visibleNodeIds = computeVisibleNodeIds();
   syncEdgeControls();
+  if (st.symbolModeEnabled) {
+    redrawBodyMapMeridians();
+  }
   for (const edge of edges) redrawEdge(edge);
   for (const node of nodeData) redrawNode(node);
   updateEdgeControlsLayout();

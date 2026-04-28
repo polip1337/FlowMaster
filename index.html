@@ -49,6 +49,14 @@
       overflow: hidden;
     }
 
+    body.galaxy-view {
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(66, 104, 188, 0.22) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 90%, rgba(130, 95, 188, 0.18) 0%, transparent 55%),
+        #090d1a;
+      color: #dde7ff;
+    }
+
     .game {
       width: min(100vw, 1500px);
       height: 100vh;
@@ -99,6 +107,13 @@
         url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><path d='M0 10 L10 0' stroke='%238b7355' stroke-width='0.4' opacity='0.4'/><path d='M-2 2 L2 -2' stroke='%238b7355' stroke-width='0.4' opacity='0.4'/><path d='M8 12 L12 8' stroke='%238b7355' stroke-width='0.4' opacity='0.4'/></svg>"),
         #f0e8d0;
       background-size: auto, 10px 10px, auto;
+    }
+
+    body.galaxy-view #pixiWrap {
+      background:
+        radial-gradient(circle at 20% 20%, rgba(100, 140, 255, 0.22), transparent 40%),
+        radial-gradient(circle at 80% 60%, rgba(170, 120, 255, 0.18), transparent 45%),
+        #070b16;
     }
 
     #pixiWrap canvas {
@@ -596,6 +611,35 @@
       background: rgba(200, 168, 112, 0.55);
     }
 
+    .route-metrics {
+      border: 1px solid rgba(139, 105, 20, 0.45);
+      border-radius: 4px;
+      background: rgba(240, 232, 208, 0.72);
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      display: grid;
+      gap: 4px;
+    }
+
+    .meridian-detail-panel {
+      border: 1px solid rgba(139, 105, 20, 0.45);
+      border-radius: 4px;
+      background: rgba(240, 232, 208, 0.72);
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+      font-size: 0.79rem;
+      line-height: 1.2;
+    }
+
+    .meridian-affinity-badge {
+      border: 1px solid rgba(72, 106, 188, 0.5);
+      border-radius: 999px;
+      background: rgba(174, 198, 255, 0.28);
+      padding: 1px 7px;
+      font-size: 0.72rem;
+    }
+
     .status {
       min-height: 24px;
       font-weight: 700;
@@ -778,9 +822,13 @@
         <div class="button-row">
           <button class="btn" id="recenter">Recenter View</button>
           <button class="btn ghost" id="resetBodyView">Reset Body View</button>
+          <button class="btn ghost" id="drawRouteBtn">Draw Route</button>
+          <button class="btn ghost" id="confirmRouteBtn" disabled>Confirm Route</button>
+          <button class="btn ghost" id="galaxyViewToggleBtn">Galaxy View</button>
           <button class="btn ghost" id="devModeToggle">Dev Mode: Off</button>
           <button class="btn ghost" id="devSpeedToggle">Dev Speed: Off</button>
         </div>
+        <div id="routeMetrics" class="route-metrics">Route metrics will appear here.</div>
         <div class="button-row" id="devToolsRow" style="display:none;">
           <button class="btn ghost" id="showAllNodesBtn">Show All Nodes: Off</button>
           <button class="btn ghost" id="editNodesBtn">Node Tools</button>
@@ -821,6 +869,13 @@
         <div class="bonus-panel">
           <div class="bonus-title">Next Best Action</div>
           <div id="nextAction" class="good"></div>
+        </div>
+        <div class="bonus-panel">
+          <div class="bonus-title">Meridian Detail Panel</div>
+          <div id="meridianDetailPanel" class="meridian-detail-panel">
+            Click a body-map meridian to inspect details.
+          </div>
+          <button class="btn ghost" id="reverseMeridianBtn" data-meridian-id="" disabled>Open Reverse Meridian</button>
         </div>
       </div>
     </aside>

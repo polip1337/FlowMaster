@@ -30,6 +30,7 @@ import {
 import { tick, refreshOpenTooltip } from './game-loop.ts';
 import { bindClusterRepairUi } from './cluster-view.ts';
 import { devSimulateT1Damage } from './dev-tools.ts';
+import { bindBodyMapUi, ensureBodyMapUiState, redrawBodyMapMeridians } from './body-map.ts';
 
 // Wire up circular-dep bridges
 bindToggleConnection(toggleConnection);
@@ -38,6 +39,7 @@ bindNodeInteractions(selectNode, tryStartNodeDrag);
 bindRedrawNetwork(redrawNetwork);
 bindFlowPopupFns(hideFlowPopup, updateFlowPopupPosition);
 bindEdgeControlsRedraw(redrawNetwork);
+bindBodyMapUi();
 
 async function loadBodyTexture() {
   const candidateUrls = [
@@ -117,7 +119,11 @@ async function setupPixi() {
   }
 
   st.tier2MarkerLayer = new PIXI.Container();
+  st.bodyMapMeridianLayer = new PIXI.Container();
+  st.symbolLayer.addChild(st.bodyMapMeridianLayer);
   st.symbolLayer.addChild(st.tier2MarkerLayer);
+  ensureBodyMapUiState();
+  redrawBodyMapMeridians();
   for (const tier2 of TIER2_NODES) {
     createTier2MarkerVisual(tier2);
   }
@@ -159,7 +165,10 @@ async function setupPixi() {
   st.app.ticker.add((ticker: any) => {
     animateParticles(ticker.deltaTime);
     updateZoomHud();
-    if (st.symbolModeEnabled) refreshTier2MarkerVisuals();
+    if (st.symbolModeEnabled) {
+      refreshTier2MarkerVisuals();
+      redrawBodyMapMeridians();
+    }
   });
 
   initBalancePane();
