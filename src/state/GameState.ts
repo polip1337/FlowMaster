@@ -5,12 +5,8 @@ import type { Meridian } from "../core/meridians/Meridian";
 import type { CultivationTechnique } from "../core/simulation/CultivationTechnique";
 import type { T2Node } from "../core/nodes/T2Node";
 import type { PlayerDao } from "../core/dao/types";
-
+import type { CombatState } from "../core/combat/types";
 export type { CirculationRoute } from "../core/circulation/types";
-
-export interface CombatState {
-  active: boolean;
-}
 
 export interface Treasure {
   id: string;

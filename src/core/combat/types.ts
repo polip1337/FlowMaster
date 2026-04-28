@@ -1,0 +1,50 @@
+import type { CombatAttributes } from "../attributes/types";
+import type { EnergyPool } from "../energy/EnergyType";
+import type { T2Node } from "../nodes/T2Node";
+import type { Treasure } from "../../state/GameState";
+import type { EnemyDef } from "../../data/enemies/types";
+
+export type SkillId = string;
+
+export interface CombatLogEntry {
+  tick: number;
+  message: string;
+}
+
+export interface CombatState {
+  active: boolean;
+  enemy: EnemyDef;
+  playerHp: number;
+  playerMaxHp: number;
+  playerSoulHp: number;
+  playerMaxSoulHp: number;
+  combatEnergyPool: EnergyPool;
+  enemyHp: number;
+  enemySoulHp: number;
+  rotation: SkillId[];
+  currentSkillIndex: number;
+  ticksUntilNextSkill: number;
+  stabilizationUsed: boolean;
+  heatSnapshot: number;
+  combatTick: number;
+  log: CombatLogEntry[];
+  dodgeCharges: number;
+}
+
+export interface CombatTickResult {
+  combat: CombatState;
+  outcome: "player_win" | "player_loss" | "ongoing";
+}
+
+export interface CombatEndResult {
+  state: import("../../state/GameState").GameState;
+  outcome: "player_win" | "player_loss";
+  droppedTreasures: Treasure[];
+}
+
+export interface CombatTickContext {
+  attributes: CombatAttributes;
+  criticalInsight: number;
+  t2Nodes: Map<string, T2Node>;
+  random?: () => number;
+}
