@@ -1,19 +1,49 @@
-import type { TreasureDropDef } from "../../core/treasures/types";
+import { TreasureType, type TreasureDropDef } from "../../core/treasures/types";
+import { EnergyType } from "../../core/energy/EnergyType";
 import type { EnemyDef } from "./types";
 
 const BASIC_DROPS: TreasureDropDef[] = [
-  { treasureType: "pill_qi", probability: 0.3, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 2 },
-  { treasureType: "material", probability: 0.5, quantityMin: 1, quantityMax: 3, tierMin: 1, tierMax: 3 }
+  { treasureType: TreasureType.CondensedEssencePill, weight: 10, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 2 },
+  { treasureType: TreasureType.RefiningStone, weight: 4, quantityMin: 1, quantityMax: 1, tierMin: 1, tierMax: 2 },
+  {
+    treasureType: TreasureType.FormationArray,
+    weight: 2,
+    quantityMin: 1,
+    quantityMax: 1,
+    tierMin: 1,
+    tierMax: 2,
+    energyTypeFilter: EnergyType.Qi
+  }
 ];
 
 const ADVANCED_DROPS: TreasureDropDef[] = [
-  { treasureType: "pill_jing", probability: 0.25, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 4 },
-  { treasureType: "artifact", probability: 0.1, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 4 }
+  {
+    treasureType: TreasureType.CondensedEssencePill,
+    weight: 6,
+    quantityMin: 1,
+    quantityMax: 2,
+    tierMin: 2,
+    tierMax: 4,
+    energyTypeFilter: EnergyType.Jing
+  },
+  { treasureType: TreasureType.MeridianSalve, weight: 6, quantityMin: 1, quantityMax: 1, tierMin: 2, tierMax: 4 },
+  { treasureType: TreasureType.JingDeposit, weight: 3, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 4 },
+  { treasureType: TreasureType.DaoFragment, weight: 3, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 4 }
 ];
 
 const ELITE_DROPS: TreasureDropDef[] = [
-  { treasureType: "pill_shen", probability: 0.2, quantityMin: 1, quantityMax: 1, tierMin: 4, tierMax: 5 },
-  { treasureType: "artifact", probability: 0.2, quantityMin: 1, quantityMax: 1, tierMin: 4, tierMax: 5 }
+  {
+    treasureType: TreasureType.CondensedEssencePill,
+    weight: 3,
+    quantityMin: 1,
+    quantityMax: 1,
+    tierMin: 4,
+    tierMax: 6,
+    energyTypeFilter: EnergyType.Shen
+  },
+  { treasureType: TreasureType.RecoveryElixir, weight: 5, quantityMin: 1, quantityMax: 1, tierMin: 4, tierMax: 6 },
+  { treasureType: TreasureType.CultivationManual, weight: 4, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 7 },
+  { treasureType: TreasureType.DaoFragment, weight: 2, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 7 }
 ];
 
 export const ENEMY_ARCHETYPES: EnemyDef[] = [

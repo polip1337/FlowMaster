@@ -37,6 +37,7 @@ import { checkLevelUps } from "../progression/levelController";
 import { checkRankBreakthroughs } from "../progression/rankController";
 import { checkDaoSelectionTrigger, generateDaoInsights, updateDaoNodeProgression } from "../dao/daoSystem";
 import { applyNodeRepairTick } from "../combat/nodeDamage";
+import { applyFormationArrayPassiveGeneration } from "../treasures/treasureSystem";
 
 interface MeridianTickTransfer {
   meridian: Meridian;
@@ -170,6 +171,7 @@ export function simulationTick(state: GameState): GameState {
       t1.energy = addPools(t1.energy, generateSourceEnergy(t1));
     }
   }
+  applyFormationArrayPassiveGeneration(next);
 
   // Phase 8 — step 1 continued: foot Jing, Shen passive, Manipura furnace
   for (const footId of FOOT_CLUSTER_IDS) {

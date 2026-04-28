@@ -134,6 +134,9 @@ export function buildInitialGameState(): GameState {
     },
     combat: null,
     inventory: [],
+    placedFormationArrays: [],
+    unlockedTechniques: [BASIC_TECHNIQUE.id],
+    nodeSealThresholdModifiers: {},
     globalTrackers: {
       lifetimeEnergyByType: emptyPool(),
       totalEnergyGenerated: 0,

@@ -1,7 +1,7 @@
 import type { CombatAttributes } from "../attributes/types";
 import type { EnergyPool } from "../energy/EnergyType";
 import type { T2Node } from "../nodes/T2Node";
-import type { Treasure } from "../../state/GameState";
+import type { Treasure } from "../treasures/types";
 import type { EnemyDef } from "../../data/enemies/types";
 
 export type SkillId = string;

@@ -6,11 +6,8 @@ import type { CultivationTechnique } from "../core/simulation/CultivationTechniq
 import type { T2Node } from "../core/nodes/T2Node";
 import type { PlayerDao } from "../core/dao/types";
 import type { CombatState } from "../core/combat/types";
+import type { PlacedFormationArray, Treasure } from "../core/treasures/types";
 export type { CirculationRoute } from "../core/circulation/types";
-
-export interface Treasure {
-  id: string;
-}
 
 export interface TutorialState {
   completedSteps: string[];
@@ -71,6 +68,9 @@ export interface GameState {
   playerDao: PlayerDao;
   combat: CombatState | null;
   inventory: Treasure[];
+  placedFormationArrays: PlacedFormationArray[];
+  unlockedTechniques: string[];
+  nodeSealThresholdModifiers: Record<string, number>;
   globalTrackers: GlobalTrackers;
   tutorial: TutorialState;
   cultivationAttributes: CultivationAttributes;

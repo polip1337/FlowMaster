@@ -4,9 +4,10 @@ import type { SkillCategory, SkillDef } from "../dao/types";
 import { EnergyType, emptyPool } from "../energy/EnergyType";
 import type { T2Node } from "../nodes/T2Node";
 import { T2NodeState } from "../nodes/T2Types";
+import { rollDrops } from "../treasures/treasureSystem";
 import { applyHpThresholdNodeDamageRolls, crackNode } from "./nodeDamage";
 import type { EnemyDef } from "../../data/enemies/types";
-import type { GameState, Treasure } from "../../state/GameState";
+import type { GameState } from "../../state/GameState";
 import type { CombatEndResult, CombatState, CombatTickContext, CombatTickResult } from "./types";
 
 function skillById(id: string): SkillDef | undefined {
@@ -229,23 +230,6 @@ export function checkCombatEnd(combat: CombatState): "player_win" | "player_loss
   return "ongoing";
 }
 
-export function rollTreasureDrops(enemy: EnemyDef, random: () => number = Math.random): Treasure[] {
-  const rewards: Treasure[] = [];
-  for (const drop of enemy.dropTable) {
-    if (random() > drop.probability) {
-      continue;
-    }
-    const qtyRange = drop.quantityMax - drop.quantityMin + 1;
-    const qty = drop.quantityMin + Math.floor(random() * Math.max(1, qtyRange));
-    const tierRange = drop.tierMax - drop.tierMin + 1;
-    for (let i = 0; i < qty; i += 1) {
-      const tier = drop.tierMin + Math.floor(random() * Math.max(1, tierRange));
-      rewards.push({ id: `${drop.treasureType}:t${tier}` });
-    }
-  }
-  return rewards;
-}
-
 function applySevereNodeDamage(state: GameState): void {
   const active = [...state.t2Nodes.values()].filter((node) => node.state === T2NodeState.ACTIVE);
   for (const node of active.slice(0, 2)) {
@@ -264,7 +248,7 @@ export function endCombat(
     throw new Error("Cannot end combat when no combat is active.");
   }
 
-  const droppedTreasures = outcome === "player_win" ? rollTreasureDrops(next.combat.enemy, random) : [];
+  const droppedTreasures = outcome === "player_win" ? rollDrops(next.combat.enemy, next, random) : [];
   if (outcome === "player_win") {
     next.inventory.push(...droppedTreasures);
     next.globalTrackers.combatCount += 1;
