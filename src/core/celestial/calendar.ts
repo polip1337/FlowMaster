@@ -145,7 +145,7 @@ export function getCelestialTickModifiers(state: GameState): CelestialTickModifi
   const shenByNode = new Map<string, number>();
   for (const body of state.celestialBodies) {
     const isPeak = peakSet.has(body.id);
-    peakGenerationByNode.set(body.linkedT2NodeId, isPeak ? 1.5 : 1);
+    peakGenerationByNode.set(body.linkedT2NodeId, isPeak ? 2 : 1);
     resonanceByNode.set(body.linkedT2NodeId, isPeak ? 1.1 : 1);
     shenByNode.set(body.linkedT2NodeId, conjunctionSet.has(body.id) ? 3 : 1);
   }
