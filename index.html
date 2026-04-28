@@ -261,6 +261,63 @@
       pointer-events: none;
     }
 
+    .tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      pointer-events: none;
+    }
+
+    .tutorial-overlay.hidden {
+      display: none;
+    }
+
+    .tutorial-highlight {
+      position: fixed;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(12, 9, 4, 0.62);
+      border: 2px solid rgba(240, 232, 208, 0.92);
+      background: transparent;
+      pointer-events: none;
+      transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease;
+    }
+
+    .tutorial-card {
+      position: fixed;
+      width: min(360px, calc(100vw - 28px));
+      background: rgba(240, 232, 208, 0.97);
+      border: 1px solid rgba(139, 105, 20, 0.72);
+      border-top: 3px solid #8b6914;
+      border-radius: 6px;
+      padding: 10px 12px;
+      box-shadow: 0 12px 28px rgba(40, 28, 12, 0.34);
+      pointer-events: auto;
+      color: #2a2318;
+    }
+
+    .tutorial-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .tutorial-message {
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    .tutorial-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .tutorial-step {
+      margin-right: auto;
+      font-size: 0.76rem;
+      color: #6b5a3e;
+    }
+
     .edge-flow-control {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -958,6 +1015,18 @@
       <div id="flowPopup" class="flow-popup hidden"></div>
       <div id="markerTooltip" class="marker-tooltip hidden"></div>
       <div id="edgeControlsLayer" class="edge-controls-layer" aria-hidden="false"></div>
+      <div id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite">
+        <div id="tutorialHighlight" class="tutorial-highlight"></div>
+        <div id="tutorialCard" class="tutorial-card">
+          <div id="tutorialTitle" class="tutorial-title">Chapter 1: Awaken T1 Node</div>
+          <div id="tutorialMessage" class="tutorial-message">Welcome to the meridian flow tutorial.</div>
+          <div class="tutorial-controls">
+            <span id="tutorialStepCounter" class="tutorial-step">Step 1 / 20</span>
+            <button id="tutorialSkipBtn" type="button" class="btn ghost" hidden>Skip Tutorial</button>
+            <button id="tutorialNextBtn" type="button" class="btn ghost" disabled>Next</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <aside id="leftPanel" class="side-panel left">
@@ -966,6 +1035,7 @@
         <div class="button-row">
           <button class="btn" id="recenter">Recenter View</button>
           <button class="btn ghost" id="resetBodyView">Reset Body View</button>
+          <button class="btn ghost" id="resetTutorialBtn">Reset Tutorial</button>
           <button class="btn ghost" id="drawRouteBtn">Draw Route</button>
           <button class="btn ghost" id="confirmRouteBtn" disabled>Confirm Route</button>
           <button class="btn ghost" id="galaxyViewToggleBtn">Galaxy View</button>

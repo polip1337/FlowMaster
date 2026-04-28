@@ -159,6 +159,17 @@ export const st = {
   alchemyFilterType: "all" as string,
   alchemyFilterTier: "all" as RecipeTier | "all",
   alchemyFilterAvailableOnly: false,
+  tutorial: {
+    active: true,
+    suppressed: false,
+    completed: false,
+    stepIndex: 0
+  } as {
+    active: boolean;
+    suppressed: boolean;
+    completed: boolean;
+    stepIndex: number;
+  },
 
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
@@ -248,3 +259,12 @@ export const alchemyRecipeListEl = document.getElementById("alchemyRecipeList");
 export const alchemyFilterTypeEl = document.getElementById("alchemyFilterType");
 export const alchemyFilterTierEl = document.getElementById("alchemyFilterTier");
 export const alchemyFilterAvailableEl = document.getElementById("alchemyFilterAvailable");
+export const tutorialOverlayEl = document.getElementById("tutorialOverlay");
+export const tutorialHighlightEl = document.getElementById("tutorialHighlight");
+export const tutorialCardEl = document.getElementById("tutorialCard");
+export const tutorialTitleEl = document.getElementById("tutorialTitle");
+export const tutorialMessageEl = document.getElementById("tutorialMessage");
+export const tutorialStepCounterEl = document.getElementById("tutorialStepCounter");
+export const tutorialNextBtnEl = document.getElementById("tutorialNextBtn");
+export const tutorialSkipBtnEl = document.getElementById("tutorialSkipBtn");
+export const resetTutorialBtnEl = document.getElementById("resetTutorialBtn");

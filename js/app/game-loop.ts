@@ -28,6 +28,7 @@ import { hideFlowPopup, updateFlowPopupPosition } from './flow-popup.ts';
 import { getNodeState } from './queries.ts';
 import { STATE_META } from './constants.ts';
 import { stepPhase29UiSystems, updatePhase29Panels } from './phase29-panels.ts';
+import { resetTutorial, stepTutorialSystem } from "./tutorial.ts";
 
 export function processTick() {
   if (st.gameWon) return;
@@ -147,6 +148,7 @@ export function processTick() {
   if (sourceTotalEl) sourceTotalEl.textContent = fmt(sourceNode.si);
   updateBonusSummary();
   updatePhase29Panels();
+  stepTutorialSystem();
   if (!st.gameWon && st.tickCounter % 50 === 0) {
     const patternState = attr.resonancePatternReady ? "aligned" : "misaligned";
     if (statusEl) statusEl.textContent = `Resonance ${fmt(st.resonance)} (${patternState}) | Gen ${fmt(generation * TICKS_PER_SECOND)} SI/s`;
@@ -236,7 +238,9 @@ export function resetGame() {
   if (ticksEl) ticksEl.textContent = "0";
   if (sourceTotalEl) sourceTotalEl.textContent = "0.00";
   st.selectedNodeId = -1;
+  resetTutorial();
   hideFlowPopup();
   redrawNetwork();
   updateBonusSummary();
+  stepTutorialSystem();
 }
