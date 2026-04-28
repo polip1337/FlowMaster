@@ -35,7 +35,9 @@ import {
   alchemyRecipeListEl,
   alchemyFilterTypeEl,
   alchemyFilterTierEl,
-  alchemyFilterAvailableEl
+  alchemyFilterAvailableEl,
+  celestialCalendarWidgetEl,
+  sectPanelBodyEl
 } from "./state.ts";
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
@@ -46,8 +48,12 @@ import {
   advanceCoreAlchemyToRefiningFromUi,
   beginCoreAlchemyFromUi,
   refineCoreAlchemyFromUi,
-  startCoreCombatFromUi
+  startCoreCombatFromUi,
+  joinCoreSectFromUi
 } from "./core-bridge.ts";
+import { getBodyIdForNodeId, CELESTIAL_YEAR_DAYS, CELESTIAL_PEAK_DURATION_DAYS } from "../../src/core/celestial/calendar";
+import { T2_NODE_DEFS } from "../../src/data/t2NodeDefs";
+import { SECTS } from "../../src/data/sects/sects";
 
 type HeatZone = "green" | "yellow" | "orange" | "red";
 
@@ -89,6 +95,7 @@ const RECIPE_TYPE_LABELS: Record<string, string> = {
   cultivation_manual: "Cultivation Manual"
 };
 const ALCHEMY_REFINE_COST = 5;
+const NODE_NAME_BY_ID = new Map(T2_NODE_DEFS.map((node) => [node.id, node.displayName]));
 
 function routeMetrics(nodeIds: string[]) {
   if (nodeIds.length < 2) {
@@ -529,6 +536,108 @@ function renderAlchemyPanel() {
   }).join("");
 }
 
+function getDaysUntilPeak(nodeId: string): number {
+  const bodyId = getBodyIdForNodeId(nodeId);
+  if (!bodyId) {
+    return 0;
+  }
+  const bodyIndex = st.celestialBodies.findIndex((body) => body.id === bodyId);
+  if (bodyIndex < 0 || st.celestialBodies.length <= 0) {
+    return 0;
+  }
+  const peakStartDay = Math.floor((bodyIndex * CELESTIAL_YEAR_DAYS) / st.celestialBodies.length);
+  const day = st.celestialDayOfYear % CELESTIAL_YEAR_DAYS;
+  for (let offset = 0; offset < CELESTIAL_YEAR_DAYS; offset += 1) {
+    const checkDay = (day + offset) % CELESTIAL_YEAR_DAYS;
+    const inPeakWindow = ((checkDay - peakStartDay + CELESTIAL_YEAR_DAYS) % CELESTIAL_YEAR_DAYS) < CELESTIAL_PEAK_DURATION_DAYS;
+    if (inPeakWindow) {
+      return offset;
+    }
+  }
+  return 0;
+}
+
+function renderCelestialCalendarWidget() {
+  if (!celestialCalendarWidgetEl) return;
+  const seasonGlyph: Record<string, string> = {
+    Spring: "SPRING",
+    Summer: "SUMMER",
+    Autumn: "AUTUMN",
+    Winter: "WINTER"
+  };
+  const conjunctionNodes = st.celestialActiveConjunctions
+    .map((bodyId) => st.celestialBodies.find((body) => body.id === bodyId)?.linkedT2NodeId ?? null)
+    .filter((nodeId): nodeId is string => nodeId !== null)
+    .map((nodeId) => NODE_NAME_BY_ID.get(nodeId) ?? nodeId);
+  const peakRows = Object.entries(st.t2NodeRanks)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([nodeId]) => {
+      const name = NODE_NAME_BY_ID.get(nodeId) ?? nodeId;
+      const days = getDaysUntilPeak(nodeId);
+      const label = days === 0 ? "Peak active" : `${days}d`;
+      return `<div class="phase29-row"><span>${name}</span><strong>${label}</strong></div>`;
+    })
+    .join("");
+  celestialCalendarWidgetEl.innerHTML = `
+    <div class="phase33-calendar-head">
+      <div class="phase33-season-glyph">${seasonGlyph[st.celestialSeason] ?? st.celestialSeason}</div>
+      <div class="muted">Day ${st.celestialDayOfYear + 1} / ${CELESTIAL_YEAR_DAYS}</div>
+    </div>
+    <div class="phase33-conjunctions">
+      <div class="bonus-title">Active Conjunctions</div>
+      <div class="${conjunctionNodes.length > 0 ? "good" : "muted"}">
+        ${conjunctionNodes.length > 0 ? conjunctionNodes.join(" · ") : "No conjunction currently active"}
+      </div>
+    </div>
+    <div class="bonus-title">Next Peak Countdown</div>
+    <div class="bonus-grid">${peakRows || `<div class="muted">No celestial node links available.</div>`}</div>
+  `;
+}
+
+function renderSectPanel() {
+  if (!sectPanelBodyEl) return;
+  const joinedSect = st.sectJoinedId;
+  sectPanelBodyEl.innerHTML = SECTS.map((sect) => {
+    const isJoined = joinedSect === sect.id;
+    const blockedByMembership = Boolean(joinedSect && !isJoined);
+    const favor = st.sectElderFavorLevels[sect.homeElder.id] ?? sect.homeElder.favorLevel ?? 0;
+    const rankRequirement = sect.homeElder.requirement.find((condition) => condition.type === "node_rank");
+    const requiredNodeRank = rankRequirement?.type === "node_rank" ? rankRequirement.minRank : 1;
+    const requiredNodeId = rankRequirement?.type === "node_rank" ? rankRequirement.nodeId : "MULADHARA";
+    const currentRank = st.t2NodeRanks[requiredNodeId] ?? 0;
+    const requirementMet = currentRank >= requiredNodeRank;
+    const manualRows = sect.homeElder.teachableManuals
+      .map((manualId) => {
+        const unlocked = st.unlockedTechniques.includes(manualId);
+        const available = isJoined && requirementMet && !unlocked;
+        return `<div class="phase29-row"><span>${manualId}</span><strong>${unlocked ? "Unlocked" : available ? "Available" : "Locked"}</strong></div>`;
+      })
+      .join("");
+    const arrays = sect.availableFormationArrays
+      .map((arr) => `${arr.name} (+${arr.perTickGeneration}/tick ${arr.energyType})`)
+      .join("<br/>");
+    const benefits = [
+      ...Object.entries(sect.memberBenefits.cultivation).map(([k, v]) => `${k}: +${v}`),
+      ...Object.entries(sect.memberBenefits.combat).map(([k, v]) => `${k}: +${v}`)
+    ].join(" | ");
+    return `
+      <div class="phase33-sect-card ${isJoined ? "joined" : ""}">
+        <div class="phase29-row"><span><strong>${sect.name}</strong></span><strong>${isJoined ? "Joined" : "Available"}</strong></div>
+        <div class="muted">Elder: ${sect.homeElder.name} (${sect.homeElder.daoType}) | Favor ${favor}</div>
+        <div class="muted">Requirement: ${requiredNodeId} rank ${requiredNodeRank} (${currentRank}/${requiredNodeRank})</div>
+        <div class="phase29-row"><span>Join Status</span><strong>${isJoined ? "Member" : blockedByMembership ? "Locked (already joined)" : "Can join"}</strong></div>
+        <button type="button" class="btn ghost phase33-join-btn" data-sect-id="${sect.id}" ${isJoined || blockedByMembership ? "disabled" : ""}>Join Sect</button>
+        <div class="bonus-title">Teachable Manuals</div>
+        <div class="bonus-grid">${manualRows}</div>
+        <div class="bonus-title">Formation Arrays</div>
+        <div class="muted">${arrays}</div>
+        <div class="bonus-title">Member Benefits</div>
+        <div class="muted">${benefits}</div>
+      </div>
+    `;
+  }).join("");
+}
+
 function initializeDaoForSelection(daoName: string) {
   st.daoSelected = daoName;
   st.daoNodes = [
@@ -649,6 +758,15 @@ export function bindPhase29PanelUi() {
     st.alchemyFilterAvailableOnly = checkbox.checked;
     renderAlchemyPanel();
   });
+  sectPanelBodyEl?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    const btn = target?.closest("[data-sect-id]") as HTMLElement | null;
+    if (!btn) return;
+    const sectId = btn.getAttribute("data-sect-id");
+    if (!sectId) return;
+    if (!joinCoreSectFromUi(sectId)) return;
+    renderSectPanel();
+  });
   document.addEventListener("keydown", onPhase29KeyDown);
 }
 
@@ -700,4 +818,6 @@ export function updatePhase29Panels() {
   renderDaoPanel();
   renderInventoryPanel();
   renderAlchemyPanel();
+  renderCelestialCalendarWidget();
+  renderSectPanel();
 }

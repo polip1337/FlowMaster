@@ -5,6 +5,7 @@ import { beginAlchemySession, advanceAlchemyToRefining, refineAlchemySession } f
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import type { GameState } from "../../src/state/GameState.ts";
 import { applyUiInputsToCoreState, mirrorCoreStateToUi, runUiDrivenCoreTick } from "../../src/uiCore/bridge.ts";
+import { joinSect } from "../../src/core/sect/sectSystem.ts";
 
 let coreState: GameState = buildInitialGameState();
 
@@ -80,6 +81,17 @@ export function advanceCoreAlchemyToRefiningFromUi(): boolean {
 export function refineCoreAlchemyFromUi(desiredGain: number): boolean {
   try {
     coreState = refineAlchemySession(coreState, desiredGain);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    syncUiFromCore();
+  }
+}
+
+export function joinCoreSectFromUi(sectId: string): boolean {
+  try {
+    coreState = joinSect(coreState, sectId);
     return true;
   } catch {
     return false;

@@ -76,7 +76,9 @@ function makeDocumentMock() {
     "alchemyRecipeList",
     "alchemyFilterType",
     "alchemyFilterTier",
-    "alchemyFilterAvailable"
+    "alchemyFilterAvailable",
+    "celestialCalendarWidget",
+    "sectPanelBody"
   ];
   for (const id of ids) elements.set(id, makeElement());
   return {

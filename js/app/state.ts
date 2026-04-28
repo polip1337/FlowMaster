@@ -170,6 +170,14 @@ export const st = {
     completed: boolean;
     stepIndex: number;
   },
+  celestialDayOfYear: 0,
+  celestialSeason: "Spring" as "Spring" | "Summer" | "Autumn" | "Winter",
+  celestialActiveConjunctions: [] as string[],
+  celestialBodies: [] as Array<{ id: string; linkedT2NodeId: string; currentSign: string }>,
+  sectJoinedId: null as string | null,
+  sectElderFavorLevels: {} as Record<string, number>,
+  unlockedTechniques: [] as string[],
+  t2NodeRanks: {} as Record<string, number>,
 
   // Node visibility (reassigned each frame by redrawNetwork)
   visibleNodeIds: new Set<number>()
@@ -259,6 +267,8 @@ export const alchemyRecipeListEl = document.getElementById("alchemyRecipeList");
 export const alchemyFilterTypeEl = document.getElementById("alchemyFilterType");
 export const alchemyFilterTierEl = document.getElementById("alchemyFilterTier");
 export const alchemyFilterAvailableEl = document.getElementById("alchemyFilterAvailable");
+export const celestialCalendarWidgetEl = document.getElementById("celestialCalendarWidget");
+export const sectPanelBodyEl = document.getElementById("sectPanelBody");
 export const tutorialOverlayEl = document.getElementById("tutorialOverlay");
 export const tutorialHighlightEl = document.getElementById("tutorialHighlight");
 export const tutorialCardEl = document.getElementById("tutorialCard");

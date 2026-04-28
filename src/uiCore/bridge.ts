@@ -33,6 +33,14 @@ export interface UiMirrorState {
   combatEnemyMaxHp: number;
   combatEnemySoulHp: number;
   combatEnemyMaxSoulHp: number;
+  celestialDayOfYear: number;
+  celestialSeason: "Spring" | "Summer" | "Autumn" | "Winter";
+  celestialActiveConjunctions: string[];
+  celestialBodies: Array<{ id: string; linkedT2NodeId: string; currentSign: string }>;
+  sectJoinedId: string | null;
+  sectElderFavorLevels: Record<string, number>;
+  unlockedTechniques: string[];
+  t2NodeRanks: Record<string, number>;
 }
 
 export function normalizeToCoreMeridianId(id: string): string {
@@ -85,6 +93,22 @@ export function mirrorCoreStateToUi(core: GameState, ui: UiMirrorState): void {
   ui.daoSelected = core.playerDao.selectedDao;
   ui.daoInsights = core.playerDao.daoInsights;
   ui.daoComprehensionLevel = core.playerDao.comprehensionLevel;
+  ui.celestialDayOfYear = core.celestialCalendar.dayOfYear;
+  ui.celestialSeason = core.celestialCalendar.season;
+  ui.celestialActiveConjunctions = [...core.celestialCalendar.activeConjunctions];
+  ui.celestialBodies = core.celestialBodies.map((body) => ({
+    id: body.id,
+    linkedT2NodeId: body.linkedT2NodeId,
+    currentSign: body.currentSign
+  }));
+  ui.sectJoinedId = core.sect.joinedSectId;
+  ui.sectElderFavorLevels = { ...core.sect.elderFavorLevels };
+  ui.unlockedTechniques = [...core.unlockedTechniques];
+  const t2NodeRanks: Record<string, number> = {};
+  for (const [nodeId, node] of core.t2Nodes) {
+    t2NodeRanks[nodeId] = node.rank;
+  }
+  ui.t2NodeRanks = t2NodeRanks;
   ui.combatEncountered = ui.combatEncountered || core.combat !== null || core.globalTrackers.combatCount > 0;
   if (!core.combat) {
     ui.combatPhase = "prep";
