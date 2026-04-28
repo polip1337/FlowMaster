@@ -715,6 +715,45 @@
       background: rgba(200, 168, 112, 0.34);
     }
 
+    .phase30-rotation {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .phase30-log {
+      max-height: 132px;
+      overflow: auto;
+      border: 1px solid rgba(139, 105, 20, 0.4);
+      border-radius: 4px;
+      background: rgba(240, 232, 208, 0.65);
+      padding: 6px;
+      display: grid;
+      gap: 4px;
+      font-size: 0.76rem;
+    }
+
+    .phase30-log-line {
+      border-bottom: 0.5px dashed rgba(139, 105, 20, 0.25);
+      padding-bottom: 2px;
+    }
+
+    .phase30-alert {
+      border: 1px solid rgba(153, 60, 29, 0.4);
+      border-radius: 4px;
+      padding: 6px 8px;
+      background: rgba(153, 60, 29, 0.1);
+      color: #7f2411;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .phase30-energy-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 6px;
+    }
+
     .heat-gauge {
       position: relative;
       border: 1px solid rgba(139, 105, 20, 0.5);
@@ -962,6 +1001,10 @@
           <details open>
             <summary class="bonus-title">Combat Attributes (press C to unlock)</summary>
             <div id="combatPanelBody" class="bonus-grid"></div>
+            <div id="combatPrepBody" class="bonus-grid"></div>
+            <div id="combatActiveBody" class="bonus-grid"></div>
+            <div id="combatSummaryBody" class="bonus-grid"></div>
+            <div id="combatNodeDamageAlert" class="phase30-alert" hidden>No new node damage.</div>
           </details>
         </div>
         <div class="bonus-panel">

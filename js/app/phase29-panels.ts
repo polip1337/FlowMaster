@@ -9,6 +9,10 @@ import {
   bodyHeatWarningEl,
   cultivationPanelBodyEl,
   combatPanelBodyEl,
+  combatPrepBodyEl,
+  combatActiveBodyEl,
+  combatSummaryBodyEl,
+  combatNodeDamageAlertEl,
   refiningPulseBtnEl,
   refiningPulseInfoEl,
   activeRouteDisplayEl,
@@ -25,6 +29,7 @@ import {
   inventoryDetailEl,
   ingredientInventoryEl
 } from "./state.ts";
+import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 
 type HeatZone = "green" | "yellow" | "orange" | "red";
 
@@ -167,6 +172,134 @@ function renderCombatPanel() {
     .join("");
 }
 
+function getSelectedEnemy() {
+  return ENEMY_ARCHETYPES.find((enemy) => enemy.id === st.combatEnemyId) ?? ENEMY_ARCHETYPES[0];
+}
+
+function skillChip(skillName: string, index: number): string {
+  const active = index === st.combatCurrentSkillIndex ? "active" : "";
+  return `<button type="button" class="phase29-item-btn ${active}" data-rotation-index="${index}">${index + 1}. ${skillName}</button>`;
+}
+
+function renderCombatPrepPanel() {
+  if (!combatPrepBodyEl) return;
+  if (!st.combatEncountered || st.combatPhase !== "prep") {
+    combatPrepBodyEl.innerHTML = "";
+    return;
+  }
+  const enemy = getSelectedEnemy();
+  const pattern = enemy.preferredNodeTarget ? `Targets ${enemy.preferredNodeTarget} first` : "Aggressive frontal pressure";
+  combatPrepBodyEl.innerHTML = `
+    <div class="phase29-row"><span>Enemy</span><strong>${enemy.name} (Tier ${enemy.tier})</strong></div>
+    <div class="muted">Pattern: ${pattern}</div>
+    <div class="bonus-title">Rotation Builder</div>
+    <div id="combatRotationBuilder" class="phase30-rotation">${st.combatRotation.map(skillChip).join("")}</div>
+    <div class="bonus-title">Energy Priority</div>
+    <div class="phase29-row"><span>Qi</span><input id="combatPriorityQi" type="range" min="0" max="100" value="${st.combatEnergyPriority.qi}" /></div>
+    <div class="phase29-row"><span>Jing</span><input id="combatPriorityJing" type="range" min="0" max="100" value="${st.combatEnergyPriority.jing}" /></div>
+    <div class="phase29-row"><span>YangQi</span><input id="combatPriorityYangQi" type="range" min="0" max="100" value="${st.combatEnergyPriority.yangQi}" /></div>
+    <div class="phase29-row"><span>Shen</span><input id="combatPriorityShen" type="range" min="0" max="100" value="${st.combatEnergyPriority.shen}" /></div>
+    <button type="button" id="startCombatBtn" class="btn ghost">Start Combat</button>
+  `;
+}
+
+function renderCombatActivePanel() {
+  if (!combatActiveBodyEl) return;
+  if (!st.combatEncountered || st.combatPhase !== "active") {
+    combatActiveBodyEl.innerHTML = "";
+    return;
+  }
+  const cooldownPct = Math.max(0, Math.min(100, ((8 - st.combatSkillCooldownTicks) / 8) * 100));
+  const currentSkill = st.combatRotation[st.combatCurrentSkillIndex] ?? "None";
+  combatActiveBodyEl.innerHTML = `
+    <div class="phase29-row"><span>Player HP</span><strong>${st.combatPlayerHp.toFixed(0)} / ${st.combatPlayerMaxHp.toFixed(0)}</strong></div>
+    <div class="phase29-row"><span>Player Soul HP</span><strong>${st.combatPlayerSoulHp.toFixed(0)} / ${st.combatPlayerMaxSoulHp.toFixed(0)}</strong></div>
+    <div class="phase29-row"><span>Enemy HP</span><strong>${st.combatEnemyHp.toFixed(0)} / ${st.combatEnemyMaxHp.toFixed(0)}</strong></div>
+    <div class="phase29-row"><span>Enemy Soul HP</span><strong>${st.combatEnemySoulHp.toFixed(0)} / ${st.combatEnemyMaxSoulHp.toFixed(0)}</strong></div>
+    <div class="phase29-row"><span>Current Skill</span><strong>${currentSkill}</strong></div>
+    <div class="phase29-row"><span>Cooldown</span><strong>${cooldownPct.toFixed(0)}%</strong></div>
+    <div class="phase30-energy-grid">
+      <div class="phase29-row"><span>Qi</span><strong>${st.combatEnergyPool.qi.toFixed(0)}</strong></div>
+      <div class="phase29-row"><span>Jing</span><strong>${st.combatEnergyPool.jing.toFixed(0)}</strong></div>
+      <div class="phase29-row"><span>YangQi</span><strong>${st.combatEnergyPool.yangQi.toFixed(0)}</strong></div>
+      <div class="phase29-row"><span>Shen</span><strong>${st.combatEnergyPool.shen.toFixed(0)}</strong></div>
+    </div>
+    <div id="combatLogView" class="phase30-log">${st.combatLog.slice(-8).map((line) => `<div class="phase30-log-line">${line}</div>`).join("")}</div>
+  `;
+}
+
+function renderCombatSummaryPanel() {
+  if (!combatSummaryBodyEl) return;
+  if (!st.combatEncountered || st.combatPhase !== "summary" || !st.combatSummary) {
+    combatSummaryBodyEl.innerHTML = "";
+    return;
+  }
+  const summary = st.combatSummary;
+  combatSummaryBodyEl.innerHTML = `
+    <div class="phase29-row"><span>Outcome</span><strong>${summary.outcome.toUpperCase()}</strong></div>
+    <div class="phase29-row"><span>Damage Dealt / Received</span><strong>${summary.damageDealt} / ${summary.damageReceived}</strong></div>
+    <div class="phase29-row"><span>Skills Used</span><strong>${summary.skillsUsed}</strong></div>
+    <div class="phase29-row"><span>Energy Spent</span><strong>Qi ${summary.energySpent.qi}, Jing ${summary.energySpent.jing}, YangQi ${summary.energySpent.yangQi}, Shen ${summary.energySpent.shen}</strong></div>
+    <div class="phase29-row"><span>Nodes Damaged</span><strong>${summary.nodesDamaged.join(", ") || "None"}</strong></div>
+    <div class="phase29-row"><span>Treasures Dropped</span><strong>${summary.treasuresDropped.join(", ") || "None"}</strong></div>
+    <div class="phase29-row"><span>Insights Gained</span><strong>${summary.insightsGained}</strong></div>
+  `;
+}
+
+function renderNodeDamageAlert() {
+  if (!combatNodeDamageAlertEl) return;
+  const node = st.combatCrackFlashNodeId == null ? null : nodeData.find((entry) => entry.id === st.combatCrackFlashNodeId);
+  if (!node || st.combatCrackFlashTicks <= 0) {
+    combatNodeDamageAlertEl.setAttribute("hidden", "");
+    return;
+  }
+  combatNodeDamageAlertEl.removeAttribute("hidden");
+  combatNodeDamageAlertEl.textContent = `Node cracked: ${node.name}. Body map marker flashing red.`;
+}
+
+function applyCombatEnergyPriority(id: string, value: number) {
+  st.combatEnergyPriority[id] = Math.max(0, Math.min(100, value));
+}
+
+function startCombatSimulation() {
+  const enemy = getSelectedEnemy();
+  st.combatEncountered = true;
+  st.combatPhase = "active";
+  st.combatEnemyMaxHp = enemy.hp;
+  st.combatEnemyHp = enemy.hp;
+  st.combatEnemyMaxSoulHp = enemy.soulHp;
+  st.combatEnemySoulHp = enemy.soulHp;
+  st.combatPlayerMaxHp = 180 + st.temperingLevel * 12;
+  st.combatPlayerHp = st.combatPlayerMaxHp;
+  st.combatPlayerMaxSoulHp = 110 + st.temperingLevel * 8;
+  st.combatPlayerSoulHp = st.combatPlayerMaxSoulHp;
+  st.combatTick = 0;
+  st.combatCurrentSkillIndex = 0;
+  st.combatSkillCooldownTicks = 0;
+  st.combatLog = [`Encounter started with ${enemy.name}.`];
+  st.combatSummary = null;
+}
+
+function finalizeCombatSummary() {
+  const damaged = nodeData.filter((node) => node.damageState === "cracked" || node.damageState === "shattered").map((node) => node.name);
+  st.combatSummary = {
+    outcome: st.combatEnemyHp <= 0 ? "victory" : "defeat",
+    damageDealt: Math.max(0, Math.round(st.combatEnemyMaxHp - st.combatEnemyHp)),
+    damageReceived: Math.max(0, Math.round(st.combatPlayerMaxHp - st.combatPlayerHp)),
+    skillsUsed: st.combatTick,
+    energySpent: {
+      qi: Math.round(100 - st.combatEnergyPool.qi),
+      jing: Math.round(80 - st.combatEnergyPool.jing),
+      yangQi: Math.round(55 - st.combatEnergyPool.yangQi),
+      shen: Math.round(40 - st.combatEnergyPool.shen)
+    },
+    nodesDamaged: damaged,
+    treasuresDropped: st.combatEnemyHp <= 0 ? ["Condensed Essence Pill", "Refining Stone"] : [],
+    insightsGained: st.combatEnemyHp <= 0 ? 18 + st.temperingLevel : 4
+  };
+  st.combatPhase = "summary";
+}
+
 function isManipuraActive(): boolean {
   return nodeData.filter((n) => n.unlocked).length >= 6;
 }
@@ -298,6 +431,34 @@ export function bindPhase29PanelUi() {
     st.selectedInventoryItemId = btn.getAttribute("data-item-id");
     renderInventoryPanel();
   });
+  combatPrepBodyEl?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.id === "startCombatBtn") {
+      startCombatSimulation();
+      updatePhase29Panels();
+      return;
+    }
+    const btn = target.closest("[data-rotation-index]") as HTMLElement | null;
+    if (!btn) return;
+    const idx = Number(btn.getAttribute("data-rotation-index"));
+    if (!Number.isFinite(idx) || idx < 0 || idx >= st.combatRotation.length) return;
+    const next = idx === st.combatRotation.length - 1 ? 0 : idx + 1;
+    const reordered = [...st.combatRotation];
+    const swap = reordered[idx];
+    reordered[idx] = reordered[next];
+    reordered[next] = swap;
+    st.combatRotation = reordered;
+    renderCombatPrepPanel();
+  });
+  combatPrepBodyEl?.addEventListener("input", (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+    if (target.id === "combatPriorityQi") applyCombatEnergyPriority("qi", Number(target.value));
+    if (target.id === "combatPriorityJing") applyCombatEnergyPriority("jing", Number(target.value));
+    if (target.id === "combatPriorityYangQi") applyCombatEnergyPriority("yangQi", Number(target.value));
+    if (target.id === "combatPriorityShen") applyCombatEnergyPriority("shen", Number(target.value));
+  });
   document.addEventListener("keydown", onPhase29KeyDown);
 }
 
@@ -311,7 +472,8 @@ export function onPhase29KeyDown(event: KeyboardEvent): void {
   }
   if (event.key.toLowerCase() === "c") {
     st.combatEncountered = true;
-    renderCombatPanel();
+    st.combatPhase = "prep";
+    updatePhase29Panels();
   }
 }
 
@@ -330,8 +492,40 @@ export function stepPhase29UiSystems() {
   }
   st.daoInsights += 0.12 + st.temperingLevel * 0.01;
   st.daoComprehensionLevel = st.daoSelected ? Math.min(9, Math.floor(st.daoInsights / 500)) : 0;
+  const crackedNode = nodeData.find((n) => n.damageState === "cracked");
+  if (crackedNode && st.combatCrackFlashNodeId !== crackedNode.id) {
+    st.combatCrackFlashNodeId = crackedNode.id;
+    st.combatCrackFlashTicks = 24;
+    st.combatLog.push(`[Alert] ${crackedNode.name} cracked under pressure.`);
+  }
+  if (st.combatCrackFlashTicks > 0) {
+    st.combatCrackFlashTicks -= 1;
+  }
   if (!st.combatEncountered && nodeData.some((n) => n.damageState === "cracked" || n.damageState === "shattered")) {
     st.combatEncountered = true;
+  }
+  if (st.combatPhase === "active") {
+    st.combatTick += 1;
+    st.combatSkillCooldownTicks = (st.combatSkillCooldownTicks + 1) % 8;
+    if (st.combatSkillCooldownTicks === 0) {
+      st.combatCurrentSkillIndex = (st.combatCurrentSkillIndex + 1) % Math.max(1, st.combatRotation.length);
+      const skill = st.combatRotation[st.combatCurrentSkillIndex] ?? "Unknown";
+      const damage = 9 + st.temperingLevel * 2;
+      st.combatEnemyHp = Math.max(0, st.combatEnemyHp - damage);
+      st.combatEnergyPool.qi = Math.max(0, st.combatEnergyPool.qi - Math.max(1, st.combatEnergyPriority.qi * 0.04));
+      st.combatEnergyPool.jing = Math.max(0, st.combatEnergyPool.jing - Math.max(1, st.combatEnergyPriority.jing * 0.03));
+      st.combatEnergyPool.yangQi = Math.max(0, st.combatEnergyPool.yangQi - Math.max(1, st.combatEnergyPriority.yangQi * 0.02));
+      st.combatEnergyPool.shen = Math.max(0, st.combatEnergyPool.shen - Math.max(1, st.combatEnergyPriority.shen * 0.015));
+      st.combatLog.push(`You cast ${skill}, dealing ${damage} HP.`);
+    }
+    if (st.combatTick % 9 === 0) {
+      const incoming = 7 + st.temperingLevel * 0.6;
+      st.combatPlayerHp = Math.max(0, st.combatPlayerHp - incoming);
+      st.combatLog.push(`Enemy strike hits for ${incoming.toFixed(0)} HP.`);
+    }
+    if (st.combatEnemyHp <= 0 || st.combatPlayerHp <= 0 || st.combatTick >= 48) {
+      finalizeCombatSummary();
+    }
   }
 }
 
@@ -339,6 +533,10 @@ export function updatePhase29Panels() {
   updateHeatHud();
   renderCultivationPanel();
   renderCombatPanel();
+  renderCombatPrepPanel();
+  renderCombatActivePanel();
+  renderCombatSummaryPanel();
+  renderNodeDamageAlert();
   renderRefiningPulse();
   renderRoutePanel();
   renderTemperingPanel();

@@ -18,6 +18,9 @@ function makeElement() {
     setAttribute(name: string, value: string) {
       attrs.set(name, value);
     },
+    removeAttribute(name: string) {
+      attrs.delete(name);
+    },
     getAttribute(name: string) {
       return attrs.get(name) ?? null;
     },
@@ -46,6 +49,10 @@ function makeDocumentMock() {
     "bodyHeatWarning",
     "cultivationPanelBody",
     "combatPanelBody",
+    "combatPrepBody",
+    "combatActiveBody",
+    "combatSummaryBody",
+    "combatNodeDamageAlert",
     "refiningPulseBtn",
     "refiningPulseInfo",
     "activeRouteDisplay",
@@ -128,5 +135,41 @@ describe("phase 29 hud and panels", () => {
     expect(ok).toBe(true);
     expect(item?.quantity).toBe(1);
     expect(stateModule.st.inventoryTargetingActive).toBe(false);
+  });
+
+  it("renders pre-combat setup view and enters active combat", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    mod.bindPhase29PanelUi();
+    stateModule.st.combatEncountered = true;
+    stateModule.st.combatPhase = "prep";
+    mod.updatePhase29Panels();
+    const prepEl = documentMock.getElementById("combatPrepBody");
+    expect(prepEl.innerHTML).toContain("Rotation Builder");
+    prepEl.dispatch("click", { target: { id: "startCombatBtn", closest: () => null } });
+    expect(stateModule.st.combatPhase).toBe("active");
+    mod.updatePhase29Panels();
+    const activeEl = documentMock.getElementById("combatActiveBody");
+    expect(activeEl.innerHTML).toContain("Current Skill");
+    expect(activeEl.innerHTML).toContain("combatLogView");
+  });
+
+  it("raises crack alert and produces summary after active combat ticks", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    stateModule.st.combatEncountered = true;
+    stateModule.st.combatPhase = "active";
+    stateModule.st.combatEnemyHp = 10;
+    stateModule.st.combatEnemyMaxHp = 180;
+    stateModule.st.combatPlayerHp = 180;
+    stateModule.st.combatPlayerMaxHp = 180;
+    stateModule.st.combatSkillCooldownTicks = 7;
+    (await import("../../js/app/config.ts")).nodeData[1].damageState = "cracked";
+    mod.stepPhase29UiSystems();
+    mod.updatePhase29Panels();
+    const alertEl = documentMock.getElementById("combatNodeDamageAlert");
+    expect(alertEl.textContent).toContain("Node cracked");
+    expect(stateModule.st.combatSummary).not.toBeNull();
+    const summaryEl = documentMock.getElementById("combatSummaryBody");
+    expect(summaryEl.innerHTML).toContain("Outcome");
+    (await import("../../js/app/config.ts")).nodeData[1].damageState = "healthy";
   });
 });

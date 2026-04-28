@@ -108,6 +108,35 @@ export const st = {
   daoNodes: [] as Array<{ id: string; name: string; state: "LOCKED" | "SEALING" | "ACTIVE" }>,
   daoSkills: [] as string[],
   combatEncountered: false,
+  combatPhase: "prep" as "prep" | "active" | "summary",
+  combatEnemyId: "bandit-cultivator",
+  combatRotation: ["Palm Strike", "Soul Lance", "Iron Guard", "Heaven Step"] as string[],
+  combatEnergyPriority: { qi: 45, jing: 30, yangQi: 15, shen: 10 } as Record<string, number>,
+  combatCurrentSkillIndex: 0,
+  combatSkillCooldownTicks: 0,
+  combatTick: 0,
+  combatPlayerHp: 200,
+  combatPlayerMaxHp: 200,
+  combatPlayerSoulHp: 120,
+  combatPlayerMaxSoulHp: 120,
+  combatEnemyHp: 180,
+  combatEnemyMaxHp: 180,
+  combatEnemySoulHp: 90,
+  combatEnemyMaxSoulHp: 90,
+  combatEnergyPool: { qi: 100, jing: 80, yangQi: 55, shen: 40 } as Record<string, number>,
+  combatLog: ["Awaiting combat start. Configure your opening rotation."] as string[],
+  combatSummary: null as null | {
+    outcome: "victory" | "defeat";
+    damageDealt: number;
+    damageReceived: number;
+    skillsUsed: number;
+    energySpent: Record<string, number>;
+    nodesDamaged: string[];
+    treasuresDropped: string[];
+    insightsGained: number;
+  },
+  combatCrackFlashNodeId: null as number | null,
+  combatCrackFlashTicks: 0,
   inventoryItems: [
     { id: "pill_qi", name: "Condensed Essence Pill", quantity: 2, effect: "+280 Qi to target node" },
     { id: "stone_refine", name: "Refining Stone", quantity: 1, effect: "+1 quality to target node" }
@@ -180,6 +209,10 @@ export const bodyHeatLabelEl = document.getElementById("bodyHeatLabel");
 export const bodyHeatWarningEl = document.getElementById("bodyHeatWarning");
 export const cultivationPanelBodyEl = document.getElementById("cultivationPanelBody");
 export const combatPanelBodyEl = document.getElementById("combatPanelBody");
+export const combatPrepBodyEl = document.getElementById("combatPrepBody");
+export const combatActiveBodyEl = document.getElementById("combatActiveBody");
+export const combatSummaryBodyEl = document.getElementById("combatSummaryBody");
+export const combatNodeDamageAlertEl = document.getElementById("combatNodeDamageAlert");
 export const refiningPulseBtnEl = document.getElementById("refiningPulseBtn");
 export const refiningPulseInfoEl = document.getElementById("refiningPulseInfo");
 export const activeRouteDisplayEl = document.getElementById("activeRouteDisplay");
