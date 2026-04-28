@@ -196,7 +196,9 @@ export function combatTick(combat: CombatState, context: CombatTickContext): Com
   const attrs = context.attributes;
   combat.combatTick += 1;
   combat.ticksUntilNextSkill = Math.max(0, combat.ticksUntilNextSkill - 1);
-  regenCombatEnergy(combat, attrs);
+  if (!context.disableEnergyRegen) {
+    regenCombatEnergy(combat, attrs);
+  }
 
   if (combat.ticksUntilNextSkill === 0 && combat.rotation.length > 0) {
     const skillId = combat.rotation[combat.currentSkillIndex % combat.rotation.length];

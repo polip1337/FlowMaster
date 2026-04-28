@@ -155,6 +155,16 @@ export function buildInitialGameState(): GameState {
       levelUpEvents: [],
       breakthroughEvents: []
     },
+    tribulation: {
+      activeEvent: null,
+      activeNodeId: null,
+      pendingBreakthrough: null,
+      currentWaveIndex: 0,
+      elapsedTicks: 0,
+      isCultivationPaused: false,
+      delayUntilTickByNode: {},
+      permanentCultivationRateBonus: 0
+    },
     specialEventFlags: new Set<string>(),
     sect: {
       joinedSectId: null,

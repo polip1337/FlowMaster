@@ -20,6 +20,10 @@ export interface HeatUpdateResult {
  * - add meridian heat gain
  * - dissipate by Manipura resonance
  * - expose threshold effects for downstream systems
+ *
+ * S-030 tribulation behavior:
+ * - during active tribulation, caller passes `meridianHeatGain = 0`
+ * - this makes heat update dissipation-only (body cools, no new heat accumulation)
  */
 export function updateBodyHeat(input: HeatUpdateInput): HeatUpdateResult {
   const maxBodyHeat = Math.max(1, input.maxBodyHeat);

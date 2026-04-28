@@ -4,6 +4,7 @@ import type { GameState, ProgressionBreakthroughEvent } from "../../state/GameSt
 import type { T2Node } from "../nodes/T2Node";
 import { T2NodeState } from "../nodes/T2Types";
 import { buildConditionState } from "./conditionSnapshot";
+import { finalizeSuccessfulTribulation, isTribulationActive, triggerTribulation } from "./tribulationSystem";
 
 const MAX_RANK = 9;
 
@@ -97,6 +98,36 @@ export function checkRankBreakthroughs(state: GameState): ProgressionBreakthroug
     (n) => n.state === T2NodeState.ACTIVE || n.state === T2NodeState.REFINED
   ).length;
   const events: ProgressionBreakthroughEvent[] = [];
+  const pending = state.tribulation.pendingBreakthrough;
+  if (pending) {
+    const successFlag = `event:tribulation_success:${pending.nodeId}:${pending.toRank}`;
+    const targetNode = state.t2Nodes.get(pending.nodeId);
+    if (
+      state.specialEventFlags.has(successFlag) &&
+      targetNode &&
+      targetNode.rank === pending.fromRank &&
+      getBodyEnergyTypeAmount(state, EnergyType.Jing) >= pending.jingCost &&
+      getBodyEnergyTypeAmount(state, EnergyType.Shen) >= pending.shenCost &&
+      spendBodyEnergyType(state, EnergyType.Jing, pending.jingCost) &&
+      spendBodyEnergyType(state, EnergyType.Shen, pending.shenCost)
+    ) {
+      targetNode.rank += 1;
+      targetNode.level = 1;
+      const qualityNodesBoosted = applyClusterQualityBreakthrough(targetNode);
+      events.push({
+        nodeId: targetNode.id,
+        fromRank: pending.fromRank,
+        toRank: targetNode.rank,
+        qualityNodesBoosted,
+        tick: tickAfter
+      });
+      finalizeSuccessfulTribulation(state);
+    }
+    state.specialEventFlags.delete(successFlag);
+  }
+  if (isTribulationActive(state)) {
+    return events;
+  }
 
   for (const node of state.t2Nodes.values()) {
     const isActiveLike = node.state === T2NodeState.ACTIVE || node.state === T2NodeState.REFINED;
@@ -119,24 +150,7 @@ export function checkRankBreakthroughs(state: GameState): ProgressionBreakthroug
       continue;
     }
 
-    if (!spendBodyEnergyType(state, EnergyType.Jing, req.jingCost)) {
-      continue;
-    }
-    if (!spendBodyEnergyType(state, EnergyType.Shen, req.shenCost)) {
-      continue;
-    }
-
-    const fromRank = node.rank;
-    node.rank += 1;
-    node.level = 1;
-    const qualityNodesBoosted = applyClusterQualityBreakthrough(node);
-    events.push({
-      nodeId: node.id,
-      fromRank,
-      toRank: node.rank,
-      qualityNodesBoosted,
-      tick: tickAfter
-    });
+    triggerTribulation(state, node.id, node.rank, node.rank + 1, req.jingCost, req.shenCost);
   }
 
   return events;

@@ -53,4 +53,5 @@ export interface CombatTickContext {
   t2Nodes: Map<string, T2Node>;
   playerDaoNodes?: Map<string, T2Node>;
   random?: () => number;
+  disableEnergyRegen?: boolean;
 }

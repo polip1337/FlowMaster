@@ -35,6 +35,7 @@ import { assertValidEnergyPool } from "./guards";
 import { checkAndUnlockT2Nodes } from "../progression/unlockController";
 import { checkLevelUps } from "../progression/levelController";
 import { checkRankBreakthroughs } from "../progression/rankController";
+import { isTribulationActive } from "../progression/tribulationSystem";
 import { checkDaoSelectionTrigger, generateDaoInsights, updateDaoNodeProgression } from "../dao/daoSystem";
 import { applyNodeRepairTick } from "../combat/nodeDamage";
 import { applyFormationArrayPassiveGeneration } from "../treasures/treasureSystem";
@@ -150,11 +151,24 @@ function getManipuraResonance(state: GameState): number {
  */
 export function simulationTick(state: GameState): GameState {
   const next = cloneGameState(state);
+  const tribulationActive = isTribulationActive(next);
   const cultivation = next.cultivationAttributes;
-  const circulationSpeedMul = 1 + cultivation.circulationSpeed / 100;
-  const refinementRateMul = 1 + cultivation.refinementRate / 100;
-  const circulation = executeCirculationRoute(next, next.technique.strength * circulationSpeedMul);
-  const routeMeridians = getActiveValidatedRouteMeridianIds(next);
+  const tribulationRateMul = 1 + next.tribulation.permanentCultivationRateBonus;
+  const circulationSpeedMul = (1 + cultivation.circulationSpeed / 100) * tribulationRateMul;
+  const refinementRateMul = (1 + cultivation.refinementRate / 100) * tribulationRateMul;
+  const circulation = tribulationActive
+    ? {
+        loopEfficiency: 1,
+        bottleneckMeridianId: null,
+        estimatedHeatPerTick: 0,
+        estimatedTrainingMultiplier: 1,
+        throttleFactor: 1,
+        routeHeatMultiplier: 1,
+        greatCirculationTrainingPoolScale: 1,
+        ankleMiniCirculationQualityBonus: false
+      }
+    : executeCirculationRoute(next, next.technique.strength * circulationSpeedMul);
+  const routeMeridians = tribulationActive ? new Set<string>() : getActiveValidatedRouteMeridianIds(next);
   const flowByMeridian = new Map<string, ReturnType<typeof emptyPool>>();
   const transfers: MeridianTickTransfer[] = [];
   let meridianHeatGain = 0;
@@ -169,7 +183,7 @@ export function simulationTick(state: GameState): GameState {
   // Step 1: source generation
   for (const t2 of next.t2Nodes.values()) {
     for (const t1 of t2.t1Nodes.values()) {
-      t1.energy = addPools(t1.energy, generateSourceEnergy(t1));
+      t1.energy = addPools(t1.energy, scaledPool(generateSourceEnergy(t1), tribulationRateMul));
     }
   }
   applyFormationArrayPassiveGeneration(next);
@@ -192,12 +206,12 @@ export function simulationTick(state: GameState): GameState {
   const manipura = next.t2Nodes.get("MANIPURA");
   if (manipura) {
     const heatRatio = next.maxBodyHeat > 0 ? next.bodyHeat / next.maxBodyHeat : 0;
-    meridianHeatGain += applyManipuraRefiningPulse(manipura, next.refiningPulseActive, heatRatio);
+    meridianHeatGain += tribulationActive ? 0 : applyManipuraRefiningPulse(manipura, next.refiningPulseActive, heatRatio);
   }
 
   // Step 2a — S-013: reserve IO_OUT energy meridians will withdraw (before T1 internal flows).
   clearMeridianReservations(next);
-  for (const meridian of next.meridians.values()) {
+  for (const meridian of tribulationActive ? [] : next.meridians.values()) {
     if (!meridian.isEstablished || meridian.state === MeridianState.UNESTABLISHED) {
       continue;
     }
@@ -245,32 +259,38 @@ export function simulationTick(state: GameState): GameState {
   }
 
   // Step 3: T1 weight-driven flows (respects reservedEnergy on each T1 node).
-  for (const t2 of next.t2Nodes.values()) {
-    const flows = computeT1Flows(t2.t1Nodes, t2.t1Edges, reservedByCluster(t2));
-    applyT1Flows(t2.t1Nodes, flows);
+  if (!tribulationActive) {
+    for (const t2 of next.t2Nodes.values()) {
+      const flows = computeT1Flows(t2.t1Nodes, t2.t1Edges, reservedByCluster(t2));
+      applyT1Flows(t2.t1Nodes, flows);
+    }
   }
 
   // Step 4: apply meridian transfers after internal routing cannot consume reserved export.
-  for (const transfer of transfers) {
-    const { grossWithdrawn, heatDelta } = applyMeridianFlow(
-      transfer.fromNode,
-      transfer.toNode,
-      transfer.requestedFlow,
-      transfer.meridian
-    );
-    let effectiveHeat = heatDelta;
-    if (routeMeridians.has(transfer.meridian.id)) {
-      effectiveHeat *= circulation.routeHeatMultiplier;
-    }
-    meridianHeatGain += effectiveHeat;
-    flowByMeridian.set(transfer.meridian.id, grossWithdrawn);
-    if (routeMeridians.has(transfer.meridian.id)) {
-      const flowed = totalEnergy(grossWithdrawn);
-      transfer.meridian.totalFlow += flowed * (circulation.loopEfficiency - 1);
+  if (!tribulationActive) {
+    for (const transfer of transfers) {
+      const { grossWithdrawn, heatDelta } = applyMeridianFlow(
+        transfer.fromNode,
+        transfer.toNode,
+        transfer.requestedFlow,
+        transfer.meridian
+      );
+      let effectiveHeat = heatDelta;
+      if (routeMeridians.has(transfer.meridian.id)) {
+        effectiveHeat *= circulation.routeHeatMultiplier;
+      }
+      meridianHeatGain += effectiveHeat;
+      flowByMeridian.set(transfer.meridian.id, grossWithdrawn);
+      if (routeMeridians.has(transfer.meridian.id)) {
+        const flowed = totalEnergy(grossWithdrawn);
+        transfer.meridian.totalFlow += flowed * (circulation.loopEfficiency - 1);
+      }
     }
   }
 
-  applyCirculationPostFlow(next, routeMeridians, flowByMeridian, circulation);
+  if (!tribulationActive) {
+    applyCirculationPostFlow(next, routeMeridians, flowByMeridian, circulation);
+  }
 
   // Step 5: heat update
   const manipuraResonance = getManipuraResonance(next);
@@ -343,11 +363,13 @@ export function simulationTick(state: GameState): GameState {
   }
 
   // Step 10: T2 progression update (unlock, level, rank breakthrough).
-  const unlockEvents = checkAndUnlockT2Nodes(next);
-  const levelEvents = checkLevelUps(next);
+  const unlockEvents = tribulationActive ? [] : checkAndUnlockT2Nodes(next);
+  const levelEvents = tribulationActive ? [] : checkLevelUps(next);
   const breakthroughEvents = checkRankBreakthroughs(next);
-  next.progression.unlockEvents.push(...unlockEvents);
-  next.progression.levelUpEvents.push(...levelEvents);
+  if (!tribulationActive) {
+    next.progression.unlockEvents.push(...unlockEvents);
+    next.progression.levelUpEvents.push(...levelEvents);
+  }
   next.progression.breakthroughEvents.push(...breakthroughEvents);
   next.immediateConditionCheck = false;
 

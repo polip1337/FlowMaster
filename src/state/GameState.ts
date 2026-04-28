@@ -8,6 +8,7 @@ import type { PlayerDao } from "../core/dao/types";
 import type { CombatState } from "../core/combat/types";
 import type { PlacedFormationArray, Treasure } from "../core/treasures/types";
 import type { AlchemySession, IngredientStack } from "../core/alchemy/types";
+import type { EnemyDef } from "../data/enemies/types";
 export type { CirculationRoute } from "../core/circulation/types";
 
 export interface TutorialState {
@@ -39,6 +40,42 @@ export interface ProgressionBreakthroughEvent {
   toRank: number;
   qualityNodesBoosted: number;
   tick: number;
+}
+
+export interface TribulationAttributeBonus {
+  cultivationRateMultiplier: number;
+}
+
+export interface TribulationPenalty {
+  nodeDamageCount: number;
+  breakthroughDelayTicks: number;
+}
+
+export interface TribulationEvent {
+  requiredRank: number;
+  enemyWave: EnemyDef[];
+  timeLimit: number;
+  rewardOnSuccess: TribulationAttributeBonus;
+  penaltyOnFailure: TribulationPenalty;
+}
+
+export interface PendingBreakthrough {
+  nodeId: string;
+  fromRank: number;
+  toRank: number;
+  jingCost: number;
+  shenCost: number;
+}
+
+export interface TribulationState {
+  activeEvent: TribulationEvent | null;
+  activeNodeId: string | null;
+  pendingBreakthrough: PendingBreakthrough | null;
+  currentWaveIndex: number;
+  elapsedTicks: number;
+  isCultivationPaused: boolean;
+  delayUntilTickByNode: Record<string, number>;
+  permanentCultivationRateBonus: number;
 }
 
 export interface ProgressionState {
@@ -91,6 +128,7 @@ export interface GameState {
   cultivationAttributes: CultivationAttributes;
   combatAttributes: CombatAttributes;
   progression: ProgressionState;
+  tribulation: TribulationState;
   /** External systems set flags used by progression gates (e.g. Dao challenges). */
   specialEventFlags: Set<string>;
   sect: SectState;
