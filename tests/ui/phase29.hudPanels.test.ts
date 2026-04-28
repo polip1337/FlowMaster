@@ -137,6 +137,17 @@ describe("phase 29 hud and panels", () => {
     expect(stateModule.st.combatEncountered).toBe(true);
   });
 
+  it("bind panel ui idempotently to avoid duplicate key handlers", async () => {
+    const { mod, stateModule, documentMock } = await loadPhase29Module();
+    stateModule.st.visibleNodeIds = new Set([0, 1, 2, 3, 4, 5, 6]);
+    stateModule.st.bodyHeat = 10;
+    mod.updatePhase29Panels();
+    mod.bindPhase29PanelUi();
+    mod.bindPhase29PanelUi();
+    documentMock.fireKey("r");
+    expect(stateModule.st.refiningPulseActive).toBe(true);
+  });
+
   it("consumes selected inventory item when applying to body-map target", async () => {
     const { mod, stateModule } = await loadPhase29Module();
     stateModule.st.selectedInventoryItemId = "pill_qi";

@@ -15,6 +15,11 @@ import {
 
 let coreState: GameState = buildInitialGameState();
 let autoSaveTimer: number | null = null;
+let coreBridgeInitialized = false;
+
+export function isCoreBridgeInitialized(): boolean {
+  return coreBridgeInitialized;
+}
 
 function combatTickContextFromState(state: GameState) {
   return {
@@ -46,10 +51,14 @@ export function initializeCoreBridgeFromUi(): void {
     refiningPulseActive: st.refiningPulseActive,
     activeBodyRouteNodeIds: st.activeBodyRouteNodeIds
   });
+  coreBridgeInitialized = true;
   syncUiFromCore();
 }
 
 export function advanceCoreBridgeTick(): void {
+  if (!coreBridgeInitialized) {
+    return;
+  }
   coreState = runUiDrivenCoreTick(coreState, {
     refiningPulseActive: st.refiningPulseActive,
     activeBodyRouteNodeIds: st.activeBodyRouteNodeIds
@@ -59,12 +68,18 @@ export function advanceCoreBridgeTick(): void {
 }
 
 export function startCoreCombatFromUi(enemyId: string): void {
+  if (!coreBridgeInitialized) {
+    return;
+  }
   const enemy = ENEMY_ARCHETYPES.find((entry) => entry.id === enemyId) ?? ENEMY_ARCHETYPES[0];
   coreState = startCombat(coreState, enemy);
   syncUiFromCore();
 }
 
 export function beginCoreAlchemyFromUi(recipeId: string): boolean {
+  if (!coreBridgeInitialized) {
+    return true;
+  }
   try {
     coreState = beginAlchemySession(coreState, recipeId);
     return true;
@@ -76,6 +91,9 @@ export function beginCoreAlchemyFromUi(recipeId: string): boolean {
 }
 
 export function advanceCoreAlchemyToRefiningFromUi(): boolean {
+  if (!coreBridgeInitialized) {
+    return true;
+  }
   try {
     coreState = advanceAlchemyToRefining(coreState);
     return true;
@@ -87,6 +105,9 @@ export function advanceCoreAlchemyToRefiningFromUi(): boolean {
 }
 
 export function refineCoreAlchemyFromUi(desiredGain: number): boolean {
+  if (!coreBridgeInitialized) {
+    return true;
+  }
   try {
     coreState = refineAlchemySession(coreState, desiredGain);
     return true;
@@ -98,6 +119,9 @@ export function refineCoreAlchemyFromUi(desiredGain: number): boolean {
 }
 
 export function joinCoreSectFromUi(sectId: string): boolean {
+  if (!coreBridgeInitialized) {
+    return true;
+  }
   try {
     coreState = joinSect(coreState, sectId);
     return true;

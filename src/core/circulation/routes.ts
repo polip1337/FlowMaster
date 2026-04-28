@@ -274,8 +274,9 @@ export function isGreatCirculationAvailable(state: GameState): boolean {
     if (!m?.isEstablished) {
       return false;
     }
-    const st = meridianStateFromTotalFlow(m.totalFlow, m.isEstablished);
-    if (meridianStateRank(st) < meridianStateRank(MeridianState.DEVELOPED)) {
+    const flowState = meridianStateFromTotalFlow(m.totalFlow, m.isEstablished);
+    const effectiveState = meridianStateRank(m.state) > meridianStateRank(flowState) ? m.state : flowState;
+    if (meridianStateRank(effectiveState) < meridianStateRank(MeridianState.DEVELOPED)) {
       return false;
     }
   }

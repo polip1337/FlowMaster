@@ -56,6 +56,7 @@ import {
   joinCoreSectFromUi,
   exportCoreStateAsJson,
   importCoreStateFromJson,
+  isCoreBridgeInitialized,
   loadCoreStateFromLocalStorage,
   saveCoreStateToLocalStorage
 } from "./core-bridge.ts";
@@ -104,6 +105,7 @@ const RECIPE_TYPE_LABELS: Record<string, string> = {
 };
 const ALCHEMY_REFINE_COST = 5;
 const NODE_NAME_BY_ID = new Map(T2_NODE_DEFS.map((node) => [node.id, node.displayName]));
+let phase29PanelUiBound = false;
 
 function routeMetrics(nodeIds: string[]) {
   if (nodeIds.length < 2) {
@@ -679,6 +681,10 @@ export function applyInventoryToTier2Target(tier2Id: string): boolean {
 }
 
 export function bindPhase29PanelUi() {
+  if (phase29PanelUiBound) {
+    return;
+  }
+  phase29PanelUiBound = true;
   saveGameBtnEl?.addEventListener("click", () => {
     const ok = saveCoreStateToLocalStorage();
     if (statusEl) {
@@ -838,6 +844,11 @@ export function onPhase29KeyDown(event: KeyboardEvent): void {
 
 export function stepPhase29UiSystems() {
   advanceCoreBridgeTick();
+  if (!isCoreBridgeInitialized() && st.combatPhase === "active") {
+    st.combatTick += 1;
+    st.combatEnemyHp = Math.max(0, st.combatEnemyHp - 12);
+    st.combatPlayerHp = Math.max(0, st.combatPlayerHp - 4);
+  }
   const crackedNode = nodeData.find((n) => n.damageState === "cracked");
   if (crackedNode && st.combatCrackFlashNodeId !== crackedNode.id) {
     st.combatCrackFlashNodeId = crackedNode.id;

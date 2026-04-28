@@ -11,7 +11,7 @@ import {
 } from "./state.ts";
 import { cubicBezierPoint } from "./utils.ts";
 import { applyInventoryToTier2Target } from "./phase29-panels.ts";
-import { makeMeridianId } from "../../src/core/meridians/meridianId";
+import { makeMeridianId, parseForwardId } from "../../src/core/meridians/meridianId";
 
 type BodyMapLinkDef = {
   from: string;
@@ -66,6 +66,30 @@ function getMeridianId(from: string, to: string): string {
   return makeMeridianId(from, to);
 }
 
+function getMeridianIdCandidates(from: string, to: string): string[] {
+  const canonical = makeMeridianId(from, to);
+  const legacy = `${from}->${to}`;
+  return canonical === legacy ? [canonical] : [canonical, legacy];
+}
+
+function getMeridianRecord(meridians: Map<string, MeridianUiRecord>, from: string, to: string) {
+  for (const id of getMeridianIdCandidates(from, to)) {
+    const record = meridians.get(id);
+    if (record) {
+      return { id, record };
+    }
+  }
+  return null;
+}
+
+function separatorForId(id: string): "legacy" | "canonical" {
+  return id.includes("->") ? "legacy" : "canonical";
+}
+
+function buildMeridianId(from: string, to: string, format: "legacy" | "canonical"): string {
+  return format === "legacy" ? `${from}->${to}` : makeMeridianId(from, to);
+}
+
 function makeInitialMeridian(def: BodyMapLinkDef): MeridianUiRecord {
   return {
     id: getMeridianId(def.from, def.to),
@@ -106,6 +130,10 @@ export function ensureBodyMapUiState() {
         row.flowBonusPercent = 1.8;
       }
       st.bodyMapMeridians.set(row.id, row);
+      const legacyId = buildMeridianId(def.from, def.to, "legacy");
+      if (legacyId !== row.id) {
+        st.bodyMapMeridians.set(legacyId, row);
+      }
     }
   }
   if (!Array.isArray(st.routeDraftNodeIds)) st.routeDraftNodeIds = [];
@@ -120,8 +148,9 @@ export function getRouteDraftMetrics(nodeIds: string[], meridians: Map<string, M
   let bottleneckId = "n/a";
   let heat = 0;
   for (let i = 0; i < nodeIds.length - 1; i += 1) {
-    const id = getMeridianId(nodeIds[i], nodeIds[i + 1]);
-    const m = meridians.get(id);
+    const candidate = getMeridianRecord(meridians, nodeIds[i], nodeIds[i + 1]);
+    const id = candidate?.id ?? getMeridianId(nodeIds[i], nodeIds[i + 1]);
+    const m = candidate?.record;
     if (!m || !m.isEstablished) {
       continue;
     }
@@ -235,10 +264,21 @@ export function openMeridianDetail(meridianId: string) {
 }
 
 export function tryOpenReverseMeridian(meridianId: string) {
-  const m = st.bodyMapMeridians?.get(meridianId);
+  const parsed = (() => {
+    try {
+      return parseForwardId(meridianId);
+    } catch {
+      return null;
+    }
+  })();
+  const candidate = parsed && st.bodyMapMeridians
+    ? getMeridianRecord(st.bodyMapMeridians, parsed[0], parsed[1])
+    : null;
+  const m = candidate?.record ?? st.bodyMapMeridians?.get(meridianId);
   if (!m) return;
   m.hasReverseCandidate = false;
-  const reverseId = getMeridianId(m.nodeToId, m.nodeFromId);
+  const format = separatorForId(candidate?.id ?? meridianId);
+  const reverseId = buildMeridianId(m.nodeToId, m.nodeFromId, format);
   if (!st.bodyMapMeridians?.has(reverseId)) {
     st.bodyMapMeridians?.set(reverseId, {
       ...m,
@@ -251,6 +291,13 @@ export function tryOpenReverseMeridian(meridianId: string) {
       flowBonusPercent: Math.max(0, m.flowBonusPercent * 0.6),
       hasReverseCandidate: false
     });
+  }
+  const reverseCanonical = buildMeridianId(m.nodeToId, m.nodeFromId, "canonical");
+  const reverseLegacy = buildMeridianId(m.nodeToId, m.nodeFromId, "legacy");
+  const reverseRecord = st.bodyMapMeridians?.get(reverseId) ?? st.bodyMapMeridians?.get(reverseCanonical);
+  if (reverseRecord) {
+    st.bodyMapMeridians?.set(reverseCanonical, reverseRecord);
+    st.bodyMapMeridians?.set(reverseLegacy, reverseRecord);
   }
   openMeridianDetail(reverseId);
 }
@@ -268,6 +315,9 @@ export function redrawBodyMapMeridians() {
   }
 
   for (const [id, m] of st.bodyMapMeridians.entries()) {
+    if (id.includes("->")) {
+      continue;
+    }
     const from = getMarkerNodeById(m.nodeFromId);
     const to = getMarkerNodeById(m.nodeToId);
     if (!from || !to) continue;

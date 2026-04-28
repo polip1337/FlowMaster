@@ -13,6 +13,11 @@ type SaveEnvelope = {
   state: JsonLike;
 };
 
+const MAX_DESERIALIZE_DEPTH = 80;
+const MAX_DESERIALIZE_NODES = 50_000;
+const MAX_JSON_LENGTH = 2_000_000;
+const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -46,12 +51,19 @@ function serializeValue(value: unknown): JsonLike {
   return null;
 }
 
-function deserializeValue(value: unknown): unknown {
+function deserializeValue(value: unknown, depth = 0, budget = { nodes: 0 }): unknown {
+  if (depth > MAX_DESERIALIZE_DEPTH) {
+    throw new Error(`Save payload exceeds max depth ${MAX_DESERIALIZE_DEPTH}`);
+  }
+  budget.nodes += 1;
+  if (budget.nodes > MAX_DESERIALIZE_NODES) {
+    throw new Error(`Save payload exceeds max node budget ${MAX_DESERIALIZE_NODES}`);
+  }
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => deserializeValue(entry));
+    return value.map((entry) => deserializeValue(entry, depth + 1, budget));
   }
   if (isPlainObject(value)) {
     if (value.__type === "Map" && Array.isArray(value.entries)) {
@@ -59,16 +71,19 @@ function deserializeValue(value: unknown): unknown {
         if (!Array.isArray(entry) || entry.length < 2) {
           return [null, null] as const;
         }
-        return [deserializeValue(entry[0]), deserializeValue(entry[1])] as const;
+        return [deserializeValue(entry[0], depth + 1, budget), deserializeValue(entry[1], depth + 1, budget)] as const;
       });
       return new Map(entries);
     }
     if (value.__type === "Set" && Array.isArray(value.values)) {
-      return new Set(value.values.map((entry) => deserializeValue(entry)));
+      return new Set(value.values.map((entry) => deserializeValue(entry, depth + 1, budget)));
     }
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = deserializeValue(v);
+      if (BLOCKED_KEYS.has(k)) {
+        continue;
+      }
+      out[k] = deserializeValue(v, depth + 1, budget);
     }
     return out;
   }
@@ -167,6 +182,9 @@ export function migrateState(rawObj: unknown, fromVersion: number): GameState {
 }
 
 export function deserializeGameState(json: string): GameState {
+  if (json.length > MAX_JSON_LENGTH) {
+    throw new Error(`Save payload exceeds max size ${MAX_JSON_LENGTH} bytes.`);
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -182,7 +200,7 @@ export function deserializeGameState(json: string): GameState {
   const hasVersion = typeof maybeEnvelope.version === "number";
   const fromVersion = hasVersion ? maybeEnvelope.version! : 0;
   const rawState = hasVersion ? maybeEnvelope.state : parsed;
-  const decodedState = deserializeValue(rawState);
+  const decodedState = deserializeValue(rawState, 0, { nodes: 0 });
   return migrateState(decodedState, fromVersion);
 }
 

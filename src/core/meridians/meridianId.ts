@@ -7,9 +7,13 @@ export function makeMeridianId(fromNodeId: string, toNodeId: string): string {
 }
 
 export function parseForwardId(id: string): [string, string] {
-  const idx = id.indexOf("::");
-  if (idx === -1) {
-    throw new Error(`Invalid meridian id (expected "::" separator): ${id}`);
+  const canonicalIdx = id.indexOf("::");
+  if (canonicalIdx !== -1) {
+    return [id.slice(0, canonicalIdx), id.slice(canonicalIdx + 2)];
   }
-  return [id.slice(0, idx), id.slice(idx + 2)];
+  const legacyIdx = id.indexOf("->");
+  if (legacyIdx !== -1) {
+    return [id.slice(0, legacyIdx), id.slice(legacyIdx + 2)];
+  }
+  throw new Error(`Invalid meridian id (expected "::" or "->" separator): ${id}`);
 }

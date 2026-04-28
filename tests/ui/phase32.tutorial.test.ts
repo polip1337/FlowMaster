@@ -168,4 +168,14 @@ describe("phase 32 tutorial and onboarding", () => {
     expect(stateModule.st.tutorial.completed).toBe(false);
     expect(stateModule.st.tutorial.stepIndex).toBe(0);
   });
+
+  it("binds tutorial UI idempotently to avoid double-advance", async () => {
+    const { stateModule, tutorialModule, documentMock } = await loadTutorialModule();
+    stateModule.st.tickCounter = 5;
+    tutorialModule.bindTutorialUi();
+    tutorialModule.bindTutorialUi();
+    tutorialModule.stepTutorialSystem();
+    documentMock.getElementById("tutorialNextBtn").dispatch("click");
+    expect(stateModule.st.tutorial.stepIndex).toBe(1);
+  });
 });

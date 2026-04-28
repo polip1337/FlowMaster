@@ -191,6 +191,7 @@ export const tutorialSteps: TutorialStep[] = [
     advance: () => st.activeBodyRouteNodeIds.length >= 4
   }
 ];
+let tutorialUiBound = false;
 
 function hideTutorialOverlay() {
   tutorialOverlayEl?.classList.add("hidden");
@@ -279,6 +280,10 @@ export function applyTutorialSuppressionForReturningPlayer(): void {
 }
 
 export function bindTutorialUi(): void {
+  if (tutorialUiBound) {
+    return;
+  }
+  tutorialUiBound = true;
   tutorialNextBtnEl?.addEventListener("click", () => {
     tryAdvance();
   });

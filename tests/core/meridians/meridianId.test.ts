@@ -7,4 +7,8 @@ describe("meridianId (S-022)", () => {
     expect(id).toBe("MULADHARA::SVADHISTHANA");
     expect(parseForwardId(id)).toEqual(["MULADHARA", "SVADHISTHANA"]);
   });
+
+  it("accepts legacy arrow separator ids for compatibility", () => {
+    expect(parseForwardId("MULADHARA->SVADHISTHANA")).toEqual(["MULADHARA", "SVADHISTHANA"]);
+  });
 });

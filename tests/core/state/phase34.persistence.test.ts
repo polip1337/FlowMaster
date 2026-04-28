@@ -75,4 +75,36 @@ describe("phase34 persistence", () => {
     const parsed = JSON.parse(json) as { version: number };
     expect(parsed.version).toBe(SAVE_SCHEMA_VERSION);
   });
+
+  it("drops prototype-pollution keys during deserialization", () => {
+    const payload = JSON.stringify({
+      version: SAVE_SCHEMA_VERSION,
+      state: {
+        tick: 11,
+        playerDao: {
+          selectedDao: "Flame"
+        },
+        __proto__: {
+          polluted: true
+        },
+        constructor: {
+          prototype: {
+            pollutedAgain: true
+          }
+        }
+      }
+    });
+    const parsed = deserializeGameState(payload) as Record<string, unknown>;
+    expect((parsed as any).polluted).toBeUndefined();
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("rejects deeply nested payloads beyond safety limits", () => {
+    let nested: Record<string, unknown> = { leaf: true };
+    for (let i = 0; i < 90; i += 1) {
+      nested = { child: nested };
+    }
+    const payload = JSON.stringify({ version: SAVE_SCHEMA_VERSION, state: nested });
+    expect(() => deserializeGameState(payload)).toThrow(/max depth/i);
+  });
 });
