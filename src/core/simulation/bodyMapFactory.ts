@@ -134,6 +134,8 @@ export function buildInitialGameState(): GameState {
     },
     combat: null,
     inventory: [],
+    ingredientInventory: [],
+    alchemySession: null,
     placedFormationArrays: [],
     unlockedTechniques: [BASIC_TECHNIQUE.id],
     nodeSealThresholdModifiers: {},

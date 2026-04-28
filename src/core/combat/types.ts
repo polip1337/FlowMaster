@@ -2,6 +2,7 @@ import type { CombatAttributes } from "../attributes/types";
 import type { EnergyPool } from "../energy/EnergyType";
 import type { T2Node } from "../nodes/T2Node";
 import type { Treasure } from "../treasures/types";
+import type { IngredientStack } from "../alchemy/types";
 import type { EnemyDef } from "../../data/enemies/types";
 
 export type SkillId = string;
@@ -42,6 +43,7 @@ export interface CombatEndResult {
   state: import("../../state/GameState").GameState;
   outcome: "player_win" | "player_loss";
   droppedTreasures: Treasure[];
+  droppedIngredients: IngredientStack[];
 }
 
 export interface CombatTickContext {

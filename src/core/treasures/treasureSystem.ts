@@ -3,6 +3,7 @@ import { getT1Capacity } from "../nodes/t1Logic";
 import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState } from "../../state/GameState";
 import { TreasureType, type PlacedFormationArray, type Treasure, type TreasureDropDef } from "./types";
+import type { IngredientStack } from "../alchemy/types";
 
 function clampQuantity(value: number): number {
   return Math.max(0, Math.floor(value));
@@ -265,6 +266,24 @@ export function rollDrops(enemy: EnemyDef, state: GameState, random: () => numbe
     return [];
   }
   return [createTreasureFromDrop(chosen, enemy.tier, random)];
+}
+
+export function rollIngredientDrops(enemy: EnemyDef, random: () => number = Math.random): IngredientStack[] {
+  const drops: IngredientStack[] = [];
+  for (const drop of enemy.ingredientDropTable) {
+    if (random() > Math.max(0, Math.min(1, drop.probability))) {
+      continue;
+    }
+    const tierSpan = Math.max(0, drop.tierMax - drop.tierMin);
+    const tierRoll = drop.tierMin + Math.floor(random() * (tierSpan + 1));
+    if (tierRoll > enemy.tier) {
+      continue;
+    }
+    const quantitySpan = Math.max(0, drop.quantityMax - drop.quantityMin);
+    const quantity = Math.max(1, drop.quantityMin + Math.floor(random() * (quantitySpan + 1)));
+    drops.push({ ingredientId: drop.ingredientId, quantity });
+  }
+  return drops;
 }
 
 export function applyFormationArrayPassiveGeneration(state: GameState): void {

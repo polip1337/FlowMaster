@@ -7,6 +7,7 @@ import type { T2Node } from "../core/nodes/T2Node";
 import type { PlayerDao } from "../core/dao/types";
 import type { CombatState } from "../core/combat/types";
 import type { PlacedFormationArray, Treasure } from "../core/treasures/types";
+import type { AlchemySession, IngredientStack } from "../core/alchemy/types";
 export type { CirculationRoute } from "../core/circulation/types";
 
 export interface TutorialState {
@@ -68,6 +69,8 @@ export interface GameState {
   playerDao: PlayerDao;
   combat: CombatState | null;
   inventory: Treasure[];
+  ingredientInventory: IngredientStack[];
+  alchemySession: AlchemySession | null;
   placedFormationArrays: PlacedFormationArray[];
   unlockedTechniques: string[];
   nodeSealThresholdModifiers: Record<string, number>;

@@ -46,6 +46,26 @@ const ELITE_DROPS: TreasureDropDef[] = [
   { treasureType: TreasureType.DaoFragment, weight: 2, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 7 }
 ];
 
+const BASIC_INGREDIENT_DROPS = [
+  { ingredientId: "spirit-grass", probability: 0.6, quantityMin: 1, quantityMax: 3, tierMin: 1, tierMax: 3 },
+  { ingredientId: "iron-bark", probability: 0.45, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 },
+  { ingredientId: "jade-moss", probability: 0.35, quantityMin: 1, quantityMax: 2, tierMin: 1, tierMax: 3 }
+];
+
+const ADVANCED_INGREDIENT_DROPS = [
+  { ingredientId: "ember-bloom", probability: 0.55, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
+  { ingredientId: "moon-tear", probability: 0.5, quantityMin: 1, quantityMax: 2, tierMin: 2, tierMax: 5 },
+  { ingredientId: "void-thorn", probability: 0.35, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 },
+  { ingredientId: "golden-pith", probability: 0.3, quantityMin: 1, quantityMax: 1, tierMin: 3, tierMax: 6 }
+];
+
+const ELITE_INGREDIENT_DROPS = [
+  { ingredientId: "void-thorn", probability: 0.5, quantityMin: 1, quantityMax: 2, tierMin: 4, tierMax: 8 },
+  { ingredientId: "dragon-blood-sap", probability: 0.4, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
+  { ingredientId: "astral-pollen", probability: 0.3, quantityMin: 1, quantityMax: 1, tierMin: 5, tierMax: 9 },
+  { ingredientId: "dao-lotus-heart", probability: 0.15, quantityMin: 1, quantityMax: 1, tierMin: 7, tierMax: 9 }
+];
+
 export const ENEMY_ARCHETYPES: EnemyDef[] = [
   {
     id: "bandit-cultivator",
@@ -58,6 +78,7 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     attackSpeedTicks: 16,
     preferredNodeTarget: null,
     dropTable: BASIC_DROPS,
+    ingredientDropTable: BASIC_INGREDIENT_DROPS,
     realmRequired: 1
   },
   {
@@ -71,6 +92,7 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     attackSpeedTicks: 14,
     preferredNodeTarget: null,
     dropTable: BASIC_DROPS,
+    ingredientDropTable: BASIC_INGREDIENT_DROPS,
     realmRequired: 1
   },
   {
@@ -84,6 +106,7 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     attackSpeedTicks: 18,
     preferredNodeTarget: "AJNA",
     dropTable: ADVANCED_DROPS,
+    ingredientDropTable: ADVANCED_INGREDIENT_DROPS,
     realmRequired: 3
   },
   {
@@ -97,6 +120,7 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     attackSpeedTicks: 20,
     preferredNodeTarget: "ANAHATA",
     dropTable: ELITE_DROPS,
+    ingredientDropTable: ELITE_INGREDIENT_DROPS,
     realmRequired: 5
   },
   {
@@ -110,6 +134,7 @@ export const ENEMY_ARCHETYPES: EnemyDef[] = [
     attackSpeedTicks: 12,
     preferredNodeTarget: "SAHASRARA",
     dropTable: ELITE_DROPS,
+    ingredientDropTable: ELITE_INGREDIENT_DROPS,
     realmRequired: 7
   }
 ];

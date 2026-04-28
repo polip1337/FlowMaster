@@ -4,11 +4,12 @@ import type { SkillCategory, SkillDef } from "../dao/types";
 import { EnergyType, emptyPool } from "../energy/EnergyType";
 import type { T2Node } from "../nodes/T2Node";
 import { T2NodeState } from "../nodes/T2Types";
-import { rollDrops } from "../treasures/treasureSystem";
+import { rollDrops, rollIngredientDrops } from "../treasures/treasureSystem";
 import { applyHpThresholdNodeDamageRolls, crackNode } from "./nodeDamage";
 import type { EnemyDef } from "../../data/enemies/types";
 import type { GameState } from "../../state/GameState";
 import type { CombatEndResult, CombatState, CombatTickContext, CombatTickResult } from "./types";
+import type { IngredientStack } from "../alchemy/types";
 
 function skillById(id: string): SkillDef | undefined {
   return DAO_SKILLS.find((skill) => skill.id === id);
@@ -249,8 +250,10 @@ export function endCombat(
   }
 
   const droppedTreasures = outcome === "player_win" ? rollDrops(next.combat.enemy, next, random) : [];
+  const droppedIngredients = outcome === "player_win" ? rollIngredientDrops(next.combat.enemy, random) : [];
   if (outcome === "player_win") {
     next.inventory.push(...droppedTreasures);
+    mergeIngredientDrops(next.ingredientInventory, droppedIngredients);
     next.globalTrackers.combatCount += 1;
     next.specialEventFlags.add("event:combat_victory");
   } else {
@@ -262,9 +265,20 @@ export function endCombat(
   next.soulHp = Math.min(next.maxSoulHp, Math.max(0, next.combat.playerSoulHp));
 
   next.combat = null;
-  return { state: next, outcome, droppedTreasures };
+  return { state: next, outcome, droppedTreasures, droppedIngredients };
 }
 
 export function snapshotBodyEnergyForCombat(state: GameState) {
   return getBodyEnergy(state);
+}
+
+function mergeIngredientDrops(inventory: IngredientStack[], drops: IngredientStack[]): void {
+  for (const drop of drops) {
+    const existing = inventory.find((entry) => entry.ingredientId === drop.ingredientId);
+    if (existing) {
+      existing.quantity += drop.quantity;
+    } else {
+      inventory.push({ ingredientId: drop.ingredientId, quantity: drop.quantity });
+    }
+  }
 }
