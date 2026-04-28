@@ -127,6 +127,17 @@ function getNodeShenPulseTarget(node: T2Node): T1Node | null {
 }
 
 function updateFlowBonusCapacities(state: GameState): void {
+  const rescaleNodeToFlowBonus = (t2Node: T2Node, nextBonus: number): void => {
+    const previousBonus = t2Node.flowBonusPercent;
+    const prevMul = 1 + previousBonus / 100;
+    const nextMul = 1 + nextBonus / 100;
+    const rescale = prevMul > 0 ? nextMul / prevMul : nextMul;
+    for (const t1 of t2Node.t1Nodes.values()) {
+      t1.capacity *= rescale;
+    }
+    t2Node.flowBonusPercent = nextBonus;
+  };
+
   const perNodeBonus = new Map<string, number>();
   for (const meridian of state.meridians.values()) {
     if (!meridian.isEstablished) {
@@ -137,31 +148,26 @@ function updateFlowBonusCapacities(state: GameState): void {
     perNodeBonus.set(meridian.nodeToId, (perNodeBonus.get(meridian.nodeToId) ?? 0) + bonus);
   }
 
-  for (const [nodeId, t2Node] of state.t2Nodes) {
-    const previousBonus = t2Node.flowBonusPercent;
-    const nextBonus = perNodeBonus.get(nodeId) ?? 0;
-    const prevMul = 1 + previousBonus / 100;
-    const nextMul = 1 + nextBonus / 100;
-    const rescale = prevMul > 0 ? nextMul / prevMul : nextMul;
-
-    for (const t1 of t2Node.t1Nodes.values()) {
-      t1.capacity *= rescale;
+  const companion = state.companion;
+  let crossBonus = 0;
+  if (companion?.active) {
+    crossBonus = getCrossBodyFlowBonus(companion, state.t2Nodes);
+    if (crossBonus > 0) {
+      perNodeBonus.set("ANAHATA", (perNodeBonus.get("ANAHATA") ?? 0) + crossBonus);
     }
-    t2Node.flowBonusPercent = nextBonus;
   }
 
-  const companion = state.companion;
+  for (const [nodeId, t2Node] of state.t2Nodes) {
+    const nextBonus = perNodeBonus.get(nodeId) ?? 0;
+    rescaleNodeToFlowBonus(t2Node, nextBonus);
+  }
+
   if (!companion?.active) {
     return;
   }
-  const crossBonus = getCrossBodyFlowBonus(companion);
-  const playerAnahata = state.t2Nodes.get("ANAHATA");
-  if (playerAnahata && crossBonus > 0) {
-    playerAnahata.flowBonusPercent += crossBonus;
-  }
   const companionAnahata = companion.cultivation.t2Nodes.get("ANAHATA");
-  if (companionAnahata && crossBonus > 0) {
-    companionAnahata.flowBonusPercent += crossBonus;
+  if (companionAnahata) {
+    rescaleNodeToFlowBonus(companionAnahata, crossBonus);
   }
 }
 
@@ -473,9 +479,7 @@ export function simulationTick(state: GameState): GameState {
     target.energy[EnergyType.Shen] += shenPulse;
   }
 
-  if ((next.tick + 1) % 10 === 0) {
-    updateFlowBonusCapacities(next);
-  }
+  updateFlowBonusCapacities(next);
 
   // Step 9: T1 state update + edge unlocks
   for (const t2 of next.t2Nodes.values()) {
@@ -569,7 +573,7 @@ export function simulationTick(state: GameState): GameState {
 
   applyNodeRepairTick(next.t2Nodes, next.cultivationAttributes.meridianRepairRate, next.activeRepairNodeId);
 
-  if (!next.combat && !next.jingDepletionWarning) {
+  if (!next.combat) {
     next.hp = clamp(next.hp + 0.1, 0, next.maxHp);
     next.soulHp = clamp(next.soulHp + 0.1, 0, next.maxSoulHp);
   }

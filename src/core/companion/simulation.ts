@@ -27,6 +27,19 @@ function getHighestRank(t2Nodes: Map<string, T2Node>): number {
   return rank;
 }
 
+function canUseCrossBodyMeridian(
+  companion: CompanionState,
+  playerT2Nodes: Map<string, T2Node>
+): boolean {
+  if (!companion.active || companion.harmonyLevel < CROSS_BODY_OPEN_HARMONY) {
+    return false;
+  }
+  return (
+    getHighestRank(playerT2Nodes) >= MIN_BODY_RANK_FOR_CROSS &&
+    getHighestRank(companion.cultivation.t2Nodes) >= MIN_BODY_RANK_FOR_CROSS
+  );
+}
+
 export function runCompanionCultivationTick(companion: CompanionState): void {
   if (!companion.active) {
     return;
@@ -87,13 +100,7 @@ export function ensureCrossBodyMeridian(
   companion: CompanionState,
   playerT2Nodes: Map<string, T2Node>
 ): Meridian | null {
-  if (!companion.active || companion.harmonyLevel < CROSS_BODY_OPEN_HARMONY) {
-    return null;
-  }
-  if (
-    getHighestRank(playerT2Nodes) < MIN_BODY_RANK_FOR_CROSS ||
-    getHighestRank(companion.cultivation.t2Nodes) < MIN_BODY_RANK_FOR_CROSS
-  ) {
+  if (!canUseCrossBodyMeridian(companion, playerT2Nodes)) {
     return null;
   }
   let meridian = companion.crossBodyMeridians.find((m) => m.id === CROSS_BODY_MERIDIAN_ID) ?? null;
@@ -165,7 +172,13 @@ export function applyCrossBodyShenTransfer(
   updateMeridianAffinity(cross, flowPool);
 }
 
-export function getCrossBodyFlowBonus(companion: CompanionState): number {
+export function getCrossBodyFlowBonus(
+  companion: CompanionState,
+  playerT2Nodes: Map<string, T2Node>
+): number {
+  if (!canUseCrossBodyMeridian(companion, playerT2Nodes)) {
+    return 0;
+  }
   return companion.crossBodyMeridians
     .filter((m) => m.isEstablished)
     .reduce((sum, meridian) => sum + computeFlowBonus(meridian), 0);

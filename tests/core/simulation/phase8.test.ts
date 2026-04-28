@@ -102,6 +102,7 @@ describe("Phase 8 — TASK-082 non-affinity overflow", () => {
 describe("Phase 8 — TASK-083 Jing depletion", () => {
   it("sets warning and drains hp when global Jing is below 10% of capacity budget", () => {
     let state = buildInitialGameState();
+    const activeT2 = [...state.t2Nodes.values()].filter((t2) => t2.state === T2NodeState.ACTIVE).length;
     for (const t2 of state.t2Nodes.values()) {
       for (const t1 of t2.t1Nodes.values()) {
         t1.energy[EnergyType.Jing] = 0;
@@ -110,7 +111,7 @@ describe("Phase 8 — TASK-083 Jing depletion", () => {
     const hp0 = state.hp;
     state = simulationTick(state);
     expect(state.jingDepletionWarning).toBe(true);
-    expect(state.hp).toBeLessThanOrEqual(hp0);
+    expect(state.hp).toBeCloseTo(hp0 + 0.1 - 0.001 * activeT2, 6);
   });
 });
 

@@ -126,4 +126,41 @@ describe("phase 22 dual cultivation", () => {
     expect(nextPlayerAnahata.flowBonusPercent).toBeGreaterThan(0);
     expect(nextCompanionAnahata.flowBonusPercent).toBeGreaterThan(0);
   });
+
+  it("removes cross-body flow bonus immediately when harmony drops below gate", () => {
+    const state = buildInitialGameState();
+    const companionBase = buildInitialGameState();
+    const playerAnahata = state.t2Nodes.get("ANAHATA")!;
+    const companionAnahata = companionBase.t2Nodes.get("ANAHATA")!;
+    playerAnahata.rank = 6;
+    companionAnahata.rank = 6;
+    const playerIo = playerAnahata.t1Nodes.get(playerAnahata.ioNodeMap.get("SOLAR")!)!;
+    const companionIo = companionAnahata.t1Nodes.get(companionAnahata.ioNodeMap.get("SOLAR")!)!;
+    playerIo.energy = { ...emptyPool(), [EnergyType.Shen]: 30 };
+    companionIo.energy = { ...emptyPool(), [EnergyType.Shen]: 0 };
+    state.companion = {
+      active: true,
+      name: "Ling",
+      cultivation: {
+        t2Nodes: companionBase.t2Nodes,
+        meridians: companionBase.meridians,
+        activeRoute: null,
+        techniqueStrength: 1
+      },
+      harmonyLevel: 95,
+      sharedRouteActive: false,
+      crossBodyMeridians: []
+    };
+
+    const withBonus = simulationTick(state);
+    const playerBonusBefore = withBonus.t2Nodes.get("ANAHATA")!.flowBonusPercent;
+    const companionBonusBefore = withBonus.companion!.cultivation.t2Nodes.get("ANAHATA")!.flowBonusPercent;
+    expect(playerBonusBefore).toBeGreaterThan(0);
+    expect(companionBonusBefore).toBeGreaterThan(0);
+
+    withBonus.companion!.harmonyLevel = 89;
+    const noBonus = simulationTick(withBonus);
+    expect(noBonus.t2Nodes.get("ANAHATA")!.flowBonusPercent).toBe(0);
+    expect(noBonus.companion!.cultivation.t2Nodes.get("ANAHATA")!.flowBonusPercent).toBe(0);
+  });
 });

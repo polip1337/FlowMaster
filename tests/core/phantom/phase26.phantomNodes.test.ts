@@ -59,6 +59,22 @@ describe("phase 26 phantom nodes", () => {
     expect(source.energy[EnergyType.Shen]).toBeGreaterThan(beforeShen);
   });
 
+  it("prevents phantom replant while already planted", () => {
+    const state = buildInitialGameState();
+    selectDao(state, DaoType.Void);
+    state.t2Nodes.get("MULADHARA")!.rank = 7;
+    state.playerDao.comprehensionLevel = 6;
+    const seed = [...state.playerDao.daoNodes.values()][0]!;
+    seed.state = T2NodeState.ACTIVE;
+    const phantom = tryUnlockPhantomNode(state)!;
+
+    const planted = plantPhantomNode(state, phantom.id, "moonwell_ruins", { x: 0.5, y: 0.15 });
+    expect(planted).toBe(true);
+    const replanted = plantPhantomNode(state, phantom.id, "volcanic_rift", { x: 0.2, y: 0.2 });
+    expect(replanted).toBe(false);
+    expect(phantom.locationId).toBe("moonwell_ruins");
+  });
+
   it("prevents leveling dao node while linked phantom is planted", () => {
     const state = buildInitialGameState();
     selectDao(state, DaoType.Sword);

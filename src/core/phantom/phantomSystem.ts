@@ -83,7 +83,7 @@ export function plantPhantomNode(
   bodyOverlayPosition: { x: number; y: number }
 ): boolean {
   const phantom = state.phantomNodes.find((node) => node.id === phantomId);
-  if (!phantom || phantom.retrievalEndsAtTick !== null) {
+  if (!phantom || phantom.isPlanted || phantom.retrievalEndsAtTick !== null) {
     return false;
   }
   phantom.isPlanted = true;

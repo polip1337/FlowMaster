@@ -21,6 +21,21 @@ describe("phase 14 hp/soul and node damage", () => {
     expect(state.soulHp).toBeCloseTo(7.1, 6);
   });
 
+  it("preserves out-of-combat regen ordering even during Jing depletion warning", () => {
+    let state = buildInitialGameState();
+    state.hp = 12;
+    state.soulHp = 7;
+    for (const t2 of state.t2Nodes.values()) {
+      for (const t1 of t2.t1Nodes.values()) {
+        t1.energy[EnergyType.Jing] = 0;
+      }
+    }
+    state = simulationTick(state);
+    expect(state.jingDepletionWarning).toBe(true);
+    expect(state.soulHp).toBeCloseTo(7.1, 6);
+    expect(state.hp).toBeGreaterThan(12);
+  });
+
   it("rolls crack at <=30% hp and shatter prevention via bindu reserve at <=10%", () => {
     const state = buildInitialGameState();
     for (const node of state.t2Nodes.values()) {
