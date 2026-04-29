@@ -3,34 +3,10 @@ import { createT1Node } from "./t1Factory";
 import { getT1Capacity } from "./t1Logic";
 import { edgeKey, type T1EdgeMap } from "./T1Edge";
 import type { T1Node } from "./T1Node";
-import { T1NodeState } from "./T1Types";
+import { T1NodeState, T1NodeType } from "./T1Types";
 
-function computeUnlockDepthMap(defs: T1ClusterTopology["nodes"]): Map<number, number> {
-  const byId = new Map(defs.map((d) => [d.id, d]));
-  const depths = new Map<number, number>();
-
-  const maxDepth = (id: number, visiting: Set<number>): number => {
-    if (visiting.has(id)) {
-      return 0;
-    }
-    if (depths.has(id)) {
-      return depths.get(id)!;
-    }
-    visiting.add(id);
-    const def = byId.get(id);
-    let d = 0;
-    for (const p of def?.unlockAfter ?? []) {
-      d = Math.max(d, maxDepth(p, visiting) + 1);
-    }
-    visiting.delete(id);
-    depths.set(id, d);
-    return d;
-  };
-
-  for (const d of defs) {
-    maxDepth(d.id, new Set());
-  }
-  return depths;
+function isIoType(t: T1NodeType): boolean {
+  return t === T1NodeType.IO_IN || t === T1NodeType.IO_OUT || t === T1NodeType.IO_BIDIR;
 }
 
 function rebuildAdjacency(nodes: Map<number, T1Node>, edges: T1EdgeMap): void {
@@ -58,13 +34,55 @@ export interface T2ClusterInstance {
 export function createT2Cluster(topology: T1ClusterTopology, t2NodeId: string): T2ClusterInstance {
   void t2NodeId;
   const nodes = new Map<number, T1Node>();
-  const depthById = computeUnlockDepthMap(topology.nodes);
+
+  // Atlas S-007 unlock order: unlock sequence is derived from graph distance to
+  // the nearest I/O node(s), not from a handwritten unlock DAG.
+  const adjacencyUndirected: Record<number, number[]> = {};
+  for (const e of topology.edges) {
+    (adjacencyUndirected[e.from] ??= []).push(e.to);
+    (adjacencyUndirected[e.to] ??= []).push(e.from);
+  }
+
+  const ioIds = topology.nodes.filter((d) => isIoType(d.type)).map((d) => d.id);
+  const distById = new Map<number, number>();
+  for (const d of topology.nodes) distById.set(d.id, Number.POSITIVE_INFINITY);
+  const q: number[] = [];
+  for (const id of ioIds) {
+    distById.set(id, 0);
+    q.push(id);
+  }
+
+  while (q.length > 0) {
+    const cur = q.shift()!;
+    const curDist = distById.get(cur) ?? Number.POSITIVE_INFINITY;
+    for (const nb of adjacencyUndirected[cur] ?? []) {
+      const nextDist = curDist + 1;
+      const prev = distById.get(nb) ?? Number.POSITIVE_INFINITY;
+      if (nextDist < prev) {
+        distById.set(nb, nextDist);
+        q.push(nb);
+      }
+    }
+  }
 
   for (const def of topology.nodes) {
     const node = createT1Node(def.id, def.type, def.isSourceNode, topology.baseCapacityPerNode);
     node.capacity = getT1Capacity(topology.baseCapacityPerNode, node.quality);
-    node.predecessorIds = [...def.unlockAfter];
-    node.unlockDepth = depthById.get(def.id) ?? 0;
+
+    const d = distById.get(def.id) ?? Number.POSITIVE_INFINITY;
+    node.unlockDepth = Number.isFinite(d) ? d : 999;
+
+    // Each node depends on exactly one predecessor from the previous distance layer.
+    // This produces a distance-ordered unlock sweep while keeping unlock gating simple.
+    if (d === 0) {
+      node.predecessorIds = [];
+    } else {
+      const candidates = (adjacencyUndirected[def.id] ?? [])
+        .filter((nb) => (distById.get(nb) ?? Number.POSITIVE_INFINITY) === d - 1);
+      const pick = candidates.length > 0 ? candidates.sort((a, b) => a - b)[0] : null;
+      node.predecessorIds = pick != null ? [pick] : [];
+    }
+
     if (def.isSourceNode) {
       node.state = T1NodeState.UNSEALED;
     }

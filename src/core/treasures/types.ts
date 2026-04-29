@@ -85,13 +85,22 @@ export type TreasureEffect =
   | FormationArrayEffect
   | CultivationManualEffect;
 
-export interface Treasure {
+interface BaseTreasure {
   id: string;
-  type: TreasureType;
   tier: number;
   quantity: number;
-  effect: TreasureEffect;
 }
+
+export type Treasure =
+  | (BaseTreasure & { type: TreasureType.CondensedEssencePill; effect: CondensedEssencePillEffect })
+  | (BaseTreasure & { type: TreasureType.RefiningStone; effect: RefiningStoneEffect })
+  | (BaseTreasure & { type: TreasureType.MeridianSalve; effect: MeridianSalveEffect })
+  | (BaseTreasure & { type: TreasureType.MeridianRestoration; effect: MeridianRestorationEffect })
+  | (BaseTreasure & { type: TreasureType.JingDeposit; effect: JingDepositEffect })
+  | (BaseTreasure & { type: TreasureType.DaoFragment; effect: DaoFragmentEffect })
+  | (BaseTreasure & { type: TreasureType.RecoveryElixir; effect: RecoveryElixirEffect })
+  | (BaseTreasure & { type: TreasureType.FormationArray; effect: FormationArrayEffect })
+  | (BaseTreasure & { type: TreasureType.CultivationManual; effect: CultivationManualEffect });
 
 export interface PlacedFormationArray {
   treasureId: string;

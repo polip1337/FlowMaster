@@ -34,6 +34,7 @@ import { bindBodyMapUi, ensureBodyMapUiState, redrawBodyMapMeridians } from './b
 import { bindPhase29PanelUi, updatePhase29Panels } from './phase29-panels.ts';
 import { initializeCoreBridgeFromUi, startCoreAutoSave } from "./core-bridge.ts";
 import { applyTutorialSuppressionForReturningPlayer, bindTutorialUi, stepTutorialSystem } from "./tutorial.ts";
+import { initOfflineTickBank, persistOfflineTickBankNow } from "./offline-ticks.ts";
 
 // Wire up circular-dep bridges
 bindToggleConnection(toggleConnection);
@@ -43,11 +44,16 @@ bindRedrawNetwork(redrawNetwork);
 bindFlowPopupFns(hideFlowPopup, updateFlowPopupPosition);
 bindEdgeControlsRedraw(redrawNetwork);
 bindBodyMapUi();
+initOfflineTickBank();
 bindPhase29PanelUi();
 bindTutorialUi();
 initializeCoreBridgeFromUi();
 startCoreAutoSave();
 applyTutorialSuppressionForReturningPlayer();
+
+window.addEventListener("beforeunload", () => {
+  persistOfflineTickBankNow();
+});
 
 async function loadBodyTexture() {
   const candidateUrls = [
@@ -210,6 +216,10 @@ setupPixi().then(() => {
   setDevSpeedMode(false);
   initializeTier2Snapshots();
   st.world.scale.set(BODY_MODE_DEFAULT_SCALE);
+  if (st.galaxyViewDefault) {
+    st.galaxyViewEnabled = true;
+    document.body.classList.add("galaxy-view");
+  }
   updateSymbolMode();
   if (st.symbolModeEnabled) {
     focusBodyModeOnTier2(BODY_MODE_FOCUS_TIER2_ID);

@@ -49,6 +49,10 @@ function getEdgeStyle(intensity: string) {
   }
 }
 
+function scarSeverityAlpha(edge: any): number {
+  return Math.max(0, Math.min(1, Number(edge.scarPenalty ?? 0) / 0.25));
+}
+
 export function drawBezierPath(g: any, start: any, c1: any, c2: any, end: any, dashed: boolean, style: any) {
   if (!dashed) {
     g.moveTo(start.x, start.y);
@@ -102,8 +106,15 @@ export function redrawEdge(edge: any) {
     alpha: highlight ? Math.min(1, baseStyle.alpha + 0.15) : baseStyle.alpha,
     cap: "round"
   };
+  const scarred = Boolean(edge.isScarred) && Number(edge.scarPenalty ?? 0) > 0;
+  if (scarred) {
+    const severity = scarSeverityAlpha(edge);
+    style.color = 0x8f1e1e;
+    style.alpha = Math.min(1, Math.max(style.alpha, 0.55 + severity * 0.3));
+    style.width += 0.6 + severity;
+  }
 
-  drawBezierPath(visual.line, start, c1, c2, end, baseStyle.dashed, style);
+  drawBezierPath(visual.line, start, c1, c2, end, scarred ? true : baseStyle.dashed, style);
 
   if (baseStyle.echo) {
     const dx = end.x - start.x;
@@ -133,6 +144,16 @@ export function redrawEdge(edge: any) {
       visual.dots.circle(p.x, p.y, baseRadius);
       visual.dots.fill({ color: baseStyle.color, alpha: Math.min(1, baseStyle.alpha + 0.2) * fade });
     }
+  }
+
+  if (scarred) {
+    const severity = scarSeverityAlpha(edge);
+    drawBezierPath(visual.echo, start, c1, c2, end, true, {
+      width: 1.2 + severity * 0.6,
+      color: 0xc14b4b,
+      alpha: 0.55 + severity * 0.25,
+      cap: "round"
+    });
   }
 
   if (edge.flow > 0) {

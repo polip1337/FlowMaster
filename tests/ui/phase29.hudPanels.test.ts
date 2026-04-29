@@ -101,8 +101,8 @@ async function loadPhase29Module() {
   const documentMock = makeDocumentMock();
   vi.stubGlobal("document", documentMock as unknown as Document);
   vi.stubGlobal("window", { z: undefined, Zod: undefined } as { z?: unknown; Zod?: unknown });
-  const stateModule = await import("../../js/app/state.ts");
-  const mod = await import("../../js/app/phase29-panels.ts");
+  const stateModule = await import("../../src/app/state.ts");
+  const mod = await import("../../src/app/phase29-panels.ts");
   return { mod, stateModule, documentMock };
 }
 
@@ -184,7 +184,7 @@ describe("phase 29 hud and panels", () => {
     stateModule.st.combatPlayerHp = 180;
     stateModule.st.combatPlayerMaxHp = 180;
     stateModule.st.combatSkillCooldownTicks = 7;
-    (await import("../../js/app/config.ts")).nodeData[1].damageState = "cracked";
+    (await import("../../src/app/config.ts")).nodeData[1].damageState = "cracked";
     mod.stepPhase29UiSystems();
     mod.updatePhase29Panels();
     const alertEl = documentMock.getElementById("combatNodeDamageAlert");
@@ -192,7 +192,7 @@ describe("phase 29 hud and panels", () => {
     expect(stateModule.st.combatSummary).not.toBeNull();
     const summaryEl = documentMock.getElementById("combatSummaryBody");
     expect(summaryEl.innerHTML).toContain("Outcome");
-    (await import("../../js/app/config.ts")).nodeData[1].damageState = "healthy";
+    (await import("../../src/app/config.ts")).nodeData[1].damageState = "healthy";
   });
 
   it("renders alchemy workbench, recipe browser, and highlights required ingredients", async () => {
@@ -218,7 +218,7 @@ describe("phase 29 hud and panels", () => {
     stateModule.st.combatEncountered = true;
     stateModule.st.combatPhase = "active";
     stateModule.st.combatLog = [`<img src=x onerror=alert(1)>`];
-    stateModule.st.daoNodes = [{ id: "x", name: "<svg/onload=1>", state: "<b>ACTIVE</b>" }];
+    stateModule.st.daoNodes = [{ id: "x", name: "<svg/onload=1>", state: "<b>ACTIVE</b>" as unknown as "ACTIVE" }];
     stateModule.st.daoSkills = ["<script>alert(1)</script>"];
     mod.updatePhase29Panels();
     const combatActiveEl = documentMock.getElementById("combatActiveBody");

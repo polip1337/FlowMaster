@@ -46,7 +46,9 @@ import {
   settingsSoundToggleEl,
   settingsParticleDensityEl,
   settingsGalaxyDefaultEl,
-  settingsColorModeEl
+  settingsColorModeEl,
+  offlineTickBankLabelEl,
+  offlineTickBoostBtnEl
 } from "./state.ts";
 import { ENEMY_ARCHETYPES } from "../../src/data/enemies/archetypes.ts";
 import { ALCHEMY_RECIPES } from "../../src/data/alchemy/recipes.ts";
@@ -65,6 +67,7 @@ import {
   loadCoreStateFromLocalStorage,
   saveCoreStateToLocalStorage
 } from "./core-bridge.ts";
+import { requestOfflineTickBoostX5 } from "./offline-ticks.ts";
 import { getBodyIdForNodeId, CELESTIAL_YEAR_DAYS, CELESTIAL_PEAK_DURATION_DAYS } from "../../src/core/celestial/calendar";
 import { T2_NODE_DEFS } from "../../src/data/t2NodeDefs";
 import { SECTS } from "../../src/data/sects/sects";
@@ -620,7 +623,7 @@ function renderSectPanel() {
     const rankRequirement = sect.homeElder.requirement.find((condition) => condition.type === "node_rank");
     const requiredNodeRank = rankRequirement?.type === "node_rank" ? rankRequirement.minRank : 1;
     const requiredNodeId = rankRequirement?.type === "node_rank" ? rankRequirement.nodeId : "MULADHARA";
-    const currentRank = st.t2NodeRanks[requiredNodeId] ?? 0;
+    const currentRank = requiredNodeId ? (st.t2NodeRanks[requiredNodeId] ?? 0) : 0;
     const requirementMet = currentRank >= requiredNodeRank;
     const manualRows = sect.homeElder.teachableManuals
       .map((manualId) => {
@@ -687,6 +690,23 @@ function applyColorAccessibilityMode(mode: "default" | "deuteranopia" | "tritano
   const palette = schemes[mode] ?? schemes.default;
   root.style.setProperty("--flow-color-qi", palette.qi);
   root.style.setProperty("--flow-color-shen", palette.shen);
+}
+
+function renderOfflineTickBoost(): void {
+  if (!offlineTickBankLabelEl || !offlineTickBoostBtnEl) return;
+  const bank = Math.max(0, Math.floor(st.offlineTickBank || 0));
+  offlineTickBankLabelEl.textContent = `Offline ticks: ${bank}`;
+
+  if (st.offlineTickBoostActive) {
+    offlineTickBoostBtnEl.textContent = "Boosting x5 (click to stop)";
+    offlineTickBoostBtnEl.toggleAttribute("disabled", false);
+    offlineTickBoostBtnEl.classList.add("active");
+    return;
+  }
+
+  offlineTickBoostBtnEl.textContent = "Boost x5";
+  offlineTickBoostBtnEl.classList.remove("active");
+  offlineTickBoostBtnEl.toggleAttribute("disabled", bank <= 0);
 }
 
 export function applyInventoryToTier2Target(tier2Id: string): boolean {
@@ -772,6 +792,23 @@ export function bindPhase29PanelUi() {
     st.colorAccessibilityMode = mode;
     applyColorAccessibilityMode(mode);
   });
+
+  offlineTickBoostBtnEl?.addEventListener("click", () => {
+    const bank = Math.max(0, Math.floor(st.offlineTickBank || 0));
+    const next = !st.offlineTickBoostActive;
+    if (next && bank <= 0) return;
+    requestOfflineTickBoostX5(next);
+    renderOfflineTickBoost();
+    if (statusEl) {
+      statusEl.textContent = next
+        ? "Offline boost enabled: consuming bank for x5 speed."
+        : "Offline boost stopped.";
+    }
+  });
+
+  // Ensure the button label reflects persisted bank amount on first bind.
+  renderOfflineTickBoost();
+
   refiningPulseBtnEl?.addEventListener("click", () => {
     if ((refiningPulseBtnEl as HTMLButtonElement).disabled) return;
     st.refiningPulseActive = !st.refiningPulseActive;
@@ -928,6 +965,7 @@ export function stepPhase29UiSystems() {
 
 export function updatePhase29Panels() {
   updateHeatHud();
+  renderOfflineTickBoost();
   renderCultivationPanel();
   renderCombatPanel();
   renderCombatPrepPanel();

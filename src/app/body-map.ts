@@ -171,7 +171,7 @@ export function getRouteDraftMetrics(nodeIds: string[], meridians: Map<string, M
 }
 
 function setRouteStatusText() {
-  const metrics = getRouteDraftMetrics(st.routeDraftNodeIds, st.bodyMapMeridians);
+  const metrics = getRouteDraftMetrics(st.routeDraftNodeIds, st.bodyMapMeridians ?? new Map());
   const hasLoop = st.routeDraftNodeIds.length >= 3 &&
     st.routeDraftNodeIds[0] === st.routeDraftNodeIds[st.routeDraftNodeIds.length - 1];
   const routeEl = routeMetricsEl;
@@ -238,8 +238,10 @@ export function confirmRouteDraft() {
 
 export function openMeridianDetail(meridianId: string) {
   ensureBodyMapUiState();
-  const m = st.bodyMapMeridians.get(meridianId);
-  if (!m || !meridianDetailEl) return;
+  const meridians = st.bodyMapMeridians;
+  if (!meridians || !meridianDetailEl) return;
+  const m = meridians.get(meridianId);
+  if (!m) return;
   st.selectedBodyMapMeridianId = meridianId;
   const affinity = m.typeAffinity ? `${m.typeAffinity} ${(m.affinityFraction * 100).toFixed(1)}%` : "none";
   meridianDetailEl.innerHTML = `
@@ -430,13 +432,13 @@ export function bindBodyMapUi() {
   ensureBodyMapUiState();
   drawRouteBtnEl?.addEventListener("click", () => {
     setRouteDrawingMode(!st.routeDrawingMode);
-    drawRouteBtnEl.classList.toggle("active", st.routeDrawingMode);
+    drawRouteBtnEl?.classList.toggle("active", st.routeDrawingMode);
   });
   confirmRouteBtnEl?.addEventListener("click", () => confirmRouteDraft());
   galaxyToggleBtnEl?.addEventListener("click", () => {
     st.galaxyViewEnabled = !st.galaxyViewEnabled;
     document.body.classList.toggle("galaxy-view", st.galaxyViewEnabled);
-    galaxyToggleBtnEl.classList.toggle("active", st.galaxyViewEnabled);
+    galaxyToggleBtnEl?.classList.toggle("active", st.galaxyViewEnabled);
   });
   reverseMeridianBtnEl?.addEventListener("click", () => {
     const id = reverseMeridianBtnEl?.getAttribute("data-meridian-id");

@@ -47,12 +47,13 @@ const t2LayoutSource = Array.isArray(TIER2_LAYOUT_OVERRIDE)
 const defaultT2ById = new Map(DEFAULT_T2_NODES.map((node) => [node.id, node]));
 export const TIER2_NODES = t2LayoutSource.map((node) => {
   const fallback = (defaultT2ById.get(node.id) ?? {}) as any;
+  const layoutNode = node as any;
   return {
     id: node.id,
     name: node.name ?? fallback.name ?? node.id,
     x: typeof node.x === "number" ? node.x : (fallback.x ?? 0),
     y: typeof node.y === "number" ? node.y : (fallback.y ?? 0),
-    radius: typeof node.radius === "number" ? node.radius : (fallback.radius ?? 16)
+    radius: typeof layoutNode.radius === "number" ? layoutNode.radius : (fallback.radius ?? 16)
   };
 });
 

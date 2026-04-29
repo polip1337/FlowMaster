@@ -37,7 +37,8 @@ function getElderFavorLevel(state: GameState, elderId: string, defaultLevel = 0)
 
 function applyPartial<T extends Record<string, number>>(target: T, partial: Partial<T>, scalar: number): void {
   for (const key of Object.keys(partial) as Array<keyof T>) {
-    target[key] += (partial[key] ?? 0) * scalar;
+    const nextValue = target[key] + (partial[key] ?? 0) * scalar;
+    target[key] = nextValue as T[keyof T];
   }
 }
 
@@ -126,8 +127,16 @@ export function applySectMemberBenefits(
   if (scalar <= 0) {
     return;
   }
-  applyPartial(cultivation, sect.memberBenefits.cultivation, scalar);
-  applyPartial(combat, sect.memberBenefits.combat, scalar);
+  applyPartial(
+    cultivation as unknown as Record<string, number>,
+    sect.memberBenefits.cultivation as Partial<Record<string, number>>,
+    scalar
+  );
+  applyPartial(
+    combat as unknown as Record<string, number>,
+    sect.memberBenefits.combat as Partial<Record<string, number>>,
+    scalar
+  );
 }
 
 export function getAvailableSectFormationArrays(state: GameState, isAtRestLocation: boolean) {

@@ -171,12 +171,12 @@ function normalizeKnownContainers(state: GameState): GameState {
     if (!(state.companion.cultivation.t2Nodes instanceof Map)) {
       state.companion.cultivation.t2Nodes = new Map(
         Object.entries((state.companion.cultivation.t2Nodes as unknown as Record<string, unknown>) ?? {})
-      ) as GameState["companion"]["cultivation"]["t2Nodes"];
+      ) as NonNullable<GameState["companion"]>["cultivation"]["t2Nodes"];
     }
     if (!(state.companion.cultivation.meridians instanceof Map)) {
       state.companion.cultivation.meridians = new Map(
         Object.entries((state.companion.cultivation.meridians as unknown as Record<string, unknown>) ?? {})
-      ) as GameState["companion"]["cultivation"]["meridians"];
+      ) as NonNullable<GameState["companion"]>["cultivation"]["meridians"];
     }
   }
   return state;

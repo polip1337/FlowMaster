@@ -52,6 +52,14 @@ export const st = {
   devSpeedEnabled: false,
   simSpeedMultiplier: 1,
   tickRateMultiplier: 1,
+
+  // Offline tick bank: stored time converted into bonus simulation ticks.
+  // Player can spend this bank to temporarily speed up the game (x5).
+  offlineTickBank: 0,
+  offlineTickBoostActive: false,
+  offlineTickLastSeenAtMs: 0,
+  offlineTickLastPersistAtMs: 0,
+  offlineTickBankDirty: false,
   soundEnabled: true,
   particleDensity: 1,
   colorAccessibilityMode: "default" as "default" | "deuteranopia" | "tritanopia",
@@ -305,3 +313,5 @@ export const settingsSoundToggleEl = document.getElementById("settingsSoundToggl
 export const settingsParticleDensityEl = document.getElementById("settingsParticleDensity");
 export const settingsGalaxyDefaultEl = document.getElementById("settingsGalaxyDefault");
 export const settingsColorModeEl = document.getElementById("settingsColorMode");
+export const offlineTickBankLabelEl = document.getElementById("offlineTickBankLabel");
+export const offlineTickBoostBtnEl = document.getElementById("offlineTickBoostBtn");

@@ -121,9 +121,9 @@ export const ALCHEMY_RECIPES: Recipe[] = [
     57
   ),
   ...createTieredRecipeSet(
-    "starlit-salve",
-    "Starlit Salve Pill",
-    TreasureType.MeridianSalve,
+    "restoration-spiral",
+    "Restoration Spiral Pill",
+    TreasureType.MeridianRestoration,
     ["moon-tear", "spirit-grass"],
     ["moon-tear", "jade-moss", "void-thorn"],
     ["astral-pollen", "dragon-blood-sap", "dao-lotus-heart"],

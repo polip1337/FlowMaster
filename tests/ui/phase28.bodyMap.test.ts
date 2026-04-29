@@ -5,8 +5,8 @@ async function loadBodyMapModule() {
     getElementById: () => null
   } as unknown as Document);
   vi.stubGlobal("window", { z: undefined, Zod: undefined } as { z?: unknown; Zod?: unknown });
-  const stateModule = await import("../../js/app/state.ts");
-  const mod = await import("../../js/app/body-map.ts");
+  const stateModule = await import("../../src/app/state.ts");
+  const mod = await import("../../src/app/body-map.ts");
   return { mod, stateModule };
 }
 
@@ -44,12 +44,14 @@ describe("phase 28 body map ui helpers", () => {
     const { mod, stateModule } = await loadBodyMapModule();
     mod.ensureBodyMapUiState();
     const forwardId = "crown->mind";
-    const forward = stateModule.st.bodyMapMeridians.get(forwardId);
+    const forward = stateModule.st.bodyMapMeridians?.get(forwardId);
+    expect(forward).toBeTruthy();
+    if (!forward) return;
     forward.hasReverseCandidate = true;
     forward.isEstablished = true;
     forward.width = 4;
     mod.tryOpenReverseMeridian(forwardId);
-    const reverse = stateModule.st.bodyMapMeridians.get("mind->crown");
+    const reverse = stateModule.st.bodyMapMeridians?.get("mind->crown");
     expect(reverse).toBeTruthy();
     expect(reverse.isEstablished).toBe(true);
     expect(reverse.nodeFromId).toBe("mind");

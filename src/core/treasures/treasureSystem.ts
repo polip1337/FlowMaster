@@ -55,7 +55,7 @@ function applyRefiningStone(state: GameState, treasure: Treasure, targetId: stri
   }
   const gain = Math.max(1, Math.floor(treasure.effect.qualityGain));
   target.t1.quality = Math.min(10, target.t1.quality + gain);
-  target.t1.capacity = getT1Capacity(target.t1.baseCapacity, target.t1.quality);
+  target.t1.capacity = getT1Capacity(target.t1.capacity, target.t1.quality);
 }
 
 function applyMeridianSalve(state: GameState, treasure: Treasure, targetId: string): void {

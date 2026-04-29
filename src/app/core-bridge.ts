@@ -95,7 +95,7 @@ export function isCoreBridgeInitialized(): boolean {
 function combatTickContextFromState(state: GameState) {
   return {
     attributes: state.combatAttributes,
-    criticalInsight: state.combatAttributes.criticalInsight,
+    criticalInsight: state.cultivationAttributes.criticalInsight,
     t2Nodes: state.t2Nodes
   };
 }

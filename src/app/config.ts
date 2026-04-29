@@ -3,20 +3,56 @@
 
 import { BODY_MODE_FOCUS_TIER2_ID } from './constants.ts';
 import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
-import { TIER2_NODE_SCHEMAS } from '../t2-nodes/schemas.ts';
+import { allTopologies } from '../data/topologies/index.ts';
+import { T2_NODE_DEFS_BY_ID } from '../data/t2NodeDefs.ts';
+import { toCoreTier2Id } from '../uiCore/t2UiMapping.ts';
+import { edgeKey } from '../core/nodes/T1Edge.ts';
 
 export function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
 export function getTier2SchemaConfig(tier2Id: string) {
-  const schema = TIER2_NODE_SCHEMAS[tier2Id];
-  if (!schema) return null;
+  const coreTier2Id = toCoreTier2Id(tier2Id);
+  const t2Def = T2_NODE_DEFS_BY_ID.get(coreTier2Id);
+  if (!t2Def) return null;
+
+  const topology = allTopologies[t2Def.topologyId];
+  if (!topology) return null;
+
+  const topologyNodeIds = new Set(topology.nodes.map((n) => n.id));
+  const nodeDefinitions = NODE_DEFINITIONS.filter((n: any) => topologyNodeIds.has(n.id));
+
+  const nodeEdges: any[] = [];
+  const addEdge = (from: number, to: number, weight: number) => {
+    // JS UI uses `edge.flow` (slider) for transfer strength; topology defaultWeight is not used.
+    nodeEdges.push({
+      from,
+      to,
+      flow: 0,
+      key: edgeKey(from, to),
+      weight: weight ?? 0,
+      isScarred: false,
+      scarPenalty: 0,
+      scarHealingCostShen: 50000
+    });
+  };
+
+  for (const e of topology.edges) {
+    if (topology.directedEdges) {
+      addEdge(e.from, e.to, e.defaultWeight);
+    } else {
+      addEdge(e.from, e.to, e.defaultWeight);
+      addEdge(e.to, e.from, e.defaultWeight);
+    }
+  }
+
+  // Keep the full legacy positions set so edge rendering works even when switching topologies.
   return {
-    nodeDefinitions: deepClone(schema.nodeDefinitions ?? []),
-    initialNodePositions: deepClone(schema.initialNodePositions ?? {}),
-    nodeEdges: deepClone(schema.nodeEdges ?? []),
-    projectionLinks: deepClone(schema.projectionLinks ?? [])
+    nodeDefinitions: deepClone(nodeDefinitions),
+    initialNodePositions: deepClone(INITIAL_NODE_POSITIONS),
+    nodeEdges: deepClone(nodeEdges),
+    projectionLinks: deepClone(PROJECTION_LINKS)
   };
 }
 
@@ -28,13 +64,22 @@ function loadConfigWithValidation() {
     nodeEdges: NODE_EDGES ?? [],
     projectionLinks: PROJECTION_LINKS ?? []
   };
+
+  // Important: keep the *full* legacy node set so PIXI visuals and UI lookups remain valid
+  // across topology switches. We only swap the topology-specific edge graph.
+  const cfg = {
+    nodeDefinitions: NODE_DEFINITIONS ?? [],
+    initialNodePositions: INITIAL_NODE_POSITIONS ?? {},
+    nodeEdges: schemaSource.nodeEdges,
+    projectionLinks: PROJECTION_LINKS ?? []
+  };
   const zApi = window.z ?? window.Zod ?? null;
   if (!zApi) {
     return {
-      nodeDefinitions: schemaSource.nodeDefinitions,
-      initialNodePositions: schemaSource.initialNodePositions,
-      nodeEdges: schemaSource.nodeEdges,
-      projectionLinks: schemaSource.projectionLinks
+      nodeDefinitions: cfg.nodeDefinitions,
+      initialNodePositions: cfg.initialNodePositions,
+      nodeEdges: cfg.nodeEdges,
+      projectionLinks: cfg.projectionLinks
     };
   }
 
@@ -76,14 +121,14 @@ function loadConfigWithValidation() {
     projectionLinks: zApi.array(projectionSchema)
   });
 
-  const parsed = cfgSchema.safeParse(schemaSource);
+  const parsed = cfgSchema.safeParse(cfg);
   if (!parsed.success) {
     console.warn("Config validation failed, using raw config.", parsed.error);
     return {
-      nodeDefinitions: schemaSource.nodeDefinitions,
-      initialNodePositions: schemaSource.initialNodePositions,
-      nodeEdges: schemaSource.nodeEdges,
-      projectionLinks: schemaSource.projectionLinks
+      nodeDefinitions: cfg.nodeDefinitions,
+      initialNodePositions: cfg.initialNodePositions,
+      nodeEdges: cfg.nodeEdges,
+      projectionLinks: cfg.projectionLinks
     };
   }
   return parsed.data;

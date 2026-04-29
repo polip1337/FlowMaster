@@ -93,9 +93,9 @@ async function loadPhase29Module() {
   const documentMock = makeDocumentMock();
   vi.stubGlobal("document", documentMock as unknown as Document);
   vi.stubGlobal("window", { z: undefined, Zod: undefined } as { z?: unknown; Zod?: unknown });
-  const stateModule = await import("../../js/app/state.ts");
-  const coreBridge = await import("../../js/app/core-bridge.ts");
-  const mod = await import("../../js/app/phase29-panels.ts");
+  const stateModule = await import("../../src/app/state.ts");
+  const coreBridge = await import("../../src/app/core-bridge.ts");
+  const mod = await import("../../src/app/phase29-panels.ts");
   return { mod, stateModule, documentMock, coreBridge };
 }
 

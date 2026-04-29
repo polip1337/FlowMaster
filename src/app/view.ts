@@ -9,7 +9,7 @@ import { nodePositions } from './config.ts';
 import { st, tier1ViewState, tier2ViewState, statusEl, zoomHudEl, resetBodyViewEl, pixiWrapEl } from './state.ts';
 import { nearestTier1NodeFromWorldPoint, nearestTier2NodeFromWorldPoint } from './queries.ts';
 import { hideMarkerTooltip } from './tooltips.ts';
-import { captureCurrentTier1Snapshot, applyTier1Snapshot, getOrCreateTier2Snapshot } from './snapshots.ts';
+import { captureAndStoreCurrentTier1Snapshot, applyTier1Snapshot, getOrCreateTier2Snapshot } from './snapshots.ts';
 import { refreshTier2MarkerVisuals } from './tier2-markers.ts';
 // hud.ts is imported lazily via the bound function to avoid a long circular chain
 let _redrawNetwork: (() => void) | null = null;
@@ -110,9 +110,8 @@ export function animateViewTransition(onMiddle: () => void) {
 export function applySymbolModeState(shouldEnable: boolean, wasSymbolMode: boolean, nearestTier2: any) {
   if (shouldEnable && !wasSymbolMode) {
     saveCurrentViewState(tier1ViewState);
-    const snap = getOrCreateTier2Snapshot(st.activeTier1OwnerTier2Id);
-    // Re-capture current T1 state before switching
-    captureCurrentTier1Snapshot();
+    // Re-capture edited node unlocks / edge slider values before switching.
+    captureAndStoreCurrentTier1Snapshot(st.activeTier1OwnerTier2Id);
   }
   st.symbolModeEnabled = shouldEnable;
   st.symbolLayer.visible = st.symbolModeEnabled;

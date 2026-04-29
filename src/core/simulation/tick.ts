@@ -223,6 +223,8 @@ export function simulationTick(state: GameState): GameState {
         estimatedHeatPerTick: 0,
         estimatedTrainingMultiplier: 1,
         throttleFactor: 1,
+        greatCirculationRoute: false,
+        greatCirculationAvailable: false,
         routeHeatMultiplier: 1,
         greatCirculationTrainingPoolScale: 1,
         ankleMiniCirculationQualityBonus: false

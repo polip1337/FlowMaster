@@ -15,7 +15,6 @@ export function nodeById(nodeId: number) {
 export function getNodeState(node: any) {
   if (!node.unlocked) return STATE_LOCKED;
   if (st.resonanceBurstTicks > 0) return STATE_RESONANT;
-  if (node.unlockCost > 0 && node.si >= node.unlockCost * 1.8) return STATE_RESONANT;
   return STATE_ACTIVE;
 }
 
@@ -78,18 +77,42 @@ export function computeVisibleNodeIds() {
     return new Set(nodeData.map((node) => node.id));
   }
   const unlockedIds = nodeData.filter((node) => node.unlocked).map((node) => node.id);
-  const visible = new Set(unlockedIds);
+  const visible = new Set<number>(unlockedIds);
+
+  // Treat the edge graph as "undirected connectivity" for visibility purposes.
+  // This avoids topology-order bugs where deep nodes (often I/O terminals) could
+  // be missed by a single pass.
+  const adjacency: Record<number, number[]> = {};
   for (const edge of edges) {
-    if (visible.has(edge.from) || visible.has(edge.to)) {
-      visible.add(edge.from);
-      visible.add(edge.to);
+    (adjacency[edge.from] ??= []).push(edge.to);
+    (adjacency[edge.to] ??= []).push(edge.from);
+  }
+  const projectionOut: Record<number, number[]> = {};
+  for (const link of projectionLinks) {
+    (projectionOut[link.from] ??= []).push(link.to);
+  }
+
+  const queue: number[] = [...visible];
+  const enqueue = (id: number) => {
+    if (visible.has(id)) return;
+    visible.add(id);
+    queue.push(id);
+  };
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    for (const neighbor of adjacency[current] ?? []) {
+      enqueue(neighbor);
+    }
+
+    const fromNode = nodeById(current);
+    if (!fromNode?.unlocked || !fromNode.canProject) continue;
+    for (const to of projectionOut[current] ?? []) {
+      enqueue(to);
     }
   }
-  for (const link of projectionLinks) {
-    const fromNode = nodeById(link.from);
-    if (!fromNode?.unlocked || !fromNode.canProject) continue;
-    visible.add(link.to);
-  }
+
   return visible;
 }
 

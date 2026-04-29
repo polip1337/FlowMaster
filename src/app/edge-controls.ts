@@ -14,6 +14,14 @@ type ControlRecord = {
 const edgeControls = new Map<string, ControlRecord>();
 let redrawNetworkFn: (() => void) | null = null;
 
+function scarSeverityLabel(edge: any): string {
+  const ratio = Math.max(0, Math.min(1, Number(edge.scarPenalty ?? 0) / 0.25));
+  if (ratio <= 0) return "None";
+  if (ratio <= 0.34) return "Minor";
+  if (ratio <= 0.67) return "Moderate";
+  return "Severe";
+}
+
 export function bindEdgeControlsRedraw(fn: () => void) {
   redrawNetworkFn = fn;
 }
@@ -35,6 +43,10 @@ function createEdgeControl(edge: any, sourceName: string) {
   const root = document.createElement('div');
   root.className = 'edge-flow-control';
   root.dataset.edgeKey = edge.key;
+  if (edge.isScarred && edge.scarPenalty > 0) {
+    const healCost = Number(edge.scarHealingCostShen ?? 50000);
+    root.title = `Meridian Scar: ${scarSeverityLabel(edge)} (${Math.round(edge.scarPenalty * 100)}%) | Heal cost ${healCost.toLocaleString()} Shen`;
+  }
 
   const head = document.createElement('div');
   head.className = 'edge-flow-head';

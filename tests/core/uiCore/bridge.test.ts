@@ -92,8 +92,8 @@ describe("uiCore bridge contracts", () => {
       ajnaImbalanceSeverity: 0
     };
     mirrorCoreStateToUi(core, ui);
-    expect(ui.t2NodeRanks.crown).toBe(4);
-    expect(ui.t2DamageById.crown).toEqual({ cracked: true, shattered: false, repairProgress: 0.42 });
+    expect((ui.t2NodeRanks as Record<string, number>).crown).toBe(4);
+    expect((ui.t2DamageById as Record<string, unknown>).crown).toEqual({ cracked: true, shattered: false, repairProgress: 0.42 });
     expect(ui.binduReserveRatio).toBeGreaterThanOrEqual(0);
     expect(ui.ajnaYinRatio).toBeGreaterThan(ui.ajnaYangRatio);
     expect(ui.ajnaImbalanceSeverity).toBeGreaterThan(0.2);
@@ -102,7 +102,7 @@ describe("uiCore bridge contracts", () => {
   it("sanitizes display-bound strings during core to ui mirroring", () => {
     const core = buildInitialGameState();
     core.bodyTemperingState.currentTrainingAction = "  <script>alert(1)</script>\u0000  ";
-    core.playerDao.selectedDao = "  Dao<&>  ";
+    core.playerDao.selectedDao = "  Dao<&>  " as unknown as typeof core.playerDao.selectedDao;
     core.celestialCalendar.activeConjunctions = ["  alpha\u0000  ", "", "beta "];
     core.unlockedTechniques = ["  burst\u0000", " ", "<manual>"];
     const ui = {

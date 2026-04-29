@@ -157,7 +157,7 @@ export function redrawNode(node: any) {
 
   visual.statDots.clear();
   for (let i = 0; i < STAT_ORDER.length; i += 1) {
-    const stat = STAT_ORDER[i];
+    const stat = STAT_ORDER[i] as keyof typeof levels & keyof typeof STAT_COLOR_HEX & keyof typeof STAT_CHAR;
     const angle = -Math.PI / 2 + (Math.PI * 2 / 5) * i;
     const dx = Math.cos(angle) * NODE_ARC_RADIUS;
     const dy = Math.sin(angle) * NODE_ARC_RADIUS;
@@ -179,7 +179,7 @@ export function redrawNode(node: any) {
   if (state !== STATE_LOCKED) {
     const wedgeAlpha = state === STATE_RESONANT ? 0.28 : 0.18;
     for (let i = 0; i < STAT_ORDER.length; i += 1) {
-      const stat = STAT_ORDER[i];
+      const stat = STAT_ORDER[i] as keyof typeof levels & keyof typeof STAT_COLOR_HEX;
       const level = state === STATE_RESONANT ? Math.max(0.7, levels[stat]) : levels[stat];
       if (level <= 0.02) continue;
       const start = -Math.PI / 2 - Math.PI / 5 + (Math.PI * 2 / 5) * i;
@@ -327,6 +327,7 @@ export function redrawNode(node: any) {
       const callout = visual.callouts[i];
       if (!callout) continue;
       const entry = top[i];
+      const statKey = entry.stat as keyof typeof STAT_CHAR & keyof typeof STAT_COLOR_HEX;
       const angle = Math.PI + (i - (top.length - 1) / 2) * 0.35;
       const anchorX = Math.cos(angle) * NODE_ARC_RADIUS;
       const anchorY = Math.sin(angle) * NODE_ARC_RADIUS;
@@ -336,8 +337,8 @@ export function redrawNode(node: any) {
       callout.line.lineTo(anchorX - 20, anchorY);
       callout.line.lineTo(margin + 10, textY);
       callout.line.stroke({ width: 0.5, color: 0x6b5a3e, alpha: 0.7 });
-      callout.charText.text = STAT_CHAR[entry.stat];
-      callout.charText.style.fill = STAT_COLOR_HEX[entry.stat];
+      callout.charText.text = STAT_CHAR[statKey];
+      callout.charText.style.fill = STAT_COLOR_HEX[statKey];
       callout.charText.position.set(margin + 8, textY - 1);
       callout.labelText.text = ` ${entry.stat}  ${Math.round(entry.value * 100)}%`;
       callout.labelText.style.fill = 0x2a2318;

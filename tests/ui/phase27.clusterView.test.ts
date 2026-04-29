@@ -44,7 +44,7 @@ async function loadClusterView() {
   const documentMock = makeDocumentMock();
   vi.stubGlobal("document", documentMock as unknown as { getElementById: (id: string) => MockElement | null });
   vi.stubGlobal("window", { z: undefined, Zod: undefined } as { z?: unknown; Zod?: unknown });
-  const module = await import("../../js/app/cluster-view.ts");
+  const module = await import("../../src/app/cluster-view.ts");
   return { module, documentMock };
 }
 
@@ -104,7 +104,7 @@ describe("phase 27 cluster view", () => {
     toggle.dispatchChange?.();
 
     const damagedNode = { damageState: "cracked", repairAccumulator: 0 };
-    const stateModule = await import("../../js/app/state.ts");
+    const stateModule = await import("../../src/app/state.ts");
     stateModule.st.bodyJingPool = 20;
     module.stepDirectJingRepair([damagedNode]);
 

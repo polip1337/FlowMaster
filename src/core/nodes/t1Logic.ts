@@ -146,6 +146,8 @@ export function updateT1States(nodes: Map<number, T1Node>): T1StateChangeEvent[]
 
   for (const node of nodes.values()) {
     if (node.state === T1NodeState.LOCKED) {
+      const isIo = node.type === T1NodeType.IO_IN || node.type === T1NodeType.IO_OUT || node.type === T1NodeType.IO_BIDIR;
+      const ioSeedThreshold = node.capacity * 0.1; // IO ports unlock when meridian flow has delivered enough energy.
       const predecessorsReady =
         node.predecessorIds.length > 0
           ? node.predecessorIds.every((predId) => {
@@ -157,7 +159,10 @@ export function updateT1States(nodes: Map<number, T1Node>): T1StateChangeEvent[]
               return predecessor?.state === T1NodeState.ACTIVE;
             });
 
-      if (predecessorsReady) {
+      const hasEnergySeed = totalEnergy(node.energy) >= ioSeedThreshold;
+      const unlockReady = predecessorsReady || (isIo && hasEnergySeed);
+
+      if (unlockReady) {
         events.push({
           nodeId: node.id,
           from: T1NodeState.LOCKED,

@@ -157,7 +157,7 @@ export const NODE_DEFINITIONS = [
     "name": "Inner Seal Left",
     "unlocked": false,
     "si": 0,
-    "unlockCost": 700,
+    "unlockCost": 70,
     "attributeType": "Flow",
     "attributeTier": 1,
     "bonuses": {

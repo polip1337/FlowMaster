@@ -107,8 +107,8 @@ async function loadTutorialModule() {
   const documentMock = makeDocumentMock();
   vi.stubGlobal("document", documentMock as unknown as Document);
   vi.stubGlobal("window", { innerHeight: 900, innerWidth: 1400 } as unknown as Window);
-  const stateModule = await import("../../js/app/state.ts");
-  const tutorialModule = await import("../../js/app/tutorial.ts");
+  const stateModule = await import("../../src/app/state.ts");
+  const tutorialModule = await import("../../src/app/tutorial.ts");
   return { stateModule, tutorialModule, documentMock };
 }
 

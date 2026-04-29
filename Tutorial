@@ -1,0 +1,2102 @@
+# CULTIVATION SIMULATOR — ONBOARDING ARC IMPLEMENTATION TASK LIST
+### Progressive UI Disclosure System
+### All tasks are self-contained and independently implementable
+
+---
+
+## DESIGN OVERVIEW
+
+The onboarding system is built on three independent layers that can be developed in parallel:
+
+**Layer 1 — UIVisibility:** A registry that knows which UI elements exist and which are currently shown. Every element in the game starts hidden. The registry decides what to reveal and when.
+
+**Layer 2 — OnboardingState:** A state machine tracking which chapter the player is in, which tutorial steps are complete, and what condition triggers the next step. Completely decoupled from rendering.
+
+**Layer 3 — TutorialOverlay:** The visual presentation layer — spotlights, tooltip cards, animated arrows, chapter transition screens. Consumes OnboardingState and UIVisibility, produces what the player sees.
+
+All three layers operate against a **GameStateView** — a read-only interface that the real simulation will satisfy but that can be mocked immediately for testing and development.
+
+---
+
+## THE UI ELEMENT REGISTRY — COMPLETE LIST
+
+Every piece of UI in the game is registered here. Items start HIDDEN and are revealed by the onboarding system. This is the master list that all onboarding tasks reference.
+
+```
+CLUSTER VIEW ELEMENTS
+  cluster-view-root           The T2 cluster canvas itself
+  cluster-node-{id}           Individual T1 node circles (Muladhara: 0–11)
+  cluster-edge-{from}-{to}    Individual T1 edge lines
+  cluster-node-glow           Glow effect layer on T1 nodes
+  cluster-io-badge            IO type badge on IO nodes
+  cluster-quality-ring        Quality arc ring on T1 nodes
+  cluster-node-tooltip        Hover tooltip on T1 nodes
+  cluster-edge-weight-slider  Edge weight slider (appears on click)
+  cluster-edge-flow-particle  Animated particle on active edge
+  cluster-resonance-bar       Resonance meter below cluster
+  cluster-pressure-bar        Pressure meter below cluster
+  cluster-energy-composition  Energy type breakdown bar
+  cluster-header              T2 node name / rank / level header
+
+BODY MAP ELEMENTS
+  bodymap-silhouette          The human body outline background
+  bodymap-node-{nodeId}       Each T2 node circle on the body map (24 total)
+  bodymap-meridian-{id}       Each meridian line (27+ total)
+  bodymap-meridian-ghost      Dotted potential meridian lines
+  bodymap-route-overlay       Route drawing mode overlay
+  bodymap-route-metrics       Loop efficiency / bottleneck display
+  bodymap-galaxy-toggle       Galaxy view mode button
+
+ENERGY HUD ELEMENTS
+  hud-qi-bar                  Qi energy bar
+  hud-jing-bar                Jing energy bar
+  hud-yangqi-bar              Yang Qi energy bar
+  hud-shen-bar                Shen energy bar
+  hud-heat-meter              Body heat gauge
+  hud-energy-rates            +X/tick generation rate labels
+  hud-energy-trends           Trend arrows (up/down/stable)
+
+ATTRIBUTE PANELS
+  panel-cultivation-attrs     Cultivation attribute panel
+  panel-combat-attrs          Combat attribute panel (grayed first, then active)
+  panel-attr-breakdown        Per-attribute contributor tooltip
+
+PROGRESSION UI
+  panel-unlock-conditions     Unlock condition list for a locked T2 node
+  panel-level-requirements    Level-up requirement progress bars
+  panel-rank-indicator        Current rank label
+  panel-meridian-tf-counter   Total Flow counter on a meridian
+  panel-meridian-flowbonus    FlowBonus % display on a meridian
+  panel-meridian-quality      Meridian W×Pur quality composite display
+  panel-meridian-affinity     Type affinity badge on a meridian
+  panel-reverse-meridian-btn  "Open Reverse Meridian" button
+  panel-sealing-progress      Sealing progress bar on SEALING nodes
+
+CIRCULATION UI
+  panel-route-builder         Route definition panel
+  panel-route-active          Active route status display
+  panel-route-library         Saved routes list
+  panel-great-circulation     Great Circulation unlock indicator
+
+TECHNIQUE AND COMBAT UI
+  panel-refining-pulse-btn    Refining Pulse toggle button
+  panel-combat-config         Pre-combat rotation builder
+  panel-combat-view           Combat display (HP bars, log, skills)
+  panel-combat-energy         Combat energy pool bars
+  panel-post-combat           Post-combat summary screen
+  panel-inventory             Inventory panel
+  panel-node-damage-indicator Cracked/shattered node visual state
+
+ADVANCED SYSTEMS
+  panel-dao                   Dao selection and status panel
+  panel-dao-nodes             Dao node overlays on body map
+  panel-insights-counter      Dao Insights resource counter
+  panel-alchemy               Alchemy workbench panel
+  panel-body-tempering        Body tempering panel
+  panel-codex                 Insight Library codex
+  panel-sect                  Sect and Elder panel
+  panel-celestial-calendar    Celestial calendar widget
+  panel-companion             Companion state panel
+  panel-settings              Settings panel
+
+NOTIFICATION ELEMENTS
+  notif-queue                 Notification overlay (top-right corner)
+  notif-chapter-transition    Full-screen chapter transition card
+  
+REPAIR UI
+  panel-node-repair-toggle    "Direct Jing" repair toggle on cluster
+  panel-repair-progress       Repair progress bar on damaged nodes
+```
+
+---
+
+## CHAPTER REVEAL MAP
+
+What each chapter adds to the visible set:
+
+| Chapter | Reveals |
+|---------|---------|
+| **Ch 1** — The First Spark | cluster-view-root, cluster-node-{muladhara 0–3} (petals only), cluster-node-glow, hud-qi-bar, cluster-resonance-bar, notif-queue |
+| **Ch 2** — The First Channel | cluster-node-{muladhara 4–11} (full cluster), cluster-io-badge, cluster-quality-ring, bodymap-silhouette, bodymap-node-muladhara, bodymap-node-svadhisthana (silhouette), bodymap-meridian-root-sacral, panel-meridian-tf-counter, panel-sealing-progress, panel-unlock-conditions, cluster-edge-flow-particle, panel-meridian-flowbonus |
+| **Ch 3** — The First Loop | bodymap-node-l-hip, bodymap-node-r-hip, bodymap-meridian-belt-vessels, panel-route-builder, panel-route-active, hud-jing-bar, panel-route-metrics, cluster-pressure-bar, cluster-energy-composition |
+| **Ch 4** — The Body Takes Shape | bodymap-node-{manipura, l-shoulder, r-shoulder, l-elbow, r-elbow}, hud-yangqi-bar, hud-heat-meter, panel-level-requirements, panel-rank-indicator, panel-meridian-quality, panel-cultivation-attrs, panel-refining-pulse-btn |
+| **Ch 5** — Spirit and Perception | bodymap-node-{anahata, vishuddha, ajna}, hud-shen-bar, panel-combat-attrs (grayed), panel-reverse-meridian-btn, panel-meridian-affinity, panel-attr-breakdown |
+| **Ch 6** — First Blood | panel-combat-config, panel-combat-view, panel-combat-energy, panel-post-combat, panel-inventory, panel-node-damage-indicator, panel-node-repair-toggle, panel-repair-progress, bodymap-node-bindu (silhouette) |
+| **Ch 7** — The Body Complete | bodymap-node-{all remaining 24}, bodymap-meridian-{all}, bodymap-meridian-ghost, bodymap-galaxy-toggle, panel-dao, panel-dao-nodes, panel-insights-counter, panel-great-circulation, panel-route-library |
+| **Ch 8** — The Infinite Path | panel-alchemy, panel-body-tempering, panel-codex, panel-sect, panel-celestial-calendar, panel-companion, panel-settings, hud-energy-rates, hud-energy-trends, panel-attr-breakdown |
+
+---
+
+## TASK FORMAT
+
+Each task produces a **single deliverable** that can be built and tested without any other task being complete. Where game state is needed, tasks use the `GameStateView` mock interface defined in the first task. Tasks are grouped into tracks that can be worked in parallel.
+
+---
+
+# TRACK 1 — DATA STRUCTURES
+*Pure TypeScript. No rendering. No simulation dependency.*
+
+---
+
+**OB-001 — Define GameStateView mock interface**
+
+Create `src/onboarding/GameStateView.ts`. This is a read-only snapshot interface that the onboarding and UIVisibility systems query. It must never import from the real simulation — the real simulation will later implement this interface.
+
+```typescript
+export interface GameStateView {
+  // T1 node state queries
+  getT1State(t2NodeId: string, t1NodeId: number): 'LOCKED' | 'UNSEALED' | 'ACTIVE';
+  getT1Energy(t2NodeId: string, t1NodeId: number): number;
+  getT1Quality(t2NodeId: string, t1NodeId: number): number;
+  getActiveT1Count(t2NodeId: string): number;
+
+  // T2 node state queries
+  getT2State(nodeId: string): 'LOCKED' | 'SEALING' | 'ACTIVE' | 'REFINED';
+  getT2Resonance(nodeId: string): number;
+  getT2Pressure(nodeId: string): number;
+  getT2Rank(nodeId: string): number;
+  getT2Level(nodeId: string): number;
+  getSealingProgress(nodeId: string): number;
+
+  // Energy queries
+  getTotalEnergy(type: 'Qi' | 'Jing' | 'YangQi' | 'Shen'): number;
+  getBodyHeat(): number;
+  getBodyHeatFraction(): number;
+
+  // Meridian queries
+  getMeridianState(meridianId: string): 'UNESTABLISHED' | 'NASCENT' | 'DEVELOPED' | 'REFINED' | 'TRANSCENDENT';
+  getMeridianTF(meridianId: string): number;
+  getMeridianQuality(meridianId: string): number;
+  getMeridianFlowBonus(meridianId: string): number;
+  hasReverseMeridian(meridianId: string): boolean;
+
+  // Progression queries
+  getTickCount(): number;
+  hasEverReachedRank(rank: number): boolean;
+  hasCompletedCombat(): boolean;
+  hasCombatNodeDamage(): boolean;
+  isDaoSelected(): boolean;
+  isGreatCirculationAvailable(): boolean;
+  getActiveRouteNodeCount(): number;
+}
+```
+
+Also create `src/onboarding/MockGameStateView.ts` — a concrete implementation with all fields defaulting to their initial values (LOCKED states, zero energy, etc.). This mock is what all other onboarding tasks use for development and testing.
+
+**Done when:** Interface and mock exported; mock returns sensible defaults for every method; no imports from simulation code.
+
+---
+
+**OB-002 — Define UIElementId registry**
+
+Create `src/onboarding/UIElementRegistry.ts`. Contains the complete list of all UI element IDs as a typed string union and const record.
+
+```typescript
+export const UI_ELEMENTS = {
+  // Cluster view
+  CLUSTER_VIEW_ROOT: 'cluster-view-root',
+  CLUSTER_NODE: (t2Id: string, t1Id: number) => `cluster-node-${t2Id}-${t1Id}`,
+  CLUSTER_EDGE: (from: number, to: number) => `cluster-edge-${from}-${to}`,
+  CLUSTER_NODE_GLOW: 'cluster-node-glow',
+  CLUSTER_IO_BADGE: 'cluster-io-badge',
+  CLUSTER_QUALITY_RING: 'cluster-quality-ring',
+  CLUSTER_NODE_TOOLTIP: 'cluster-node-tooltip',
+  CLUSTER_EDGE_WEIGHT_SLIDER: 'cluster-edge-weight-slider',
+  CLUSTER_EDGE_FLOW_PARTICLE: 'cluster-edge-flow-particle',
+  CLUSTER_RESONANCE_BAR: 'cluster-resonance-bar',
+  CLUSTER_PRESSURE_BAR: 'cluster-pressure-bar',
+  CLUSTER_ENERGY_COMPOSITION: 'cluster-energy-composition',
+  CLUSTER_HEADER: 'cluster-header',
+  // Body map
+  BODYMAP_SILHOUETTE: 'bodymap-silhouette',
+  BODYMAP_NODE: (nodeId: string) => `bodymap-node-${nodeId}`,
+  BODYMAP_MERIDIAN: (id: string) => `bodymap-meridian-${id}`,
+  BODYMAP_MERIDIAN_GHOST: 'bodymap-meridian-ghost',
+  BODYMAP_ROUTE_OVERLAY: 'bodymap-route-overlay',
+  BODYMAP_ROUTE_METRICS: 'bodymap-route-metrics',
+  BODYMAP_GALAXY_TOGGLE: 'bodymap-galaxy-toggle',
+  // HUD
+  HUD_QI_BAR: 'hud-qi-bar',
+  HUD_JING_BAR: 'hud-jing-bar',
+  HUD_YANGQI_BAR: 'hud-yangqi-bar',
+  HUD_SHEN_BAR: 'hud-shen-bar',
+  HUD_HEAT_METER: 'hud-heat-meter',
+  HUD_ENERGY_RATES: 'hud-energy-rates',
+  HUD_ENERGY_TRENDS: 'hud-energy-trends',
+  // Panels
+  PANEL_CULTIVATION_ATTRS: 'panel-cultivation-attrs',
+  PANEL_COMBAT_ATTRS: 'panel-combat-attrs',
+  PANEL_ATTR_BREAKDOWN: 'panel-attr-breakdown',
+  PANEL_UNLOCK_CONDITIONS: 'panel-unlock-conditions',
+  PANEL_LEVEL_REQUIREMENTS: 'panel-level-requirements',
+  PANEL_RANK_INDICATOR: 'panel-rank-indicator',
+  PANEL_MERIDIAN_TF_COUNTER: 'panel-meridian-tf-counter',
+  PANEL_MERIDIAN_FLOWBONUS: 'panel-meridian-flowbonus',
+  PANEL_MERIDIAN_QUALITY: 'panel-meridian-quality',
+  PANEL_MERIDIAN_AFFINITY: 'panel-meridian-affinity',
+  PANEL_REVERSE_MERIDIAN_BTN: 'panel-reverse-meridian-btn',
+  PANEL_SEALING_PROGRESS: 'panel-sealing-progress',
+  PANEL_ROUTE_BUILDER: 'panel-route-builder',
+  PANEL_ROUTE_ACTIVE: 'panel-route-active',
+  PANEL_ROUTE_LIBRARY: 'panel-route-library',
+  PANEL_GREAT_CIRCULATION: 'panel-great-circulation',
+  PANEL_REFINING_PULSE_BTN: 'panel-refining-pulse-btn',
+  PANEL_COMBAT_CONFIG: 'panel-combat-config',
+  PANEL_COMBAT_VIEW: 'panel-combat-view',
+  PANEL_COMBAT_ENERGY: 'panel-combat-energy',
+  PANEL_POST_COMBAT: 'panel-post-combat',
+  PANEL_INVENTORY: 'panel-inventory',
+  PANEL_NODE_DAMAGE_INDICATOR: 'panel-node-damage-indicator',
+  PANEL_DAO: 'panel-dao',
+  PANEL_DAO_NODES: 'panel-dao-nodes',
+  PANEL_INSIGHTS_COUNTER: 'panel-insights-counter',
+  PANEL_ALCHEMY: 'panel-alchemy',
+  PANEL_BODY_TEMPERING: 'panel-body-tempering',
+  PANEL_CODEX: 'panel-codex',
+  PANEL_SECT: 'panel-sect',
+  PANEL_CELESTIAL_CALENDAR: 'panel-celestial-calendar',
+  PANEL_COMPANION: 'panel-companion',
+  PANEL_SETTINGS: 'panel-settings',
+  PANEL_NODE_REPAIR_TOGGLE: 'panel-node-repair-toggle',
+  PANEL_REPAIR_PROGRESS: 'panel-repair-progress',
+  NOTIF_QUEUE: 'notif-queue',
+  NOTIF_CHAPTER_TRANSITION: 'notif-chapter-transition',
+} as const;
+```
+
+**Done when:** All element IDs defined; helper functions for parameterized IDs included; no duplicate values; exported cleanly.
+
+---
+
+**OB-003 — Define UIVisibilityState data structure**
+
+Create `src/onboarding/UIVisibilityState.ts`.
+
+```typescript
+export interface UIVisibilityState {
+  visible: Set<string>;             // all currently shown element IDs
+  dimmed: Set<string>;              // visible but de-emphasized (grayed out)
+  spotlit: string | null;           // the currently highlighted element ID
+  pulsing: Set<string>;             // elements with pulse animation active
+  newlyRevealed: Set<string>;       // elements revealed THIS step (for entrance animation)
+}
+
+export function createInitialVisibilityState(): UIVisibilityState {
+  return {
+    visible: new Set(),             // everything starts HIDDEN
+    dimmed: new Set(),
+    spotlit: null,
+    pulsing: new Set(),
+    newlyRevealed: new Set(),
+  };
+}
+
+export function isVisible(state: UIVisibilityState, elementId: string): boolean {
+  return state.visible.has(elementId);
+}
+
+export function isDimmed(state: UIVisibilityState, elementId: string): boolean {
+  return state.dimmed.has(elementId) && state.visible.has(elementId);
+}
+```
+
+**Done when:** All types defined; createInitialVisibilityState returns empty sets; helper functions work correctly.
+
+---
+
+**OB-004 — Define OnboardingState data structure**
+
+Create `src/onboarding/OnboardingState.ts`.
+
+```typescript
+export type ChapterNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+export interface OnboardingState {
+  currentChapter: ChapterNumber;
+  currentStepId: string | null;       // null = between steps, waiting for trigger
+  completedSteps: Set<string>;
+  completedChapters: Set<ChapterNumber>;
+  highestChapterReached: ChapterNumber;
+  isSkipped: boolean;
+  isChapterTransitionPending: boolean; // true while the transition card is showing
+  stepStartTick: number;               // tick when current step began
+  chapterStartTick: number;
+  suppressedHints: Set<string>;        // player-dismissed individual hints
+}
+
+export function createInitialOnboardingState(): OnboardingState {
+  return {
+    currentChapter: 1,
+    currentStepId: null,
+    completedSteps: new Set(),
+    completedChapters: new Set(),
+    highestChapterReached: 1,
+    isSkipped: false,
+    isChapterTransitionPending: false,
+    stepStartTick: 0,
+    chapterStartTick: 0,
+    suppressedHints: new Set(),
+  };
+}
+```
+
+**Done when:** Types defined; createInitialOnboardingState returns a valid initial state; ChapterNumber is a proper union type (not just number).
+
+---
+
+**OB-005 — Define TutorialStep data structure**
+
+Create `src/onboarding/TutorialStep.ts`.
+
+```typescript
+export type HighlightMode = 'spotlight' | 'pulse' | 'arrow' | 'border';
+
+export interface TutorialStep {
+  id: string;                         // unique key e.g. 'ch1-first-spark'
+  chapter: ChapterNumber;
+  sequence: number;                   // order within chapter; steps fire in sequence order
+
+  // TRIGGER — when does this step become active?
+  // Called each tick. Step activates when this returns true AND previous step is done.
+  triggerCondition: (game: GameStateView, onboarding: OnboardingState) => boolean;
+
+  // CONTENT
+  headline: string;
+  body: string;
+  voiceText?: string;                 // same as body but may differ for accessibility
+
+  // UI TARGETING
+  highlightElementId: string | null;  // which element to spotlight/pulse
+  highlightMode: HighlightMode | null;
+  arrowTargetElementId?: string;      // if mode='arrow', draws arrow to this element
+  blockInteractionOutsideHighlight: boolean; // true = modal-like, locks rest of UI
+
+  // WHAT TO REVEAL when this step activates
+  revealElements: string[];           // element IDs to add to visible set
+  dimElements: string[];              // element IDs to add to dimmed set
+  undimElements: string[];            // element IDs to remove from dimmed set
+
+  // ADVANCE CONDITIONS
+  // Step advances when this returns true OR player clicks advance button
+  advanceCondition: (game: GameStateView, onboarding: OnboardingState) => boolean;
+  advanceLabel: string;               // '' = no button (auto-advance only)
+  autoAdvanceOnCondition: boolean;    // if true, advance without button when condition met
+  minDisplayTicks: number;            // minimum time to show step before auto-advance (default 30)
+}
+```
+
+**Done when:** Interface defined; all fields have sensible types and JSDoc comments.
+
+---
+
+**OB-006 — Define ChapterTransition data structure**
+
+Create `src/onboarding/ChapterTransition.ts`. Chapter transitions are full-screen cards shown when the player crosses a chapter boundary.
+
+```typescript
+export interface ChapterTransition {
+  fromChapter: ChapterNumber;
+  toChapter: ChapterNumber;
+  title: string;                    // e.g. "The First Channel"
+  subtitle: string;                 // chapter number label
+  backgroundTheme: string;          // CSS class key for background gradient
+  bodyText: string;                 // 1–2 sentences of flavour text
+  revealElementsOnEnter: string[];  // elements revealed as this card appears
+  dismissLabel: string;             // button label: "Begin" / "Continue" / "Proceed"
+  autoPlaySeconds: number;          // if > 0, auto-dismiss after N seconds
+}
+
+export const CHAPTER_TRANSITIONS: Record<ChapterNumber, ChapterTransition> = {
+  1: {
+    fromChapter: 1, toChapter: 1,
+    title: 'The First Spark',
+    subtitle: 'Chapter I',
+    backgroundTheme: 'ember',
+    bodyText: 'Something stirs within. A single point of warmth at the center of all things.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Feel it',
+    autoPlaySeconds: 0,
+  },
+  2: {
+    fromChapter: 1, toChapter: 2,
+    title: 'The First Channel',
+    subtitle: 'Chapter II',
+    backgroundTheme: 'current',
+    bodyText: 'Energy seeks a path upward. The body learns to carry what the spirit demands.',
+    revealElementsOnEnter: ['bodymap-silhouette'],
+    dismissLabel: 'Open the path',
+    autoPlaySeconds: 0,
+  },
+  3: {
+    fromChapter: 2, toChapter: 3,
+    title: 'The First Loop',
+    subtitle: 'Chapter III',
+    backgroundTheme: 'circulation',
+    bodyText: 'A circle completes itself. Energy that moves grows; energy that sits stagnates.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Begin circulating',
+    autoPlaySeconds: 0,
+  },
+  4: {
+    fromChapter: 3, toChapter: 4,
+    title: 'The Body Takes Shape',
+    subtitle: 'Chapter IV',
+    backgroundTheme: 'forge',
+    bodyText: 'The furnace awakens. What was warm becomes fire. Temper it wisely.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Feed the furnace',
+    autoPlaySeconds: 0,
+  },
+  5: {
+    fromChapter: 4, toChapter: 5,
+    title: 'Spirit and Perception',
+    subtitle: 'Chapter V',
+    backgroundTheme: 'shen',
+    bodyText: 'Beyond the body, something subtler stirs. Shen cannot be forced — only invited.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Listen',
+    autoPlaySeconds: 0,
+  },
+  6: {
+    fromChapter: 5, toChapter: 6,
+    title: 'First Blood',
+    subtitle: 'Chapter VI',
+    backgroundTheme: 'conflict',
+    bodyText: 'Cultivation is not found in silence alone. What you have built will now be tested.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Face it',
+    autoPlaySeconds: 0,
+  },
+  7: {
+    fromChapter: 6, toChapter: 7,
+    title: 'The Body Complete',
+    subtitle: 'Chapter VII',
+    backgroundTheme: 'constellation',
+    bodyText: 'Twenty-four stars. A complete sky. Now choose which light you follow.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'See it all',
+    autoPlaySeconds: 0,
+  },
+  8: {
+    fromChapter: 7, toChapter: 8,
+    title: 'The Infinite Path',
+    subtitle: 'Chapter VIII',
+    backgroundTheme: 'void',
+    bodyText: 'There is no ceiling. Only the next step, and the one after that, and the one beyond sight.',
+    revealElementsOnEnter: [],
+    dismissLabel: 'Walk it',
+    autoPlaySeconds: 0,
+  },
+};
+```
+
+**Done when:** All 8 transitions defined; background theme keys established (even if CSS is not yet written); auto-play disabled for all (0 = manual dismiss).
+
+---
+
+# TRACK 2 — TUTORIAL STEP CONTENT
+*Pure data — no rendering, no simulation. Write all tutorial text and conditions.*
+
+---
+
+**OB-007 — Author Chapter 1 tutorial steps**
+
+Create `src/onboarding/steps/chapter1.ts`. Chapter 1 covers Minutes 0–15. The player sees only Muladhara's outer four petals and the Qi bar.
+
+Steps (7 total):
+
+```
+STEP ch1-00-opening
+  trigger: always (fires immediately at game start)
+  headline: "Something stirs within."
+  body: "You sit. You breathe. Deep inside, a single point of warmth begins to glow."
+  highlight: cluster-node-muladhara-0 (P_N, the source petal)
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [cluster-view-root, cluster-node-glow, hud-qi-bar, notif-queue,
+           cluster-node-muladhara-0, cluster-node-muladhara-1,
+           cluster-node-muladhara-2, cluster-node-muladhara-3]
+  advance: player clicks "I feel it"
+  autoAdvance: false
+
+STEP ch1-01-qi-explained
+  trigger: ch1-00 complete
+  headline: "Qi."
+  body: "Vital breath. The most fundamental energy. Watch it fill the petal node at your center."
+  highlight: hud-qi-bar
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: []
+  advance: totalQiEnergy > 10 (first meaningful amount)
+  autoAdvance: true, minDisplay 20 ticks
+
+STEP ch1-02-first-active
+  trigger: any petal T1 node reaches ACTIVE state
+  headline: "A node awakens."
+  body: "This is a T1 node — the smallest unit of cultivation. It has filled enough to become active. Watch it glow."
+  highlight: the newly-activated T1 node (dynamic: whichever just activated)
+  highlightMode: border
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch1-03-topology-explained
+  trigger: ch1-02 complete
+  headline: "The path forward is fixed."
+  body: "These four petals connect inward to corners, then to a triangle, and finally to the center. Energy can only flow along these connections. The shape is the method."
+  highlight: cluster-view-root
+  highlightMode: null (no specific highlight — show the whole cluster)
+  blockInteraction: false
+  reveal: [cluster-edge-flow-particle]
+  advance: 2 or more T1 nodes ACTIVE
+  autoAdvance: true
+
+STEP ch1-04-goal-set
+  trigger: ch1-03 complete
+  headline: "Four nodes."
+  body: "Bring four T1 nodes to an active state. The Square Seal will begin to breathe."
+  highlight: cluster-resonance-bar
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [cluster-resonance-bar]
+  advance: getActiveT1Count('muladhara') >= 4
+  autoAdvance: true
+  advanceLabel: ""
+
+STEP ch1-05-resonance-explained
+  trigger: getActiveT1Count('muladhara') >= 4
+  headline: "Resonance."
+  body: "The fraction of living nodes in the seal. Higher resonance means more power flows from this center. More nodes active — more of the seal breathes."
+  highlight: cluster-resonance-bar
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "I see it"
+  autoAdvance: false
+
+STEP ch1-06-chapter-complete
+  trigger: ch1-05 complete
+  headline: "The First Spark holds."
+  body: "The foundation stirs. You have learned the smallest truth: every great cultivation begins with a single point of light."
+  highlight: null
+  highlightMode: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Continue"
+  autoAdvance: false
+  onComplete: FIRE chapter 2 transition
+```
+
+**Done when:** All 7 steps defined as TutorialStep objects in the chapter1 array; all triggerConditions and advanceConditions are arrow functions against GameStateView; no hardcoded values outside of GameStateView methods.
+
+---
+
+**OB-008 — Author Chapter 2 tutorial steps**
+
+Create `src/onboarding/steps/chapter2.ts`. Chapter 2 covers Minutes 15–45. Introduces Svadhisthana, the first meridian, I/O nodes, and the concept of channels improving with use.
+
+Steps (8 total):
+
+```
+STEP ch2-00-second-node-appears
+  trigger: chapter 2 start (after transition)
+  headline: "Something above."
+  body: "The energy you have built seeks to rise. There is a second center — dormant, waiting."
+  highlight: bodymap-node-svadhisthana (shown as dim silhouette)
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [bodymap-silhouette, bodymap-node-muladhara, bodymap-node-svadhisthana]
+  dim: [bodymap-node-svadhisthana]
+  advance: player clicks "I see it"
+  autoAdvance: false
+
+STEP ch2-01-unlock-conditions
+  trigger: ch2-00 complete
+  headline: "Requirements."
+  body: "Before a dormant center can be unsealed, conditions must be met. Deepen the foundation first."
+  highlight: panel-unlock-conditions
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-unlock-conditions]
+  advance: svadhisthana T2 state transitions to SEALING
+  autoAdvance: true
+
+STEP ch2-02-io-node-explained
+  trigger: svadhisthana enters SEALING state
+  headline: "The Port."
+  body: "This bright node at the top of the Square Seal — P_N — is the only point where energy crosses the boundary to reach Svadhisthana. Route your weights toward it."
+  highlight: cluster-node-muladhara-0 (P_N)
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [cluster-io-badge]
+  advance: getMeridianState('muladhara::svadhisthana') === 'NASCENT'
+  autoAdvance: true
+
+STEP ch2-03-meridian-appears
+  trigger: ch2-02 complete
+  headline: "A channel opens."
+  body: "The first meridian is born. Rough, narrow, but real. Energy flows — and something is lost in the crossing."
+  highlight: bodymap-meridian-muladhara-svadhisthana
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [bodymap-meridian-muladhara-svadhisthana, cluster-edge-flow-particle]
+  advance: getMeridianTF('muladhara::svadhisthana') > 100
+  autoAdvance: true
+
+STEP ch2-04-purity-loss
+  trigger: ch2-03 complete AND meridian has had at least one delivery (TF > 0)
+  headline: "The cost of transit."
+  body: "10 units sent. Only 6 arrived. The channel is rough — it scatters what it carries. This is purity. Use will smooth it."
+  highlight: bodymap-meridian-muladhara-svadhisthana
+  highlightMode: border
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch2-05-tf-counter
+  trigger: ch2-04 complete
+  headline: "Total Flow."
+  body: "Every unit of energy that crosses this channel is counted. As that number grows, the channel widens and its walls grow smoother."
+  highlight: panel-meridian-tf-counter
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [panel-meridian-tf-counter, panel-meridian-flowbonus]
+  advance: getMeridianFlowBonus('muladhara::svadhisthana') > 0
+  autoAdvance: true
+
+STEP ch2-06-flowbonus
+  trigger: getMeridianFlowBonus > 0 on root-sacral meridian
+  headline: "Capacity grows."
+  body: "A developed channel gives back — it expands the maximum energy both connected centers can hold. Use is never wasted."
+  highlight: panel-meridian-flowbonus
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "I see it"
+  autoAdvance: false
+
+STEP ch2-07-chapter-complete
+  trigger: ch2-06 complete AND svadhisthana T2 state = ACTIVE
+  headline: "Two lights, one thread."
+  body: "The channel between your centers is alive. From here, the body can expand."
+  highlight: null
+  highlightMode: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Continue"
+  autoAdvance: false
+  onComplete: FIRE chapter 3 transition
+```
+
+**Done when:** All 8 steps defined; sealing-progress panel reveal is handled by ch2-01; purity loss numbers in ch2-04 body are dynamic (pulled from actual meridian purity).
+
+---
+
+**OB-009 — Author Chapter 3 tutorial steps**
+
+Create `src/onboarding/steps/chapter3.ts`. Chapter 3 covers Minutes 45–120. Introduces Hip nodes, route drawing, loop efficiency, and Jing.
+
+Steps (8 total):
+
+```
+STEP ch3-00-hips-appear
+  trigger: chapter 3 start
+  headline: "The hips open."
+  body: "Two new centers emerge below and to the sides. The body's root begins to spread into the lower frame."
+  highlight: null
+  blockInteraction: false
+  reveal: [bodymap-node-l-hip, bodymap-node-r-hip,
+           bodymap-meridian-root-lhip, bodymap-meridian-root-rhip,
+           bodymap-meridian-sacral-lhip, bodymap-meridian-sacral-rhip]
+  advance: any hip node enters SEALING
+  autoAdvance: true
+
+STEP ch3-01-route-drawing-introduced
+  trigger: both hip nodes ACTIVE
+  headline: "A closed path."
+  body: "Three centers. Three channels. You can now send energy on a journey — through each in turn, returning to where it began."
+  highlight: panel-route-builder
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-route-builder, bodymap-route-overlay]
+  advance: player opens route builder
+  autoAdvance: false
+
+STEP ch3-02-draw-first-route
+  trigger: ch3-01 complete
+  headline: "Draw the loop."
+  body: "Click Root, then Sacral, then Left Hip, then Root again to close the circle. The system will tell you if the path is valid."
+  highlight: bodymap-route-overlay
+  highlightMode: border
+  blockInteraction: true   // lock rest of UI until loop is defined
+  reveal: []
+  advance: player defines a valid 3-node loop containing root, sacral, l-hip
+  autoAdvance: true
+
+STEP ch3-03-efficiency-explained
+  trigger: valid 3-node loop defined
+  headline: "The weakest link."
+  body: "Two numbers matter: Loop Efficiency — how effectively this route trains the channels — and the Bottleneck — the narrowest point. The chain is only as strong as its worst meridian."
+  highlight: panel-route-metrics
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-route-metrics, bodymap-route-metrics]
+  advance: player activates the route
+  autoAdvance: false
+  advanceLabel: "Start circulating"
+
+STEP ch3-04-watching-training
+  trigger: active route has been running for 30 ticks
+  headline: "All three channels train together."
+  body: "Every meridian on the route gains Total Flow. They all grow simultaneously. A loop does in one cycle what three separate efforts could not."
+  highlight: bodymap-meridian-muladhara-svadhisthana
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: []
+  advance: any meridian on route changes state (NASCENT → DEVELOPED)
+  autoAdvance: true
+  advanceLabel: ""
+
+STEP ch3-05-jing-appears
+  trigger: L or R Hip node reaches ACTIVE (generates Jing)
+  headline: "Jing."
+  body: "Dense. Slow. Essential. This energy is different from Qi — it is the body's structural essence. It fills nodes more effectively and builds channels that last."
+  highlight: hud-jing-bar
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [hud-jing-bar]
+  advance: totalJingEnergy > 20
+  autoAdvance: true
+
+STEP ch3-06-jing-discount
+  trigger: any node enters SEALING after Jing available
+  headline: "Jing unlocks more."
+  body: "When Jing fills a dormant center, the threshold is lower. Dense energy seals more efficiently than common breath."
+  highlight: panel-sealing-progress
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-sealing-progress]
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch3-07-chapter-complete
+  trigger: ch3-06 complete AND route has been active for 60 ticks total
+  headline: "The circulation holds."
+  body: "Energy moves. Channels grow. You have discovered the first truth of flow: motion is medicine."
+  highlight: null
+  highlightMode: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Continue"
+  autoAdvance: false
+  onComplete: FIRE chapter 4 transition
+```
+
+**Done when:** All 8 steps defined; ch3-02 blocks interaction correctly; the dynamic "any meridian changes state" trigger in ch3-04 is correctly specified.
+
+---
+
+**OB-010 — Author Chapter 4 tutorial steps**
+
+Create `src/onboarding/steps/chapter4.ts`. Chapter 4 covers Hours 1–3. Introduces Yang Qi, heat, the arm chain, leveling, and the cultivation attribute panel.
+
+Steps (7 total):
+
+```
+STEP ch4-00-manipura-unlocks
+  trigger: chapter 4 start / Manipura enters SEALING
+  headline: "The furnace."
+  body: "A third chakra center lies above the Sacral — the Solar Plexus. Within it, a node called the furnace can transform common Qi into something fiercer."
+  highlight: bodymap-node-manipura
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [bodymap-node-manipura]
+  advance: manipura T2 state = ACTIVE
+  autoAdvance: true
+
+STEP ch4-01-yangqi-introduced
+  trigger: Manipura ACTIVE
+  headline: "Yang Qi."
+  body: "Refined Breath-Fire. Qi that has been compressed and heated. It moves faster through channels and trains them wider — but it burns."
+  highlight: panel-refining-pulse-btn
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [panel-refining-pulse-btn, hud-yangqi-bar]
+  advance: player activates Refining Pulse once
+  autoAdvance: false
+
+STEP ch4-02-heat-explained
+  trigger: bodyHeat > 0 (first Yang Qi loss in a meridian)
+  headline: "The cost of fire."
+  body: "Yang Qi that escapes the channel becomes heat. Too much heat makes the body brittle — the channels lose their smoothness, and at the extremes, the centers crack."
+  highlight: hud-heat-meter
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [hud-heat-meter]
+  advance: player clicks "I'll be careful"
+  autoAdvance: false
+
+STEP ch4-03-shoulders-appear
+  trigger: ch4-02 complete AND Manipura at level >= 2
+  headline: "The arms open."
+  body: "Centers emerge in the shoulders. The body's upper frame takes shape — energy can now reach outward into the limbs."
+  highlight: null
+  blockInteraction: false
+  reveal: [bodymap-node-l-shoulder, bodymap-node-r-shoulder,
+           bodymap-node-l-elbow, bodymap-node-r-elbow,
+           bodymap-meridian-heart-lshoulder, bodymap-meridian-heart-rshoulder]
+  advance: any shoulder node enters ACTIVE
+  autoAdvance: true
+
+STEP ch4-04-leveling-introduced
+  trigger: any T2 node meets level-up requirements for the first time
+  headline: "Deepening."
+  body: "A center that has held enough energy, and had enough flow through it, can deepen its rank within itself. Each level strengthens every attribute it provides."
+  highlight: panel-level-requirements
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-level-requirements, panel-rank-indicator]
+  advance: any T2 node levels up
+  autoAdvance: true
+
+STEP ch4-05-meridian-quality
+  trigger: ch4-04 complete
+  headline: "Quality."
+  body: "Each channel has a quality score: its width multiplied by its purity. This single number determines how much it expands the capacity of the centers it connects."
+  highlight: panel-meridian-quality
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-meridian-quality]
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch4-06-cultivation-attrs
+  trigger: ch4-05 complete
+  headline: "You are becoming."
+  body: "The attributes panel reflects what you have built. These numbers are not abstract — they change the speed of every tick, the efficiency of every flow."
+  highlight: panel-cultivation-attrs
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-cultivation-attrs]
+  advance: player opens and reads cultivation attribute panel (click on any attribute)
+  autoAdvance: false
+  advanceLabel: ""
+  onComplete: FIRE chapter 5 transition (after a delay of 60 ticks)
+```
+
+**Done when:** All 7 steps defined; ch4-02 correctly triggers on first heat value > 0; ch4-03 reveal includes correct meridian IDs.
+
+---
+
+**OB-011 — Author Chapter 5 tutorial steps**
+
+Create `src/onboarding/steps/chapter5.ts`. Chapter 5 covers Hours 3–8. Introduces Anahata, Shen, Ajna lobe balance, combat attributes (grayed), and reverse meridians.
+
+Steps (8 total):
+
+```
+STEP ch5-00-anahata-appears
+  trigger: chapter 5 start
+  headline: "The heart opens."
+  body: "Above the furnace, a four-petaled star awakens. Anahata — the Heart — is the crossroads of the upper body. Four channels will converge here."
+  highlight: bodymap-node-anahata
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [bodymap-node-anahata, bodymap-node-vishuddha]
+  advance: anahata T2 state = ACTIVE
+  autoAdvance: true
+
+STEP ch5-01-shen-appears
+  trigger: Anahata ACTIVE AND anahata resonance > 0.5
+  headline: "Shen."
+  body: "Spirit Light. It cannot be forced, only invited. A heart that breathes fully begins to generate it — slowly, preciously."
+  highlight: hud-shen-bar
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [hud-shen-bar]
+  advance: totalShenEnergy > 0.5
+  autoAdvance: true
+
+STEP ch5-02-shen-warning
+  trigger: ch5-01 complete
+  headline: "Guard it."
+  body: "Shen is the rarest energy. It trains channels to their purest state but generates only in harmony. Spend it deliberately."
+  highlight: hud-shen-bar
+  highlightMode: border
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch5-03-ajna-lobe-balance
+  trigger: Ajna enters SEALING
+  headline: "Two lobes. One eye."
+  body: "The Third Eye is divided — a Yin half and a Yang half. Watch which fills faster. If they grow uneven, the attribute it provides is diminished by the imbalance."
+  highlight: bodymap-node-ajna
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [bodymap-node-ajna]
+  advance: ajna T2 state = ACTIVE
+  autoAdvance: true
+
+STEP ch5-04-combat-attrs-grayed
+  trigger: ch5-03 complete
+  headline: "Another kind of power."
+  body: "You have cultivation attributes — the numbers of growth. There are also combat attributes — the numbers of struggle. They are grayed out for now. They will matter soon."
+  highlight: panel-combat-attrs
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-combat-attrs]
+  dim: [panel-combat-attrs]
+  advance: player clicks "I see them"
+  autoAdvance: false
+
+STEP ch5-05-reverse-meridian
+  trigger: root-sacral meridian state = DEVELOPED AND both nodes at level >= 3
+  headline: "A two-way road."
+  body: "The channel from Root to Sacral is strong enough to carry traffic in the other direction. Open the reverse meridian — and the two centers can form their own closed loop."
+  highlight: panel-reverse-meridian-btn
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-reverse-meridian-btn]
+  advance: hasReverseMeridian('muladhara::svadhisthana') = true
+  autoAdvance: true
+
+STEP ch5-06-two-node-loop
+  trigger: ch5-05 complete
+  headline: "The smallest loop."
+  body: "Two nodes. Two channels. A loop with 60% efficiency — not the best, but yours now entirely. The first self-contained circulation in the body."
+  highlight: bodymap-meridian-svadhisthana-muladhara (reverse)
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: []
+  advance: player sets up a 2-node loop between root and sacral
+  autoAdvance: false
+  advanceLabel: "It's running"
+
+STEP ch5-07-chapter-complete
+  trigger: ch5-06 complete
+  headline: "Subtlety enters."
+  body: "The spirit awakens. Perception sharpens. What comes next is not growth — it is the test of what has been built."
+  highlight: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Continue"
+  autoAdvance: false
+  onComplete: FIRE chapter 6 transition
+```
+
+**Done when:** All 8 steps defined; ch5-04 correctly dims (not hides) combat attr panel; lobe balance step fires on Ajna entering SEALING, not earlier.
+
+---
+
+**OB-012 — Author Chapter 6 tutorial steps**
+
+Create `src/onboarding/steps/chapter6.ts`. Chapter 6 covers Hours 6–12. Introduces combat, node damage, repair, and Bindu.
+
+Steps (9 total):
+
+```
+STEP ch6-00-encounter-hint
+  trigger: chapter 6 start
+  headline: "Something approaches."
+  body: "Your cultivation has not gone unnoticed. The world does not stand still while you grow. A first encounter awaits."
+  highlight: null
+  blockInteraction: false
+  reveal: [panel-combat-config]
+  advance: player opens combat config OR hasCompletedCombat()
+  autoAdvance: false
+  advanceLabel: "Face it"
+
+STEP ch6-01-rotation-explained
+  trigger: ch6-00 complete AND player in combat config screen
+  headline: "The rotation."
+  body: "You will not control each strike — only the order and priority of your techniques. Set your rotation before you commit to the encounter."
+  highlight: panel-combat-config
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: []
+  advance: player has set at least 2 skills in rotation
+  autoAdvance: false
+  advanceLabel: "Ready"
+
+STEP ch6-02-combat-runs
+  trigger: combat is active (first combat started)
+  headline: "It unfolds."
+  body: "The rotation executes. Watch how your energy pool is spent. Watch how the enemy's health responds to the skills you chose."
+  highlight: panel-combat-view
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-combat-view, panel-combat-energy]
+  advance: hasCompletedCombat() = true
+  autoAdvance: true
+
+STEP ch6-03-post-combat-summary
+  trigger: first combat ends (any outcome)
+  headline: "What it cost."
+  body: "Combat spends energy and tests the body. Some encounters leave marks. Check your cultivation centers — one may have taken damage."
+  highlight: panel-post-combat
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-post-combat]
+  advance: player dismisses post-combat summary
+  autoAdvance: false
+  advanceLabel: "Check the damage"
+
+STEP ch6-04-node-damage-shown
+  trigger: first combat ends WITH node damage event
+  headline: "A crack."
+  body: "A center has been damaged. Its resonance is capped — half its attributes suppressed. It will recover, but slowly. Tend to it."
+  highlight: panel-node-damage-indicator
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-node-damage-indicator, panel-node-repair-toggle, panel-repair-progress]
+  advance: player clicks the damaged node in body map
+  autoAdvance: false
+  advanceLabel: ""
+
+STEP ch6-05-repair-explained
+  trigger: ch6-04 complete
+  headline: "Jing heals."
+  body: "Dense essence repairs what fire has cracked. The Meridian Repair attribute governs the passive rate — but directing Jing deliberately is ten times faster."
+  highlight: panel-node-repair-toggle
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: []
+  advance: player activates the Direct Jing repair toggle
+  autoAdvance: false
+  advanceLabel: ""
+
+STEP ch6-06-treasures
+  trigger: first combat victory WITH treasure drop
+  headline: "Spoils."
+  body: "Combat yields what patience alone cannot. These materials can be applied directly to nodes and channels — accelerating what would otherwise take months."
+  highlight: panel-inventory
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-inventory]
+  advance: player opens inventory
+  autoAdvance: false
+  advanceLabel: ""
+
+STEP ch6-07-bindu-hint
+  trigger: node damage has occurred at least once
+  headline: "There is a guardian."
+  body: "Behind the crown of the skull lies Bindu — a crescent of silver and a single point of reserve. That point can prevent a center from shattering, once, when everything else has failed."
+  highlight: bodymap-node-bindu (silhouette)
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [bodymap-node-bindu]
+  dim: [bodymap-node-bindu]
+  advance: player clicks "I'll find it"
+  autoAdvance: false
+
+STEP ch6-08-chapter-complete
+  trigger: ch6-07 complete AND (totalCombats >= 3 OR Bindu entering SEALING)
+  headline: "Tested."
+  body: "You have stood in the crossing between growth and danger. That line will not move further away. Only your ability to walk it changes."
+  highlight: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Continue"
+  autoAdvance: false
+  onComplete: FIRE chapter 7 transition
+```
+
+**Done when:** All 9 steps defined; ch6-04 only fires IF damage occurred (the step has a conditional trigger, not just the chapter transition); combat steps correctly sequence with the combat state.
+
+---
+
+**OB-013 — Author Chapter 7 tutorial steps**
+
+Create `src/onboarding/steps/chapter7.ts`. Chapter 7 covers Hours 12–25. Reveals the full body map, Dao selection, Great Circulation.
+
+Steps (7 total):
+
+```
+STEP ch7-00-full-body-revealed
+  trigger: chapter 7 start
+  headline: "The body, complete."
+  body: "Twenty-four centers. Every major joint. Every chakra. They are all here — most still dark, but all within reach."
+  highlight: null
+  blockInteraction: false
+  reveal: [bodymap-node-{all 24}, bodymap-meridian-{all}, bodymap-meridian-ghost, bodymap-galaxy-toggle]
+  advance: player pans or clicks anywhere on body map
+  autoAdvance: false
+  advanceLabel: "Behold"
+
+STEP ch7-01-dao-selection-incoming
+  trigger: player has reached Rank 2 for first time AND !isDaoSelected()
+  headline: "A moment of stillness."
+  body: "The body has reached a threshold. In the silence that follows breakthrough, a choice presents itself. A path. Your path."
+  highlight: panel-dao
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-dao]
+  advance: isDaoSelected() = true
+  autoAdvance: true
+
+STEP ch7-02-dao-nodes-appear
+  trigger: Dao selected
+  headline: "The Dao takes root."
+  body: "Phantom centers emerge — your chosen truth made flesh. They exist as overlays in the body, waiting to be unsealed through insight and practice."
+  highlight: panel-dao-nodes
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [panel-dao-nodes, panel-insights-counter]
+  advance: first Dao node enters SEALING
+  autoAdvance: true
+
+STEP ch7-03-great-circulation-hint
+  trigger: all 24 T2 nodes ACTIVE
+  headline: "Everything connected."
+  body: "All twenty-four centers are alive. A path exists through all of them. The Great Circulation — the full body loop — is now within reach."
+  highlight: panel-great-circulation
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: [panel-great-circulation]
+  advance: isGreatCirculationAvailable() = true
+  autoAdvance: true
+
+STEP ch7-04-great-circulation-runs
+  trigger: Great Circulation available
+  headline: "The full current."
+  body: "Run the Great Circulation. All meridians train together. The whole body harmonizes. You will feel the heat — that is the price."
+  highlight: panel-route-active
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: [panel-route-library]
+  advance: getActiveRouteNodeCount() = 24
+  autoAdvance: false
+  advanceLabel: "It runs"
+
+STEP ch7-05-first-breakthrough
+  trigger: any T2 node rank advances for the first time
+  headline: "Breakthrough."
+  body: "A center has transcended its previous limit. The T1 nodes within sharpen. The ceiling lifts. This will happen again — and each time the cost is greater."
+  highlight: the node that just advanced (dynamic)
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "I understand"
+  autoAdvance: false
+
+STEP ch7-06-chapter-complete
+  trigger: ch7-05 complete
+  headline: "The body speaks."
+  body: "You have seen it whole. Now deepen what you have built, and let the body tell you where to go next."
+  highlight: null
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Walk the path"
+  autoAdvance: false
+  onComplete: FIRE chapter 8 transition
+```
+
+**Done when:** All 7 steps defined; ch7-00 reveal list includes all 24 bodymap-node-{id} strings; Great Circulation step fires only after availability check passes.
+
+---
+
+**OB-014 — Author Chapter 8 tutorial steps**
+
+Create `src/onboarding/steps/chapter8.ts`. Chapter 8 is Hours 25+. Reveals all remaining systems. Minimal tutorialing — most panels are simply revealed as the player encounters their prerequisites.
+
+Steps (5 total, primarily reveal-based):
+
+```
+STEP ch8-00-all-systems-revealed
+  trigger: chapter 8 start
+  headline: "No more walls."
+  body: "The path continues as far as you walk it. Every tool, every system — all are yours now."
+  highlight: null
+  blockInteraction: false
+  reveal: [panel-alchemy, panel-body-tempering, panel-codex, panel-sect,
+           panel-celestial-calendar, panel-settings,
+           hud-energy-rates, hud-energy-trends, panel-attr-breakdown]
+  advance: player clicks "Begin"
+  autoAdvance: false
+
+STEP ch8-01-bindu-in-combat
+  trigger: Bindu ACTIVE AND first high-stakes combat begins (enemy tier >= 5)
+  headline: "The reserve."
+  body: "Bindu's Dot node carries a silent insurance. If a center would shatter, Bindu spends itself once to hold the crack at cracked instead of broken. It refills slowly."
+  highlight: bodymap-node-bindu
+  highlightMode: spotlight
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "Understood"
+  autoAdvance: false
+
+STEP ch8-02-sahasrara-hint
+  trigger: all other chakra nodes at Rank 2+
+  headline: "The ceiling is Sahasrara."
+  body: "The Crown controls how high the others can climb. Its rank sets the limit for every other center in the body. Raise it — and the path expands above you."
+  highlight: bodymap-node-sahasrara
+  highlightMode: pulse
+  blockInteraction: false
+  reveal: []
+  advance: player clicks "I see it"
+  autoAdvance: false
+
+STEP ch8-03-companion-hint
+  trigger: player has completed 20+ combats (late hook)
+  headline: "You need not walk alone."
+  body: "Another practitioner may synchronize their circulation with yours. Shared loops carry more than either could alone."
+  highlight: panel-companion
+  highlightMode: border
+  blockInteraction: false
+  reveal: [panel-companion]
+  advance: player clicks "Perhaps in time"
+  autoAdvance: false
+
+STEP ch8-04-infinite
+  trigger: player reaches Rank 5 on any node
+  headline: "There is no ceiling."
+  body: "Nine ranks. Nine levels within each rank. Dao nodes. Phantom nodes. Each mastered center opens another layer of depth. The cultivation is truly without end."
+  highlight: null
+  blockInteraction: false
+  reveal: []
+  advance: player dismisses
+  autoAdvance: false
+  onComplete: MARK onboarding as complete (isSkipped has no effect; player has seen all of it)
+```
+
+**Done when:** All 5 steps defined; ch8-00 reveal list is comprehensive; remaining system reveals are non-blocking (player can dismiss and come back).
+
+---
+
+# TRACK 3 — CORE LOGIC
+*Pure TypeScript. Uses GameStateView mock. No rendering.*
+
+---
+
+**OB-015 — Implement UIVisibilityManager**
+
+Create `src/onboarding/UIVisibilityManager.ts`. This class owns the UIVisibilityState and exposes methods to modify it.
+
+```typescript
+export class UIVisibilityManager {
+  private state: UIVisibilityState;
+
+  constructor() {
+    this.state = createInitialVisibilityState();
+  }
+
+  getState(): Readonly<UIVisibilityState> { return this.state; }
+
+  reveal(elementIds: string[]): void {
+    // Move from hidden to visible; add to newlyRevealed
+    elementIds.forEach(id => {
+      this.state.visible.add(id);
+      this.state.newlyRevealed.add(id);
+    });
+  }
+
+  hide(elementIds: string[]): void {
+    elementIds.forEach(id => {
+      this.state.visible.delete(id);
+      this.state.dimmed.delete(id);
+      this.state.newlyRevealed.delete(id);
+    });
+  }
+
+  dim(elementIds: string[]): void {
+    elementIds.forEach(id => {
+      if (this.state.visible.has(id)) this.state.dimmed.add(id);
+    });
+  }
+
+  undim(elementIds: string[]): void {
+    elementIds.forEach(id => this.state.dimmed.delete(id));
+  }
+
+  spotlight(elementId: string | null): void {
+    this.state.spotlit = elementId;
+  }
+
+  pulse(elementIds: string[]): void {
+    elementIds.forEach(id => this.state.pulsing.add(id));
+  }
+
+  stopPulse(elementIds: string[]): void {
+    elementIds.forEach(id => this.state.pulsing.delete(id));
+  }
+
+  clearNewlyRevealed(): void {
+    this.state.newlyRevealed.clear();
+  }
+
+  applyStep(step: TutorialStep): void {
+    // Apply all visibility mutations from a step activating
+    this.reveal(step.revealElements);
+    this.dim(step.dimElements);
+    this.undim(step.undimElements);
+    if (step.highlightElementId) this.spotlight(step.highlightElementId);
+    if (step.highlightMode === 'pulse' && step.highlightElementId) {
+      this.pulse([step.highlightElementId]);
+    }
+  }
+
+  clearStep(step: TutorialStep): void {
+    // Clean up spotlight/pulse when a step completes
+    this.spotlight(null);
+    if (step.highlightElementId) this.stopPulse([step.highlightElementId]);
+  }
+}
+```
+
+**Done when:** All methods implemented; `applyStep` correctly applies all visibility mutations; `clearStep` cleans up; unit tests confirm reveal/hide/dim/undim are independent operations.
+
+---
+
+**OB-016 — Implement OnboardingController**
+
+Create `src/onboarding/OnboardingController.ts`. This is the state machine that drives the onboarding arc. It evaluates tutorial step triggers and advances the sequence.
+
+```typescript
+export class OnboardingController {
+  private state: OnboardingState;
+  private steps: TutorialStep[];         // all steps from all chapters, sorted by (chapter, sequence)
+  private visibilityManager: UIVisibilityManager;
+  private pendingTransition: ChapterTransition | null = null;
+
+  constructor(visibilityManager: UIVisibilityManager, steps: TutorialStep[]) {
+    this.state = createInitialOnboardingState();
+    this.steps = [...steps].sort((a, b) =>
+      a.chapter !== b.chapter ? a.chapter - b.chapter : a.sequence - b.sequence
+    );
+    this.visibilityManager = visibilityManager;
+  }
+
+  getState(): Readonly<OnboardingState> { return this.state; }
+  getPendingTransition(): ChapterTransition | null { return this.pendingTransition; }
+
+  // Called every tick by the game loop
+  tick(game: GameStateView): void {
+    if (this.state.isSkipped) return;
+    if (this.state.isChapterTransitionPending) return;
+
+    const currentStep = this.getCurrentStep();
+
+    if (currentStep) {
+      // Check if advance condition is met
+      const canAdvance = currentStep.advanceCondition(game, this.state);
+      const minTimeElapsed = (game.getTickCount() - this.state.stepStartTick) >= currentStep.minDisplayTicks;
+      if (currentStep.autoAdvanceOnCondition && canAdvance && minTimeElapsed) {
+        this.completeStep(currentStep, game);
+      }
+    } else {
+      // Find next step whose trigger is satisfied
+      const nextStep = this.findNextStep(game);
+      if (nextStep) this.activateStep(nextStep, game);
+    }
+  }
+
+  // Called by UI when player clicks the advance button
+  playerAdvance(game: GameStateView): void {
+    const currentStep = this.getCurrentStep();
+    if (!currentStep) return;
+    if (currentStep.advanceCondition(game, this.state)) {
+      this.completeStep(currentStep, game);
+    }
+  }
+
+  // Called by UI when player dismisses chapter transition card
+  dismissTransition(): void {
+    this.state.isChapterTransitionPending = false;
+    this.pendingTransition = null;
+  }
+
+  skipOnboarding(): void {
+    // Reveal ALL elements immediately
+    const allIds = Object.values(UI_ELEMENTS)
+      .filter(v => typeof v === 'string') as string[];
+    this.visibilityManager.reveal(allIds);
+    this.state.isSkipped = true;
+  }
+
+  private getCurrentStep(): TutorialStep | null {
+    if (!this.state.currentStepId) return null;
+    return this.steps.find(s => s.id === this.state.currentStepId) ?? null;
+  }
+
+  private findNextStep(game: GameStateView): TutorialStep | null {
+    return this.steps.find(s =>
+      !this.state.completedSteps.has(s.id) &&
+      s.chapter === this.state.currentChapter &&
+      !this.state.currentStepId &&
+      s.triggerCondition(game, this.state)
+    ) ?? null;
+  }
+
+  private activateStep(step: TutorialStep, game: GameStateView): void {
+    this.state.currentStepId = step.id;
+    this.state.stepStartTick = game.getTickCount();
+    this.visibilityManager.applyStep(step);
+  }
+
+  private completeStep(step: TutorialStep, game: GameStateView): void {
+    this.state.completedSteps.add(step.id);
+    this.state.currentStepId = null;
+    this.visibilityManager.clearStep(step);
+
+    // Check if this was the last step of the chapter
+    const allChapterSteps = this.steps.filter(s => s.chapter === step.chapter);
+    const allDone = allChapterSteps.every(s => this.state.completedSteps.has(s.id));
+    if (allDone && step.chapter < 8) {
+      this.triggerChapterTransition(step.chapter, (step.chapter + 1) as ChapterNumber);
+    }
+  }
+
+  private triggerChapterTransition(from: ChapterNumber, to: ChapterNumber): void {
+    this.state.isChapterTransitionPending = true;
+    this.state.currentChapter = to;
+    this.state.highestChapterReached = Math.max(this.state.highestChapterReached, to) as ChapterNumber;
+    this.pendingTransition = CHAPTER_TRANSITIONS[to];
+  }
+}
+```
+
+**Done when:** Controller instantiates; tick() drives step activation and auto-advance; playerAdvance() works; skipOnboarding() reveals all elements; chapter transitions are queued correctly; unit tests cover: step triggers in correct chapter order, auto-advance fires after minDisplay, manual advance requires condition met.
+
+---
+
+**OB-017 — Implement chapter reveal applicator**
+
+Create `src/onboarding/chapterRevealMap.ts`. Defines the static reveal lists per chapter and a function that applies them when entering a chapter.
+
+```typescript
+// The chapter reveal map matches the table in this document's design section.
+export const CHAPTER_REVEAL_MAP: Record<ChapterNumber, string[]> = {
+  1: [
+    UI_ELEMENTS.CLUSTER_VIEW_ROOT,
+    UI_ELEMENTS.CLUSTER_NODE_GLOW,
+    UI_ELEMENTS.HUD_QI_BAR,
+    UI_ELEMENTS.NOTIF_QUEUE,
+    // petals 0–3:
+    UI_ELEMENTS.CLUSTER_NODE('muladhara', 0),
+    UI_ELEMENTS.CLUSTER_NODE('muladhara', 1),
+    UI_ELEMENTS.CLUSTER_NODE('muladhara', 2),
+    UI_ELEMENTS.CLUSTER_NODE('muladhara', 3),
+    UI_ELEMENTS.CLUSTER_RESONANCE_BAR,
+  ],
+  2: [ /* ... all Ch2 additions from reveal map table */ ],
+  3: [ /* ... */ ],
+  4: [ /* ... */ ],
+  5: [ /* ... */ ],
+  6: [ /* ... */ ],
+  7: [ /* ... all 24 bodymap nodes, all meridians ... */ ],
+  8: [ /* ... all remaining panels ... */ ],
+};
+
+// Apply chapter baseline reveals when transitioning into a new chapter.
+// Does NOT clear previous chapter reveals — they accumulate.
+export function applyChapterReveal(
+  chapter: ChapterNumber,
+  visibilityManager: UIVisibilityManager
+): void {
+  const elements = CHAPTER_REVEAL_MAP[chapter];
+  visibilityManager.reveal(elements);
+}
+```
+
+**Done when:** All 8 chapter reveal lists populated with correct element IDs from the master list; function applies correctly without clearing previous reveals; reveal lists are additive (each chapter includes only NEW elements, not all previous ones).
+
+---
+
+**OB-018 — Implement onboarding skip and restore**
+
+Create `src/onboarding/onboardingPersistence.ts`. Handles saving and restoring onboarding state across sessions.
+
+```typescript
+interface SerializedOnboardingState {
+  version: number;
+  currentChapter: number;
+  completedSteps: string[];
+  completedChapters: number[];
+  highestChapterReached: number;
+  isSkipped: boolean;
+  suppressedHints: string[];
+}
+
+export function serializeOnboarding(state: OnboardingState): string {
+  const s: SerializedOnboardingState = {
+    version: 1,
+    currentChapter: state.currentChapter,
+    completedSteps: [...state.completedSteps],
+    completedChapters: [...state.completedChapters],
+    highestChapterReached: state.highestChapterReached,
+    isSkipped: state.isSkipped,
+    suppressedHints: [...state.suppressedHints],
+  };
+  return JSON.stringify(s);
+}
+
+export function deserializeOnboarding(json: string): OnboardingState {
+  const s: SerializedOnboardingState = JSON.parse(json);
+  // version migration handled here
+  const state = createInitialOnboardingState();
+  state.currentChapter = s.currentChapter as ChapterNumber;
+  state.completedSteps = new Set(s.completedSteps);
+  state.completedChapters = new Set(s.completedChapters as ChapterNumber[]);
+  state.highestChapterReached = s.highestChapterReached as ChapterNumber;
+  state.isSkipped = s.isSkipped;
+  state.suppressedHints = new Set(s.suppressedHints);
+  return state;
+}
+
+// When restoring from save, reconstruct which elements should be visible
+// by re-applying all chapter reveals up to the saved chapter.
+export function reconstructVisibilityFromSave(
+  state: OnboardingState,
+  visibilityManager: UIVisibilityManager
+): void {
+  if (state.isSkipped) {
+    // Reveal everything
+    return; // handled by controller.skipOnboarding()
+  }
+  for (let ch = 1; ch <= state.highestChapterReached; ch++) {
+    applyChapterReveal(ch as ChapterNumber, visibilityManager);
+  }
+  // Re-apply any step-level reveals from completed steps
+  // (steps may reveal things mid-chapter that chapter baseline doesn't)
+}
+```
+
+**Done when:** Serialization handles Sets via Array.from; deserializeOnboarding restores all fields; reconstructVisibilityFromSave applies all past chapter reveals in order; round-trip test passes.
+
+---
+
+**OB-019 — Write unit tests for OnboardingController**
+
+Create `tests/onboarding/OnboardingController.test.ts`. Tests use MockGameStateView.
+
+Test cases:
+1. New game: currentChapter=1, no steps completed, no elements visible.
+2. First tick: ch1-00 (always-trigger step) activates; its elements are revealed; currentStepId set.
+3. Auto-advance: when `advanceCondition` returns true AND minDisplayTicks elapsed, step completes without playerAdvance.
+4. Manual advance: `advanceCondition` false → playerAdvance does nothing; `advanceCondition` true → step completes.
+5. Chapter transition: completing last step of chapter 1 sets isChapterTransitionPending=true and currentChapter=2.
+6. Skip: skipOnboarding() sets isSkipped=true; subsequent tick() calls do nothing.
+7. Step ordering: steps always fire in (chapter, sequence) order regardless of insertion order.
+8. Out-of-chapter trigger: a chapter 3 step does NOT fire while currentChapter=2.
+9. blockInteraction: a step with blockInteraction=true causes controller to expose a flag that UI can check.
+
+**Done when:** All 9 test cases pass; tests use only MockGameStateView and never import from simulation code.
+
+---
+
+**OB-020 — Write unit tests for UIVisibilityManager**
+
+Create `tests/onboarding/UIVisibilityManager.test.ts`.
+
+Test cases:
+1. Initial state: visible set is empty.
+2. reveal() adds to visible and newlyRevealed; calling twice does not duplicate.
+3. hide() removes from visible, dimmed, newlyRevealed.
+4. dim() only works on already-visible elements; hidden elements cannot be dimmed.
+5. undim() removes from dimmed without hiding.
+6. spotlight() sets spotlit; calling with null clears it.
+7. pulse() adds to pulsing; stopPulse() removes.
+8. applyStep() correctly calls reveal, dim, undim, spotlight, pulse.
+9. clearStep() removes spotlight and pulse for step's highlightElementId.
+10. clearNewlyRevealed() empties the newlyRevealed set; visible set unchanged.
+
+**Done when:** All 10 tests pass.
+
+---
+
+# TRACK 4 — RENDERING
+*React components. Use MockGameStateView and hardcoded OnboardingState for development.*
+
+---
+
+**OB-021 — Implement `useOnboarding` React hook**
+
+Create `src/onboarding/useOnboarding.ts`. This hook connects the OnboardingController to React state so components can read visibility and current step.
+
+```typescript
+export function useOnboarding() {
+  const [visibilityState, setVisibilityState] = useState<UIVisibilityState>(
+    createInitialVisibilityState
+  );
+  const [onboardingState, setOnboardingState] = useState<OnboardingState>(
+    createInitialOnboardingState
+  );
+  const [pendingTransition, setPendingTransition] = useState<ChapterTransition | null>(null);
+
+  const visibilityManagerRef = useRef(new UIVisibilityManager());
+  const controllerRef = useRef<OnboardingController | null>(null);
+
+  // Initialize controller with all steps on mount
+  useEffect(() => {
+    const allSteps = [...chapter1Steps, ...chapter2Steps, /* ... all 8 chapters */];
+    controllerRef.current = new OnboardingController(visibilityManagerRef.current, allSteps);
+  }, []);
+
+  // This is called by the game loop each tick
+  const onTick = useCallback((game: GameStateView) => {
+    controllerRef.current?.tick(game);
+    setVisibilityState({ ...visibilityManagerRef.current.getState() });
+    setOnboardingState({ ...controllerRef.current!.getState() });
+    setPendingTransition(controllerRef.current?.getPendingTransition() ?? null);
+  }, []);
+
+  const playerAdvance = useCallback((game: GameStateView) => {
+    controllerRef.current?.playerAdvance(game);
+    setVisibilityState({ ...visibilityManagerRef.current.getState() });
+    setOnboardingState({ ...controllerRef.current!.getState() });
+  }, []);
+
+  const dismissTransition = useCallback(() => {
+    controllerRef.current?.dismissTransition();
+    setOnboardingState({ ...controllerRef.current!.getState() });
+    setPendingTransition(null);
+  }, []);
+
+  const skipOnboarding = useCallback(() => {
+    controllerRef.current?.skipOnboarding();
+    setVisibilityState({ ...visibilityManagerRef.current.getState() });
+    setOnboardingState({ ...controllerRef.current!.getState() });
+  }, []);
+
+  return {
+    visibilityState,
+    onboardingState,
+    pendingTransition,
+    onTick,
+    playerAdvance,
+    dismissTransition,
+    skipOnboarding,
+    isVisible: (id: string) => visibilityState.visible.has(id),
+    isDimmed: (id: string) => visibilityState.dimmed.has(id),
+    isSpotlit: (id: string) => visibilityState.spotlit === id,
+    isPulsing: (id: string) => visibilityState.pulsing.has(id),
+    isNewlyRevealed: (id: string) => visibilityState.newlyRevealed.has(id),
+    currentStep: onboardingState.currentStepId,
+  };
+}
+```
+
+**Done when:** Hook compiles; `isVisible('hud-qi-bar')` returns false initially; after controller.tick() with ch1-00 conditions met, `isVisible('cluster-view-root')` returns true; hook does not directly import simulation types.
+
+---
+
+**OB-022 — Implement `UIGate` component**
+
+Create `src/onboarding/components/UIGate.tsx`. This is the primary mechanism for making UI elements respect the visibility system. Every game UI element wraps itself in a UIGate.
+
+```typescript
+interface UIGateProps {
+  elementId: string;
+  children: React.ReactNode;
+  hiddenMode?: 'unmount' | 'invisible' | 'placeholder';
+  // unmount: completely remove from DOM (default for most elements)
+  // invisible: render but opacity:0 (preserves layout)
+  // placeholder: render a muted grey box at the element's natural size
+  className?: string;
+}
+
+export function UIGate({ elementId, children, hiddenMode = 'unmount', className }: UIGateProps) {
+  const { isVisible, isDimmed, isNewlyRevealed } = useOnboarding();
+  const visible = isVisible(elementId);
+  const dimmed = isDimmed(elementId);
+  const newlyRevealed = isNewlyRevealed(elementId);
+
+  if (!visible) {
+    if (hiddenMode === 'unmount') return null;
+    if (hiddenMode === 'invisible') return (
+      <div style={{ opacity: 0, pointerEvents: 'none' }} className={className}>{children}</div>
+    );
+    if (hiddenMode === 'placeholder') return (
+      <div className={`ui-gate-placeholder ${className ?? ''}`} aria-hidden="true" />
+    );
+  }
+
+  return (
+    <div
+      className={[
+        'ui-gate',
+        dimmed ? 'ui-gate--dimmed' : '',
+        newlyRevealed ? 'ui-gate--entering' : '',
+        className ?? '',
+      ].filter(Boolean).join(' ')}
+      data-element-id={elementId}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+CSS for UIGate:
+- `.ui-gate--dimmed`: opacity 0.35, pointer-events none, filter grayscale(60%)
+- `.ui-gate--entering`: CSS animation `@keyframes revealFade` — fade in from opacity 0 and slight upward translate over 400ms
+
+**Done when:** UIGate renders children when visible, nothing when hidden (unmount mode); dimmed applies correct CSS; newlyRevealed triggers entrance animation; placeholder renders correct grey box.
+
+---
+
+**OB-023 — Implement SpotlightOverlay component**
+
+Create `src/onboarding/components/SpotlightOverlay.tsx`. When a step has `highlightMode: 'spotlight'`, this component renders a darkened overlay with a hole cut out around the targeted element.
+
+```typescript
+// Implementation approach:
+// 1. Find the DOM element with data-element-id matching visibilityState.spotlit
+// 2. Get its bounding rect
+// 3. Render a fixed full-screen SVG with a rect covering the full screen,
+//    subtract a rounded-rect hole at the target's position using SVG clipPath
+// 4. Animate the hole appearing (scale from 0 to full size over 300ms)
+// 5. On step with blockInteraction=true: add pointer-events:all to the overlay
+//    (clicks outside the hole are blocked); hole itself passes through
+
+interface SpotlightOverlayProps {
+  targetElementId: string | null;
+  blockInteraction: boolean;
+  padding?: number;      // pixels around the target element, default 12
+  cornerRadius?: number; // default 8
+}
+```
+
+The overlay must:
+- Update its hole position when the window resizes (ResizeObserver on target element)
+- Smoothly transition the hole position if `targetElementId` changes while overlay is visible
+- Not block the spotlit element even when `blockInteraction=true`
+
+**Done when:** Spotlight correctly positions over any element given its ID; hole animates in on mount; resize handling works; blockInteraction mode blocks clicks outside the spotlight.
+
+---
+
+**OB-024 — Implement PulseRing component**
+
+Create `src/onboarding/components/PulseRing.tsx`. Wraps any visible element with a pulsing ring animation when its ID is in the `pulsing` set.
+
+```typescript
+// Renders an absolutely-positioned ring that pulses outward from the target element.
+// Uses the same data-element-id lookup as SpotlightOverlay.
+// The ring is rendered as a Portal into document.body (so it's not clipped by parent overflow).
+// Ring color is always the accent color (gold/amber).
+// Pulse: ring appears at element border, expands outward with opacity fading from 0.8 to 0 over 1.2s, repeats.
+
+interface PulseRingProps {
+  targetElementId: string;
+}
+```
+
+**Done when:** Pulse ring animates correctly on any element; multiple simultaneous pulse rings possible; ring does not affect layout of the target element.
+
+---
+
+**OB-025 — Implement ArrowPointer component**
+
+Create `src/onboarding/components/ArrowPointer.tsx`. For steps with `highlightMode: 'arrow'`, renders an animated arrow pointing from the tooltip card to the `arrowTargetElementId`.
+
+The arrow:
+- Is an SVG path drawn dynamically between two DOM elements
+- Updates on resize/scroll
+- Has an animated "breathing" scale on the arrowhead
+- Color matches the current energy type accent (Qi=blue, or gold for general tutorial hints)
+
+**Done when:** Arrow draws correctly from tooltip to target; updates position on scroll; animation runs without layout thrash.
+
+---
+
+**OB-026 — Implement TutorialTooltipCard component**
+
+Create `src/onboarding/components/TutorialTooltipCard.tsx`. The floating card shown during active tutorial steps.
+
+```typescript
+interface TutorialTooltipCardProps {
+  step: TutorialStep | null;    // null = hidden
+  onAdvance: () => void;
+  onDismissHint: () => void;    // suppress this hint permanently (adds to suppressedHints)
+  game: GameStateView;          // for evaluating advanceCondition display state
+}
+```
+
+Visual design:
+- Positioned bottom-center on mobile, bottom-left on desktop
+- Always visible (not inside a UIGate — the tutorial card is meta-UI, always rendered)
+- Slides up from below when step changes
+- Slides down and fades out when step completes
+- Header: chapter number badge + headline text
+- Body: body text
+- Footer: advance button (disabled if advanceCondition not met) + "Got it, don't show again" small link
+- Progress indicator: dots showing position within chapter (e.g., step 3 of 7)
+
+**Done when:** Card renders for any given TutorialStep; advance button enables/disables based on advanceCondition; slide animations work; dismiss link fires onDismissHint; progress dots correct.
+
+---
+
+**OB-027 — Implement ChapterTransitionScreen component**
+
+Create `src/onboarding/components/ChapterTransitionScreen.tsx`. Full-screen card shown when the player crosses a chapter boundary.
+
+```typescript
+interface ChapterTransitionScreenProps {
+  transition: ChapterTransition | null;   // null = hidden
+  onDismiss: () => void;
+}
+```
+
+Visual design:
+- Full-screen overlay with a centered card
+- Background: CSS gradient matching `transition.backgroundTheme`
+- Content: subtitle (chapter number), large title, body text
+- Dismiss button at bottom
+- Entrance animation: card rises from below with blur clearing over 600ms
+- Background gradients per theme:
+  - 'ember': dark red to amber gradient
+  - 'current': dark teal to blue gradient
+  - 'circulation': dark indigo to violet
+  - 'forge': dark orange to gold
+  - 'shen': dark violet to white-violet
+  - 'conflict': dark slate to red
+  - 'constellation': near-black with starfield (CSS radial-gradient dots)
+  - 'void': pure deep black with a single thin white horizon line
+
+**Done when:** All 8 transitions render with correct content and background; dismiss button works; entrance animation plays; auto-play timer (if > 0) fires dismiss after N seconds.
+
+---
+
+**OB-028 — Implement OB progress indicator (chapter map)**
+
+Create `src/onboarding/components/ChapterProgressMap.tsx`. A small persistent widget (visible after Chapter 2) showing the player's position in the 8-chapter arc.
+
+- 8 dots in a row, labeled with chapter names on hover
+- Completed chapters: filled dot
+- Current chapter: animated dot (pulsing)
+- Future chapters: hollow dot
+- Clicking a completed chapter dot shows a brief recap of what was introduced
+- Positioned in a non-intrusive corner (top-right or bottom of tutorial tooltip)
+
+Itself wrapped in a UIGate that reveals at Chapter 2 start.
+
+**Done when:** Map renders 8 dots; completion states correct; hover labels work; recap on click shows chapter title and key introduces text from ChapterTransition.bodyText.
+
+---
+
+**OB-029 — Implement chapter-scoped cluster view (Chapter 1 special case)**
+
+Create `src/onboarding/components/Chapter1ClusterView.tsx`. This is the Chapter 1 layout — a centered, large-format view of ONLY the Muladhara cluster, with nothing else on screen.
+
+- The cluster fills 60% of the viewport height, centered
+- No body map. No panels. No HUD except the Qi bar at bottom.
+- A subtle "breathe" instruction text below the cluster: "The energy flows naturally. Watch."
+- After Chapter 1 completes, this layout is replaced by the full game layout (which starts revealing elements per Chapter 2)
+
+This component does NOT use UIGate — it IS the starting layout, not a gated element within the full layout. The transition to the full layout happens when the chapter transition card is dismissed for Chapter 2.
+
+**Done when:** Chapter 1 layout renders correctly with only the Muladhara cluster visible; switching to Chapter 2 layout (full game layout with progressive hiding) is handled by a layout state flag in the onboarding hook.
+
+---
+
+**OB-030 — Implement grayed combat attribute panel state**
+
+Create the visual variant for Chapter 5's "combat attrs grayed" reveal. The panel-combat-attrs UIGate has hiddenMode='unmount' normally, but in the period between Ch5 reveal and Ch6 full unlock, it must be visible-but-dimmed.
+
+```typescript
+// In the CombatAttributesPanel component:
+function CombatAttributesPanel() {
+  const { isVisible, isDimmed } = useOnboarding();
+  
+  if (!isVisible(UI_ELEMENTS.PANEL_COMBAT_ATTRS)) return null;
+  
+  const dimmed = isDimmed(UI_ELEMENTS.PANEL_COMBAT_ATTRS);
+  
+  return (
+    <UIGate elementId={UI_ELEMENTS.PANEL_COMBAT_ATTRS}>
+      <div className={dimmed ? 'combat-panel combat-panel--locked' : 'combat-panel'}>
+        {dimmed && (
+          <div className="combat-panel__lock-overlay">
+            <LockIcon />
+            <span>Unlocked through combat</span>
+          </div>
+        )}
+        <AttributeList attributes={combatAttrs} dimmed={dimmed} />
+      </div>
+    </UIGate>
+  );
+}
+```
+
+The lock overlay sits above the attribute list when dimmed, blurring it slightly and showing the "Unlocked through combat" message. When Ch6 starts and the undim fires, the lock overlay fades out.
+
+**Done when:** Combat panel shows lock overlay when dimmed (Ch5); lock overlay fades out when undimmed (Ch6 start); attribute values are present but blurred/grayed in lock state.
+
+---
+
+# TRACK 5 — INTEGRATION AND WIRING
+*Connects the onboarding system to the real game. Requires both simulation and UI to exist.*
+
+---
+
+**OB-031 — Wire real GameState to GameStateView**
+
+Create `src/onboarding/RealGameStateView.ts`. Implements the `GameStateView` interface against the real `GameState` type. This is the adapter that bridges the simulation to the onboarding system.
+
+```typescript
+export class RealGameStateView implements GameStateView {
+  constructor(private state: GameState) {}
+
+  getT1State(t2NodeId, t1NodeId) {
+    return this.state.t2Nodes.get(t2NodeId)?.t1Nodes.get(t1NodeId)?.state ?? 'LOCKED';
+  }
+
+  getT2State(nodeId) {
+    return this.state.t2Nodes.get(nodeId)?.state ?? 'LOCKED';
+  }
+
+  getTotalEnergy(type) {
+    let total = 0;
+    this.state.t2Nodes.forEach(node => {
+      node.t1Nodes.forEach(t1 => { total += t1.energy[EnergyType[type]]; });
+    });
+    return total;
+  }
+
+  getTickCount() { return this.state.tick; }
+
+  hasCompletedCombat() { return this.state.globalTrackers.combatCount > 0; }
+
+  hasCombatNodeDamage() { return this.state.globalTrackers.nodeDamageEvents > 0; }
+
+  isDaoSelected() { return this.state.playerDao.selectedDao !== null; }
+
+  isGreatCirculationAvailable() { /* check all 24 active, all meridians DEVELOPED */ }
+
+  // ... implement all remaining interface methods
+}
+```
+
+**Done when:** All GameStateView methods implemented against real GameState; no GameStateView method throws; tests confirm RealGameStateView returns same shape as MockGameStateView.
+
+---
+
+**OB-032 — Integrate onTick into the game loop**
+
+Modify the game loop (GameLoop.ts or equivalent) to call `useOnboarding().onTick(new RealGameStateView(state))` after each simulation tick. The onboarding system must receive a fresh GameStateView snapshot each tick so its trigger conditions evaluate against current simulation state.
+
+This must be done without creating a React state update per tick for the full GameState (which would cause excessive re-renders). The onboarding hook already manages its own re-renders; only the onboarding subset of state triggers React updates.
+
+**Done when:** Tutorial steps trigger correctly in response to real simulation events (e.g., first T1 node going ACTIVE fires ch1-02 step correctly).
+
+---
+
+**OB-033 — Integrate onboarding save/load with game save**
+
+Extend the main save serialization (TASK-213 equivalent) to include serialized onboarding state alongside game state. On load: deserialize both, call `reconstructVisibilityFromSave` to restore the correct set of visible elements for the player's chapter.
+
+```typescript
+interface FullSaveFile {
+  version: number;
+  gameState: SerializedGameState;
+  onboardingState: SerializedOnboardingState;
+}
+```
+
+**Done when:** Save includes onboarding data; load restores correct chapter and visible elements; a player who saved in Chapter 5 loads into a Chapter 5 layout with Chapter 1–5 elements visible.
+
+---
+
+**OB-034 — Add skip and reset to Settings**
+
+In the Settings panel, add:
+- **Skip Tutorial**: calls skipOnboarding(), reveals all elements immediately. One-time action. Shows confirmation dialog first.
+- **Reset Tutorial**: resets onboardingState to initial, clears visibility, re-runs from Chapter 1. Intended for players who want to replay. Does NOT reset game state — only the onboarding.
+- **Show current step again**: re-activates the current step if one exists. Useful for players who dismissed the tooltip card.
+
+**Done when:** All three settings actions work; skip confirmation dialog fires; reset does not corrupt game state.
+
+---
+
+**OB-035 — Stress test: full onboarding arc playthrough**
+
+Write an automated integration test that drives a mock simulation forward in time, asserting the correct onboarding steps fire at the correct game state conditions:
+
+1. Tick 0–30: ch1-00 active; cluster-view-root visible; hud-qi-bar visible.
+2. First T1 node ACTIVE: ch1-02 fires; node tooltip highlights correctly.
+3. 4 T1 nodes ACTIVE: ch1-04 advance condition met; resonance bar appears.
+4. Svadhisthana enters SEALING (mocked): ch2-01 fires; unlock panel reveals.
+5. Root-Sacral meridian TF > 100 (mocked): ch2-03 fires; meridian glows.
+6. Jing appears (hip node active, mocked): ch3-05 fires; Jing bar reveals.
+7. Dao selected (mocked): ch7-02 fires; Dao nodes reveal.
+8. All 24 nodes active (mocked): ch7-03 fires; Great Circulation panel reveals.
+
+Mock the GameStateView to return controlled values at each stage. Assert: correct elements visible, correct elements NOT visible (nothing revealed before its chapter), no steps fire out of order.
+
+**Done when:** All 8 assertions pass; test completes in under 2 seconds.
+
+---
+
+## TASK SUMMARY
+
+| Track | Tasks | Focus |
+|-------|-------|-------|
+| 1 — Data Structures | 6 (OB-001 to OB-006) | Interfaces, state shapes, zero rendering |
+| 2 — Tutorial Content | 8 (OB-007 to OB-014) | All step definitions for all 8 chapters |
+| 3 — Core Logic | 6 (OB-015 to OB-020) | Controller, visibility manager, persistence, tests |
+| 4 — Rendering | 10 (OB-021 to OB-030) | React components, hook, overlay, cards |
+| 5 — Integration | 5 (OB-031 to OB-035) | Real game wiring, save/load, stress test |
+| **TOTAL** | **35** | |
+
+---
+
+## DEPENDENCY GRAPH (all tasks independent within each track)
+
+```
+Track 1 (Data)
+  OB-001 MockGameStateView        ← zero dependencies; do first
+  OB-002 UIElementRegistry        ← zero dependencies; do first
+  OB-003 UIVisibilityState        ← depends on OB-002 (element IDs)
+  OB-004 OnboardingState          ← zero dependencies
+  OB-005 TutorialStep             ← depends on OB-001, OB-004
+  OB-006 ChapterTransition        ← depends on OB-004
+
+Track 2 (Content) — all depend on OB-001, OB-002, OB-005
+  OB-007 Ch1 Steps
+  OB-008 Ch2 Steps
+  OB-009 Ch3 Steps
+  OB-010 Ch4 Steps
+  OB-011 Ch5 Steps
+  OB-012 Ch6 Steps
+  OB-013 Ch7 Steps
+  OB-014 Ch8 Steps
+
+Track 3 (Logic) — depends on Track 1
+  OB-015 UIVisibilityManager      ← depends on OB-003, OB-005
+  OB-016 OnboardingController     ← depends on OB-004, OB-005, OB-006, OB-015
+  OB-017 ChapterRevealMap         ← depends on OB-002, OB-015
+  OB-018 OnboardingPersistence    ← depends on OB-004, OB-017
+  OB-019 Controller Tests         ← depends on OB-016, OB-001 (mock)
+  OB-020 Visibility Tests         ← depends on OB-015
+
+Track 4 (Rendering) — depends on Track 1 + Track 3
+  OB-021 useOnboarding Hook       ← depends on OB-015, OB-016, Track 2
+  OB-022 UIGate                   ← depends on OB-021
+  OB-023 SpotlightOverlay         ← depends on OB-021
+  OB-024 PulseRing                ← depends on OB-021
+  OB-025 ArrowPointer             ← depends on OB-021
+  OB-026 TutorialTooltipCard      ← depends on OB-021, OB-005
+  OB-027 ChapterTransitionScreen  ← depends on OB-021, OB-006
+  OB-028 ChapterProgressMap       ← depends on OB-021, OB-006
+  OB-029 Chapter1Layout           ← depends on OB-022
+  OB-030 CombatPanelGrayed        ← depends on OB-022
+
+Track 5 (Integration) — depends on all tracks + real simulation
+  OB-031 RealGameStateView        ← depends on OB-001, real GameState
+  OB-032 Game Loop Wiring         ← depends on OB-021, OB-031, game loop
+  OB-033 Save/Load Integration    ← depends on OB-018, game save system
+  OB-034 Settings Actions         ← depends on OB-021, Settings UI
+  OB-035 Stress Test              ← depends on OB-016, OB-001
+```
+
+**Safe parallel work:**
+- All of Track 1 can be written simultaneously (different files, zero overlap)
+- All of Track 2 can be written simultaneously once OB-001/002/005 exist
+- Track 3 can start once Track 1 is done
+- Track 4 can start once OB-021 (the hook) exists — individual components have no dependencies on each other
+- Track 5 requires a working simulation — do last

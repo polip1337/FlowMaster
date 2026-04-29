@@ -29,6 +29,7 @@ import { getNodeState } from './queries.ts';
 import { STATE_META } from './constants.ts';
 import { stepPhase29UiSystems, updatePhase29Panels } from './phase29-panels.ts';
 import { resetTutorial, stepTutorialSystem } from "./tutorial.ts";
+import { updateOfflineTickBankHeartbeat } from "./offline-ticks.ts";
 
 export function processTick() {
   if (st.gameWon) return;
@@ -156,14 +157,42 @@ export function processTick() {
 }
 
 export function tick() {
-  const speedSteps = st.devSpeedEnabled ? st.simSpeedMultiplier : 1;
   const settingsSteps = Math.max(1, Math.floor(st.tickRateMultiplier || 1));
-  const steps = speedSteps * settingsSteps;
+  const bankBefore = st.offlineTickBank;
+
+  let steps: number;
+  let boostBaseSteps: number | null = null;
+  if (st.offlineTickBoostActive && st.offlineTickBank > 0) {
+    // Offline boosts override dev speed and run at up to x5.
+    // We spend the bank for the "extra" simulation ticks above the normal 1x base.
+    const baseSteps = settingsSteps; // 1x baseline
+    const maxExtra = (5 - 1) * baseSteps;
+    const extraToConsume = Math.min(st.offlineTickBank, maxExtra);
+    steps = baseSteps + extraToConsume;
+    boostBaseSteps = baseSteps;
+  } else {
+    const speedSteps = st.devSpeedEnabled ? st.simSpeedMultiplier : 1;
+    steps = speedSteps * settingsSteps;
+  }
+
   for (let i = 0; i < steps; i += 1) {
     if (st.gameWon) break;
     st.tickCounter += 1;
+    if (boostBaseSteps !== null && i >= boostBaseSteps) {
+      st.offlineTickBank = Math.max(0, st.offlineTickBank - 1);
+    }
     processTick();
   }
+
+  if (st.offlineTickBoostActive && st.offlineTickBank <= 0) {
+    st.offlineTickBoostActive = false;
+  }
+  if (st.offlineTickBank !== bankBefore) {
+    st.offlineTickBankDirty = true;
+  }
+
+  updateOfflineTickBankHeartbeat();
+
   if (ticksEl) ticksEl.textContent = String(st.tickCounter);
 }
 

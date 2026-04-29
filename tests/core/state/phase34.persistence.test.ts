@@ -94,7 +94,7 @@ describe("phase34 persistence", () => {
         }
       }
     });
-    const parsed = deserializeGameState(payload) as Record<string, unknown>;
+    const parsed = deserializeGameState(payload) as unknown as Record<string, unknown>;
     expect((parsed as any).polluted).toBeUndefined();
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
@@ -118,7 +118,7 @@ describe("phase34 persistence", () => {
     if (!firstEntry) {
       throw new Error("Expected at least one t2 node in initial game state.");
     }
-    (firstEntry[1] as Record<string, unknown>).nodeDamageState = {
+    (firstEntry[1] as unknown as Record<string, unknown>).nodeDamageState = {
       cracked: true,
       shattered: false,
       repairProgress: 99

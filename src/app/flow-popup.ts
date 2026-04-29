@@ -94,13 +94,14 @@ export function updateFlowPopupPosition() {
 function renderStatRowsHTML(node: any, state: string) {
   const levels = getNodeStatLevels(node);
   return STAT_ORDER.map((stat) => {
-    const value = levels[stat];
+    const statKey = stat as keyof typeof levels & keyof typeof STAT_COLOR_CSS & keyof typeof STAT_CHAR;
+    const value = levels[statKey];
     const display = state === "locked" ? "—" : `${Math.round(value * 100)}%`;
     return `
       <div class="stat-row">
-        <span class="stat-dot" style="background:${STAT_COLOR_CSS[stat]}"></span>
-        <span class="stat-char" style="color:${STAT_COLOR_CSS[stat]}">${STAT_CHAR[stat]}</span>
-        <span class="stat-name">${stat}</span>
+        <span class="stat-dot" style="background:${STAT_COLOR_CSS[statKey]}"></span>
+        <span class="stat-char" style="color:${STAT_COLOR_CSS[statKey]}">${STAT_CHAR[statKey]}</span>
+        <span class="stat-name">${statKey}</span>
         <span class="stat-value">${display}</span>
       </div>`;
   }).join("");
