@@ -10,8 +10,18 @@ export const UI_TO_CORE_T2_ID: Record<string, string> = {
   stomach: "MANIPURA",
   dantian: "SVADHISTHANA",
   spine: "MULADHARA",
+  shoulderLeft: "L_SHOULDER",
+  shoulderRight: "R_SHOULDER",
+  elbowLeft: "L_ELBOW",
+  elbowRight: "R_ELBOW",
+  wristLeft: "L_WRIST",
+  wristRight: "R_WRIST",
+  handLeft: "L_HAND",
+  handRight: "R_HAND",
   kneeLeft: "L_KNEE",
   kneeRight: "R_KNEE",
+  ankleLeft: "L_ANKLE",
+  ankleRight: "R_ANKLE",
   footLeft: "L_FOOT",
   footRight: "R_FOOT"
 };

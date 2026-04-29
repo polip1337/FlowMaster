@@ -1,6 +1,7 @@
 import { simulationTick } from "../core/simulation/tick";
 import { createEmptyRoute } from "../core/circulation/types";
 import { makeMeridianId, parseForwardId } from "../core/meridians/meridianId";
+import { computeFlowBonus } from "../core/meridians/meridianLogic";
 import type { GameState } from "../state/GameState";
 import {
   computeAjnaLobeBalance,
@@ -164,6 +165,37 @@ export function mirrorCoreStateToUi(core: GameState, ui: UiMirrorState): void {
   ui.ajnaYinRatio = ajna.yinRatio;
   ui.ajnaYangRatio = ajna.yangRatio;
   ui.ajnaImbalanceSeverity = ajna.imbalance;
+  if ("bodyMapMeridians" in ui) {
+    const bodyMapMeridians = new Map<string, any>();
+    for (const [id, meridian] of core.meridians) {
+      const fromUi = toUiTier2Id(meridian.nodeFromId);
+      const toUi = toUiTier2Id(meridian.nodeToId);
+      const uiId = makeMeridianId(fromUi, toUi);
+      bodyMapMeridians.set(uiId, {
+        id: uiId,
+        nodeFromId: fromUi,
+        nodeToId: toUi,
+        ioNodeOutId: meridian.ioNodeOutId,
+        ioNodeInId: meridian.ioNodeInId,
+        state: meridian.state,
+        width: meridian.width,
+        purity: meridian.purity,
+        totalFlow: meridian.totalFlow,
+        jingDeposit: meridian.jingDeposit,
+        shenScatterBonus: meridian.shenScatterBonus,
+        basePurity: meridian.basePurity,
+        typeAffinity: meridian.typeAffinity,
+        affinityFraction: meridian.affinityFraction,
+        dominantTypeAccumulator: { ...meridian.dominantTypeAccumulator },
+        isEstablished: meridian.isEstablished,
+        isScarred: meridian.isScarred,
+        scarPenalty: meridian.scarPenalty,
+        flowBonusPercent: computeFlowBonus(meridian) * 100,
+        hasReverseCandidate: false
+      });
+    }
+    (ui as any).bodyMapMeridians = bodyMapMeridians;
+  }
   ui.combatEncountered = ui.combatEncountered || core.combat !== null || core.globalTrackers.combatCount > 0;
   if (!core.combat) {
     ui.combatPhase = "prep";

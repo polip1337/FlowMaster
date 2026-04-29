@@ -3,10 +3,11 @@
 import {
   TIER2_NODES, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP,
   BODY_MODE_DEFAULT_SCALE, BODY_MODE_FOCUS_TIER2_ID,
-  BODY_WORLD_BASE_WIDTH, SYMBOL_MODE_ENTER_ZOOM_THRESHOLD, SYMBOL_MODE_EXIT_ZOOM_THRESHOLD
+  BODY_WORLD_BASE_WIDTH, SYMBOL_MODE_ENTER_ZOOM_THRESHOLD, SYMBOL_MODE_EXIT_ZOOM_THRESHOLD,
+  TIER2_MIN_ZOOM, T1_TO_T2_TRANSITION_ZOOM
 } from './constants.ts';
 import { nodePositions } from './config.ts';
-import { st, tier1ViewState, tier2ViewState, statusEl, zoomHudEl, resetBodyViewEl, pixiWrapEl } from './state.ts';
+import { st, tier1ViewState, tier2ViewState, statusEl, zoomHudEl, resetBodyViewEl, zoomToT2BtnEl, pixiWrapEl } from './state.ts';
 import { nearestTier1NodeFromWorldPoint, nearestTier2NodeFromWorldPoint } from './queries.ts';
 import { hideMarkerTooltip } from './tooltips.ts';
 import { captureAndStoreCurrentTier1Snapshot, applyTier1Snapshot, getOrCreateTier2Snapshot } from './snapshots.ts';
@@ -79,7 +80,8 @@ export function saveCurrentViewState(targetState: any) {
 
 export function applyViewState(viewState: any) {
   if (!st.world || !viewState || !viewState.initialized) return false;
-  const nextScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewState.scale));
+  const minZoom = st.symbolModeEnabled ? Math.max(MIN_ZOOM, TIER2_MIN_ZOOM) : MIN_ZOOM;
+  const nextScale = Math.max(minZoom, Math.min(MAX_ZOOM, viewState.scale));
   st.world.scale.set(nextScale);
   st.world.x = viewState.x;
   st.world.y = viewState.y;
@@ -120,16 +122,21 @@ export function applySymbolModeState(shouldEnable: boolean, wasSymbolMode: boole
   st.particleLayer.visible = !st.symbolModeEnabled;
   if (st.tier2MarkerLayer) st.tier2MarkerLayer.visible = st.symbolModeEnabled;
   (resetBodyViewEl as HTMLButtonElement).disabled = !st.symbolModeEnabled;
+  if (zoomToT2BtnEl) (zoomToT2BtnEl as HTMLButtonElement).hidden = st.symbolModeEnabled;
 
   if (st.symbolModeEnabled) {
     if (wasSymbolMode && nearestTier2) st.activeTier2NodeId = nearestTier2.id;
     const restoredTier2 = applyViewState(tier2ViewState);
     if (!restoredTier2) {
-      st.world.scale.set(BODY_MODE_DEFAULT_SCALE);
+      st.world.scale.set(Math.max(TIER2_MIN_ZOOM, BODY_MODE_DEFAULT_SCALE));
       focusBodyModeOnTier2(st.activeTier2NodeId);
     } else {
       st.activeTier2NodeId = tier2ViewState.focusTier2Id ?? st.activeTier2NodeId;
       clampWorldToBodyBounds();
+    }
+    if (!wasSymbolMode) {
+      st.world.scale.set(Math.max(TIER2_MIN_ZOOM, T1_TO_T2_TRANSITION_ZOOM));
+      focusBodyModeOnTier2(st.activeTier2NodeId);
     }
     if (statusEl) statusEl.textContent = "Tier 2 body map view. Zoom in very close on a character to enter its node schema.";
     if (_hideFlowPopup) _hideFlowPopup();
@@ -170,6 +177,7 @@ export function enterTier1ForActiveTier2() {
     st.nodeLayer.visible = true;
     st.particleLayer.visible = true;
     (resetBodyViewEl as HTMLButtonElement).disabled = true;
+    if (zoomToT2BtnEl) (zoomToT2BtnEl as HTMLButtonElement).hidden = false;
     applyTier1Snapshot(getOrCreateTier2Snapshot(st.activeTier1OwnerTier2Id));
     st.world.scale.set(1);
     const centerPoint = viewportCenterWorldPoint();
@@ -253,7 +261,8 @@ export function onWheelZoom(event: WheelEvent) {
   const mouseY = event.clientY - rect.top;
   const currentScale = st.world.scale.x;
   const scaleFactor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-  const nextScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentScale * scaleFactor));
+  const minZoom = st.symbolModeEnabled ? Math.max(MIN_ZOOM, TIER2_MIN_ZOOM) : MIN_ZOOM;
+  const nextScale = Math.max(minZoom, Math.min(MAX_ZOOM, currentScale * scaleFactor));
   if (nextScale === currentScale) return;
   const worldXUnderMouse = (mouseX - st.world.x) / currentScale;
   const worldYUnderMouse = (mouseY - st.world.y) / currentScale;
@@ -284,4 +293,37 @@ export function recenterTier1Only() {
   st.world.y = Math.round(st.app.screen.height / 2 - corePos.y * st.world.scale.y);
   if (_updateFlowPopupPosition) _updateFlowPopupPosition();
   updateZoomHud();
+}
+
+export function exitToTier2() {
+  if (st.symbolModeEnabled || st.isViewTransitioning) return;
+  st.isViewTransitioning = true;
+  captureAndStoreCurrentTier1Snapshot(st.activeTier1OwnerTier2Id);
+  saveCurrentViewState(tier1ViewState);
+  animateViewTransition(() => {
+    st.symbolModeEnabled = true;
+    st.symbolLayer.visible = true;
+    st.edgeLayer.visible = false;
+    st.nodeLayer.visible = false;
+    st.particleLayer.visible = false;
+    if (st.tier2MarkerLayer) st.tier2MarkerLayer.visible = true;
+    (resetBodyViewEl as HTMLButtonElement).disabled = false;
+    if (zoomToT2BtnEl) (zoomToT2BtnEl as HTMLButtonElement).hidden = true;
+    const restoredTier2 = applyViewState(tier2ViewState);
+    if (!restoredTier2) {
+      st.world.scale.set(BODY_MODE_DEFAULT_SCALE);
+      focusBodyModeOnTier2(st.activeTier2NodeId);
+    } else {
+      st.activeTier2NodeId = tier2ViewState.focusTier2Id ?? st.activeTier2NodeId;
+      clampWorldToBodyBounds();
+    }
+    if (statusEl) statusEl.textContent = "Tier 2 body map view. Zoom in very close on a character to enter its node schema.";
+    if (_hideFlowPopup) _hideFlowPopup();
+    hideMarkerTooltip();
+    if (_redrawNetwork) _redrawNetwork();
+    updateZoomHud();
+    st.lastZoomScale = st.world.scale.x;
+    st.isViewTransitioning = false;
+    if (st.viewTransitionQueued) { st.viewTransitionQueued = false; updateSymbolMode(); }
+  });
 }

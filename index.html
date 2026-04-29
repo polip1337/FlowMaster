@@ -8,6 +8,7 @@
   <style>
     :root {
       color-scheme: light;
+      --ui-scale: clamp(0.82, 0.72 + 0.45vw, 1.08);
       --bg: #f0e8d0;
       --panel: rgba(240, 232, 208, 0.95);
       --panel-soft: rgba(236, 226, 200, 0.92);
@@ -58,7 +59,8 @@
     }
 
     .game {
-      width: min(100vw, 1500px);
+      width: 100vw;
+      max-width: none;
       height: 100vh;
       margin: 0 auto;
       position: relative;
@@ -321,8 +323,8 @@
     .edge-flow-control {
       position: absolute;
       transform: translate(-50%, -50%);
-      min-width: 54px;
-      max-width: 62px;
+      min-width: 112px;
+      max-width: 142px;
       border: 1px solid rgba(139, 105, 20, 0.55);
       border-radius: 999px;
       background: rgba(240, 232, 208, 0.84);
@@ -370,14 +372,26 @@
       display: none;
     }
 
-    .edge-flow-control:not(.edge-flow-expanded) .edge-flow-head span {
+    .edge-flow-mini-value {
       display: none;
+      min-width: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.69rem;
+      letter-spacing: 0.02em;
+      color: #6b5a3e;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .edge-flow-control:not(.edge-flow-expanded) .edge-flow-mini-value {
+      display: inline;
     }
 
     .edge-flow-line {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
+      grid-template-columns: 1fr;
+      gap: 0;
       align-items: center;
     }
 
@@ -390,23 +404,6 @@
 
     .edge-flow-control:not(.edge-flow-expanded) .edge-flow-line input[type="range"] {
       display: none;
-    }
-
-    .edge-flow-value {
-      min-width: 34px;
-      text-align: right;
-      font-size: 0.73rem;
-      color: #2a2318;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .edge-flow-control:not(.edge-flow-expanded) .edge-flow-value {
-      min-width: 0;
-      width: 100%;
-      text-align: center;
-      font-size: 0.69rem;
-      letter-spacing: 0.02em;
-      color: #6b5a3e;
     }
 
     .zoom-hud {
@@ -932,104 +929,444 @@
     }
 
     #balancePaneHost {
-      position: fixed;
-      top: 66px;
-      right: 18px;
-      z-index: 50;
       min-width: 280px;
     }
 
-    .top-hud {
+    .top-status-bar {
       position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: clamp(6px, 0.7vh, 10px);
+      left: clamp(74px, 6.6vw, 102px);
+      right: clamp(8px, 0.8vw, 14px);
       z-index: 30;
-      width: min(880px, calc(100% - 130px));
       display: grid;
-      grid-template-columns: repeat(4, minmax(120px, 1fr));
-      gap: 8px;
-      padding: 10px 14px;
+      grid-template-columns: auto auto minmax(170px, 1fr) 1fr auto;
+      gap: clamp(6px, 0.5vw, 10px);
+      padding: clamp(6px, 0.55vw, 10px) clamp(8px, 0.6vw, 12px);
+      border: 1px solid rgba(122, 85, 32, 0.9);
+      border-bottom: 3px solid rgba(122, 85, 32, 0.95);
       border-radius: 3px;
-      border: 1px solid rgba(139, 105, 20, 0.55);
-      background: rgba(240, 232, 208, 0.92);
-      backdrop-filter: blur(6px);
-      box-shadow: 0 8px 22px rgba(60, 40, 10, 0.2);
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 0.86rem;
-      color: #2a2318;
+      background: linear-gradient(180deg, #3b2810, #2a1c0b);
+      box-shadow: 0 8px 18px rgba(20, 12, 4, 0.45);
+      align-items: center;
+      font-size: calc(0.86rem * var(--ui-scale));
     }
 
-    .top-hud strong {
-      color: #2a2318;
+    .top-status-chip {
+      border: 1px solid rgba(122, 85, 32, 0.9);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.8rem;
+      background: rgba(232, 200, 112, 0.1);
+      color: #e8c870;
+      white-space: nowrap;
     }
 
-    .side-panel {
+    .top-status-info {
+      display: grid;
+      gap: 2px;
+    }
+
+    .top-status-scroller {
+      font-size: 0.78rem;
+      color: #bfa172;
+      border-left: 1px dashed rgba(184, 144, 96, 0.65);
+      padding-left: 9px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-status-actions {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .left-nav-rail {
       position: absolute;
-      top: 62px;
-      bottom: 16px;
-      width: min(355px, calc(100vw - 44px));
-      z-index: 25;
+      top: clamp(56px, 6.5vh, 72px);
+      left: clamp(8px, 0.8vw, 14px);
+      bottom: clamp(8px, 0.8vw, 14px);
+      width: clamp(72px, 6.2vw, 94px);
+      z-index: 46;
+      display: grid;
+      grid-auto-rows: min-content;
+      gap: 2px;
+      align-content: start;
+      background: #1a1005;
+      border-right: 3px solid #5a3a10;
+      border-radius: 4px;
+      padding: 6px 2px;
+    }
+
+    .nav-rail-btn {
+      position: relative;
+      width: 100%;
+      min-height: clamp(84px, 8.4vh, 112px);
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      color: #2a2318;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .strip-cord-top,
+    .strip-cord-bot {
+      width: 2px;
+      height: 6px;
+      background: #8b6530;
+      margin: 0 auto;
+      flex: 0 0 auto;
+    }
+
+    .strip-hole {
+      width: 8px;
+      height: 8px;
+      background: #1a1005;
+      border-radius: 50%;
+      border: 1px solid #5a3a10;
+      margin: 0 auto;
+      flex: 0 0 auto;
+    }
+
+    .strip-body {
+      width: clamp(48px, 4.2vw, 66px);
+      min-height: clamp(52px, 5.5vh, 72px);
+      background: var(--bookmark-color, #c8a85a);
+      border: 1px solid #8b6530;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      margin: 1px 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .strip-grain { display: none; }
+
+    .strip-knot,
+    .strip-knot2 {
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background: rgba(90, 58, 16, 0.95);
+    }
+
+    .strip-knot { top: 28%; }
+    .strip-knot2 { bottom: 28%; }
+
+    .strip-char {
+      writing-mode: horizontal-tb;
+      text-orientation: mixed;
+      font-size: calc(0.66rem * var(--ui-scale));
+      color: #2d1f0a;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      position: relative;
+      z-index: 1;
+      text-transform: uppercase;
+      line-height: 1;
+      text-align: center;
+      padding: 0 3px;
+      white-space: nowrap;
+    }
+
+    .nav-rail-btn.active {
+      transform: translateX(1px);
+    }
+
+    .nav-rail-btn.active .strip-body {
+      border-color: #c8a020;
+      filter: saturate(1.12) brightness(1.06);
+      box-shadow: inset 0 0 0 1px rgba(245, 224, 96, 0.45), 0 2px 8px rgba(200, 160, 32, 0.35);
+    }
+
+    .nav-rail-btn.active .strip-hole {
+      border-color: #c8a020;
+    }
+
+    .nav-rail-btn:hover .strip-body {
+      filter: brightness(1.05);
+    }
+
+    .nav-rail-btn[data-bookmark-color="1"] { --bookmark-color: #dd9b79; }
+    .nav-rail-btn[data-bookmark-color="2"] { --bookmark-color: #d7b66a; }
+    .nav-rail-btn[data-bookmark-color="3"] { --bookmark-color: #8dc18b; }
+    .nav-rail-btn[data-bookmark-color="4"] { --bookmark-color: #8fb5d8; }
+    .nav-rail-btn[data-bookmark-color="5"] { --bookmark-color: #a694dc; }
+    .nav-rail-btn[data-bookmark-color="6"] { --bookmark-color: #da93c4; }
+    .nav-rail-btn[data-bookmark-color="7"] { --bookmark-color: #b6c67f; }
+    .nav-rail-btn[data-bookmark-color="8"] { --bookmark-color: #d88989; }
+    .nav-rail-btn[data-bookmark-color="9"] { --bookmark-color: #86b6b5; }
+    .top-status-actions .btn[data-open-drawer="save"] { background: rgba(143, 181, 216, 0.62); }
+    .top-status-actions .btn[data-open-drawer="settings"] { background: rgba(166, 148, 220, 0.62); }
+    
+
+    .drawer-shell {
+      position: absolute;
+      inset: 0;
+      z-index: 45;
+      pointer-events: none;
+    }
+
+    .drawer-shell.hidden {
+      display: none;
+    }
+
+    .drawer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(35, 24, 8, 0.25);
+      pointer-events: auto;
+    }
+
+    .drawer-panel {
+      position: absolute;
+      left: clamp(74px, 6.6vw, 102px);
+      top: clamp(56px, 6.5vh, 72px);
+      bottom: clamp(220px, 21vh, 280px);
+      width: min(430px, calc(100vw - 120px));
+      pointer-events: auto;
       border: 1px solid rgba(139, 105, 20, 0.55);
       border-radius: 4px;
-      background: rgba(240, 232, 208, 0.94);
+      background: rgba(240, 232, 208, 0.96);
       backdrop-filter: blur(8px);
-      box-shadow: 0 10px 26px rgba(60, 40, 10, 0.22);
+      box-shadow: 0 12px 28px rgba(60, 40, 10, 0.24);
       overflow: hidden;
-      transition: transform 0.26s ease;
       display: grid;
       grid-template-rows: auto 1fr;
-      color: #2a2318;
     }
 
-    .side-panel .side-panel-toggle {
-      border: none;
-      width: 100%;
-      background: rgba(200, 168, 112, 0.45);
-      color: #2a2318;
-      font-family: Georgia, "Times New Roman", "Songti SC", "STSong", serif;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 9px 14px;
-      text-align: left;
-      cursor: pointer;
-      border-bottom: 1px solid rgba(139, 105, 20, 0.45);
+    .drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(139, 105, 20, 0.4);
+      background: rgba(200, 168, 112, 0.28);
     }
 
-    .side-panel-content {
+    .drawer-body {
       overflow: auto;
-      padding: 12px;
+      padding: 10px;
       display: grid;
       gap: 10px;
       align-content: start;
     }
 
-    .side-panel.left {
-      left: 14px;
+    .inspector-rail {
+      position: absolute;
+      left: clamp(74px, 6.6vw, 102px);
+      right: clamp(8px, 0.8vw, 14px);
+      bottom: clamp(58px, 6vh, 86px);
+      height: clamp(146px, 17vh, 230px);
+      z-index: 29;
+      font-size: calc(0.82rem * var(--ui-scale));
+      border: 1px solid rgba(154, 128, 96, 0.8);
+      border-radius: 3px;
+      background: rgba(216, 201, 168, 0.94);
+      box-shadow: 0 8px 18px rgba(60, 40, 10, 0.2);
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(160px, 1fr));
+      gap: 10px;
+      align-content: stretch;
     }
 
-    .side-panel.left.collapsed {
-      transform: translateX(calc(-100% + 44px));
+    .bottom-action-bar {
+      position: absolute;
+      left: clamp(74px, 6.6vw, 102px);
+      right: clamp(8px, 0.8vw, 14px);
+      bottom: clamp(6px, 0.7vh, 10px);
+      z-index: 30;
+      border: 1px solid rgba(139, 105, 20, 0.55);
+      border-radius: 4px;
+      background: rgba(200, 184, 144, 0.95);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 22px rgba(60, 40, 10, 0.2);
+      padding: clamp(6px, 0.55vw, 10px);
+      display: grid;
+      gap: clamp(6px, 0.5vw, 10px);
+      font-size: calc(0.82rem * var(--ui-scale));
     }
 
-    .side-panel.right {
-      right: 14px;
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
     }
 
-    .side-panel.right.collapsed {
-      transform: translateX(calc(100% - 44px));
+    .action-row .route-metrics {
+      margin-left: auto;
+      min-width: min(330px, 100%);
     }
 
-    @media (max-width: 960px) {
-      .top-hud {
-        width: calc(100% - 24px);
-        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    .floating-zoom {
+      top: clamp(56px, 6.5vh, 72px);
+      left: 52%;
+      transform: translateX(-50%);
+      z-index: 32;
+      background: rgba(240, 232, 208, 0.95);
+    }
+
+    .inspector-rail .bonus-panel {
+      height: 100%;
+      border: 1px solid rgba(154, 128, 96, 0.7);
+      background: rgba(232, 216, 184, 0.72);
+      font-size: 0.75rem;
+    }
+
+    .inspector-rail .bonus-title {
+      font-size: 0.67rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1200px) {
+      .top-status-bar,
+      .bottom-action-bar,
+      .inspector-rail {
+        left: clamp(70px, 7.2vw, 92px);
+      }
+      .drawer-panel {
+        left: clamp(70px, 7.2vw, 92px);
+        width: min(420px, calc(100vw - 100px));
+        bottom: clamp(250px, 24vh, 300px);
+      }
+      .inspector-rail {
+        grid-template-columns: 1fr 1fr;
+      }
+      .inspector-rail > :last-child {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 940px) {
+      .top-status-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+      .top-status-info {
+        grid-column: 1 / -1;
+      }
+      .top-status-scroller {
+        grid-column: 1 / -1;
+        border-left: none;
+        border-top: 1px dashed rgba(139, 105, 20, 0.45);
+        padding-left: 0;
+        padding-top: 6px;
+      }
+      .top-status-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+      }
+      .inspector-rail {
+        display: none;
+      }
+      .top-status-bar,
+      .bottom-action-bar {
+        right: clamp(8px, 1vw, 14px);
+      }
+      .drawer-panel {
+        left: clamp(70px, 8vw, 88px);
+        width: min(430px, calc(100vw - 90px));
+        bottom: clamp(58px, 6vh, 86px);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .left-nav-rail {
+        width: 56px;
+      }
+      .bottom-action-bar,
+      .top-status-bar {
+        left: 66px;
+        right: 8px;
+      }
+      .drawer-panel {
+        left: 64px;
+        width: calc(100vw - 72px);
       }
     }
   </style>
 </head>
 <body>
   <div class="game">
+    <div class="top-status-bar">
+      <div class="top-status-chip"><strong>Ticks</strong> <span id="ticks">0</span></div>
+      <div class="top-status-chip"><strong>Core Qi</strong> <span id="sourceTotal">0.00</span></div>
+      <div class="top-status-info">
+        <div><strong>Body Heat</strong></div>
+        <div id="bodyHeatGauge" class="heat-gauge" data-zone="green"></div>
+        <div class="muted" id="bodyHeatLabel">0 / 100 (0%)</div>
+        <div id="bodyHeatWarning" class="muted">Heat stable</div>
+      </div>
+      <div class="top-status-scroller">
+        <span id="status">Open all sigil nodes to complete cultivation.</span> ·
+        <span id="nextAction" class="good">Awaiting best action signal.</span>
+      </div>
+      <div class="top-status-actions">
+        <button type="button" class="btn ghost" data-open-drawer="save">Save</button>
+        <button type="button" class="btn ghost" data-open-drawer="settings">Settings</button>
+      </div>
+    </div>
+
+    <nav id="leftPanel" class="left-nav-rail" aria-label="UI navigation rail">
+      <button type="button" class="nav-rail-btn" data-bookmark-color="1" data-open-drawer="cultivation">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Cult</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="2" data-open-drawer="combat">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Comb</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="3" data-open-drawer="body">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Body</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="4" data-open-drawer="inventory">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Inv</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="5" data-open-drawer="alchemy">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Alch</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="6" data-open-drawer="dao">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Dao</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="7" data-open-drawer="sect">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Sect</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="8" data-open-drawer="dev">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Dev</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+      <button type="button" class="nav-rail-btn" data-bookmark-color="9" id="resetTutorialBtn">
+        <span class="strip-cord-top"></span><span class="strip-hole"></span><span class="strip-cord-bot"></span>
+        <span class="strip-body"><span class="strip-grain"></span><span class="strip-knot"></span><span class="strip-knot2"></span><span class="strip-char">Tut</span></span>
+        <span class="strip-cord-top"></span><span class="strip-hole"></span>
+      </button>
+    </nav>
+
     <div class="arena">
       <div id="pixiWrap" aria-label="Node network"></div>
       <div class="parchment-frame" aria-hidden="true">
@@ -1042,18 +1379,7 @@
         <div class="corner-seal bl"></div>
         <div class="corner-seal br"></div>
       </div>
-      <div class="top-hud">
-        <div><strong>刻 Ticks:</strong> <span id="ticks">0</span></div>
-        <div><strong>元氣 Core Qi:</strong> <span id="sourceTotal">0.00</span></div>
-        <div>
-          <strong>Body Heat</strong>
-          <div id="bodyHeatGauge" class="heat-gauge" data-zone="green"></div>
-          <div class="muted" id="bodyHeatLabel">0 / 100 (0%)</div>
-          <div id="bodyHeatWarning" class="muted">Heat stable</div>
-        </div>
-        <div class="muted">導引 — guide each meridian's flow every tick.</div>
-      </div>
-      <div id="zoomHud" class="zoom-hud">Zoom: 1.00x</div>
+      <div id="zoomHud" class="zoom-hud floating-zoom">Zoom: 1.00x</div>
       <div id="flowPopup" class="flow-popup hidden"></div>
       <div id="markerTooltip" class="marker-tooltip hidden"></div>
       <div id="edgeControlsLayer" class="edge-controls-layer" aria-hidden="false"></div>
@@ -1071,223 +1397,303 @@
       </div>
     </div>
 
-    <aside id="leftPanel" class="side-panel left">
-      <button type="button" class="side-panel-toggle" data-toggle-panel="leftPanel">Meridian Controls</button>
-      <div class="side-panel-content">
-        <div class="button-row">
-          <button class="btn" id="recenter">Recenter View</button>
-          <button class="btn ghost" id="resetBodyView">Reset Body View</button>
-          <button class="btn ghost" id="resetTutorialBtn">Reset Tutorial</button>
-          <button class="btn ghost" id="drawRouteBtn">Draw Route</button>
-          <button class="btn ghost" id="confirmRouteBtn" disabled>Confirm Route</button>
-          <button class="btn ghost" id="galaxyViewToggleBtn">Galaxy View</button>
-          <button class="btn ghost" id="devModeToggle">Dev Mode: Off</button>
-          <button class="btn ghost" id="devSpeedToggle">Dev Speed: Off</button>
-        </div>
-        <div id="routeMetrics" class="route-metrics">Route metrics will appear here.</div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Refining Pulse</div>
-          <button class="btn ghost" id="refiningPulseBtn">Refining Pulse: Off (R)</button>
-          <div class="muted" id="refiningPulseInfo">Qi→YangQi 3:1 | eff 0% | heat 0/tick</div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Active Route</div>
-          <div id="activeRouteDisplay" class="muted">No active circulation route.</div>
-          <button class="btn ghost" id="stopRouteBtn">Stop Route</button>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Body Tempering</div>
-          <div class="phase29-row"><span>Level</span><strong id="temperingLevel">1</strong></div>
-          <div class="phase29-row"><span>XP</span><strong id="temperingXp">0 / 0</strong></div>
-          <label class="muted" for="temperingAction">Training Action</label>
-          <select id="temperingAction" class="form-select form-select-sm">
-            <option>Breath Training</option>
-            <option>Sprint Training</option>
-            <option>Stone Lifting</option>
-            <option>Meditation</option>
-          </select>
-          <div id="temperingBonuses" class="muted">HP +0 | Jing gen +0.00/tick</div>
-        </div>
-        <div class="button-row" id="devToolsRow" style="display:none;">
-          <button class="btn ghost" id="showAllNodesBtn">Show All Nodes: Off</button>
-          <button class="btn ghost" id="editNodesBtn">Node Tools</button>
-          <button class="btn ghost" id="saveShapeBtn">Export nodes.ts</button>
-          <button class="btn ghost" id="addT2NodeBtn">Add T2 Node</button>
-          <button class="btn ghost" id="saveT2LayoutBtn">Export T2 Layout</button>
-          <button class="btn ghost" id="devDamageT1Btn" type="button">Dev: crack T1</button>
-        </div>
-        <div class="button-row cluster-repair-row" id="clusterRepairRow" style="display:none; flex-wrap: wrap; align-items: center; gap: 10px;">
-          <label class="muted" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
-            <input type="checkbox" id="directJingToggle" />
-            Direct Jing — active repair
-          </label>
-          <span class="muted" id="bodyJingPoolLabel"></span>
-        </div>
-        <div class="button-row" id="devSpeedRow" style="display:none;">
-          <button class="btn ghost active" id="speed1x">1x</button>
-          <button class="btn ghost" id="speed10x">10x</button>
-          <button class="btn ghost" id="speed100x">100x</button>
-        </div>
-        <div class="muted">Select a visible node to adjust flows and bridges.</div>
-        <div class="status" id="status">Open all sigil nodes to complete cultivation.</div>
+    <aside id="rightPanel" class="inspector-rail">
+      <div class="bonus-panel">
+        <div class="bonus-title">Current Cultivation Paths & Bonuses</div>
+        <div id="bonusSummary" class="bonus-grid"></div>
+        <div id="stateWarnings" class="warning"></div>
       </div>
+      <div class="bonus-panel">
+        <div class="bonus-title">Meridian Detail Panel</div>
+        <div id="meridianDetailPanel" class="meridian-detail-panel">
+          Click a body-map meridian to inspect details.
+        </div>
+        <button class="btn ghost" id="reverseMeridianBtn" data-meridian-id="" disabled>Open Reverse Meridian</button>
+      </div>
+      <div id="combatNodeDamageAlert" class="phase30-alert" hidden>No new node damage.</div>
     </aside>
 
-    <aside id="rightPanel" class="side-panel right">
-      <button type="button" class="side-panel-toggle" data-toggle-panel="rightPanel">Cultivation Intel</button>
-      <div class="side-panel-content">
-        <div class="bonus-panel">
-          <div class="bonus-title">Current Cultivation Paths & Bonuses</div>
-          <div id="bonusSummary" class="bonus-grid"></div>
-          <div id="stateWarnings" class="warning"></div>
+    <div class="bottom-action-bar">
+      <div class="action-row">
+        <button class="btn ghost" id="refiningPulseBtn">Refining Pulse: Off (R)</button>
+        <div class="muted" id="refiningPulseInfo">Qi→YangQi 3:1 | eff 0% | heat 0/tick</div>
+        <button class="btn ghost" id="drawRouteBtn">Draw Route</button>
+        <button class="btn ghost" id="confirmRouteBtn" disabled>Confirm Route</button>
+        <button class="btn ghost" id="stopRouteBtn">Stop Route</button>
+        <button class="btn ghost" id="galaxyViewToggleBtn">Galaxy View</button>
+      </div>
+      <div class="action-row">
+        <button class="btn" id="recenter">Recenter View</button>
+        <button class="btn ghost" id="zoomToT2Btn">Zoom to T2</button>
+        <button class="btn ghost" id="resetBodyView">Reset Body View</button>
+        <div id="activeRouteDisplay" class="muted">No active circulation route.</div>
+        <div id="routeMetrics" class="route-metrics">Route metrics will appear here.</div>
+      </div>
+    </div>
+
+    <div id="drawerShell" class="drawer-shell hidden" aria-hidden="true">
+      <div class="drawer-backdrop" data-close-drawer="1"></div>
+
+      <aside class="drawer-panel" data-drawer-id="cultivation" hidden>
+        <div class="drawer-head">
+          <strong>Cultivation</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
         </div>
-        <div class="bonus-panel">
-          <details open>
-            <summary class="bonus-title">Cultivation Attributes</summary>
-            <div id="cultivationPanelBody" class="bonus-grid"></div>
-          </details>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <details open>
+              <summary class="bonus-title">Cultivation Attributes</summary>
+              <div id="cultivationPanelBody" class="bonus-grid"></div>
+            </details>
+          </div>
+          <div class="bonus-panel">
+            <div class="bonus-title">Resonance Pattern Checklist</div>
+            <div id="resonanceChecklist" class="bonus-grid"></div>
+          </div>
         </div>
-        <div class="bonus-panel">
-          <details open>
-            <summary class="bonus-title">Combat Attributes (press C to unlock)</summary>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="combat" hidden>
+        <div class="drawer-head">
+          <strong>Combat</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Combat Attributes (press C to unlock)</div>
             <div id="combatPanelBody" class="bonus-grid"></div>
             <div id="combatPrepBody" class="bonus-grid"></div>
             <div id="combatActiveBody" class="bonus-grid"></div>
             <div id="combatSummaryBody" class="bonus-grid"></div>
-            <div id="combatNodeDamageAlert" class="phase30-alert" hidden>No new node damage.</div>
-          </details>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Resonance Pattern Checklist</div>
-          <div id="resonanceChecklist" class="bonus-grid"></div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Celestial Calendar</div>
-          <div id="celestialCalendarWidget" class="bonus-grid"></div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Next Best Action</div>
-          <div id="nextAction" class="good"></div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Meridian Detail Panel</div>
-          <div id="meridianDetailPanel" class="meridian-detail-panel">
-            Click a body-map meridian to inspect details.
           </div>
-          <button class="btn ghost" id="reverseMeridianBtn" data-meridian-id="" disabled>Open Reverse Meridian</button>
         </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Dao Panel</div>
-          <div id="daoSummary" class="muted">No Dao selected.</div>
-          <select id="daoSelect" class="form-select form-select-sm">
-            <option value="">Select Dao...</option>
-            <option value="Earth">Earth</option>
-            <option value="Fire">Fire</option>
-            <option value="Water">Water</option>
-            <option value="Wind">Wind</option>
-            <option value="Void">Void</option>
-            <option value="Life">Life</option>
-            <option value="Sword">Sword</option>
-            <option value="Thunder">Thunder</option>
-          </select>
-          <div id="daoNodes"></div>
-          <div id="daoSkills"></div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="body" hidden>
+        <div class="drawer-head">
+          <strong>Body Systems</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
         </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Sect Panel</div>
-          <div id="sectPanelBody" class="bonus-grid"></div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Save / Load</div>
-          <div class="button-row">
-            <button type="button" class="btn ghost" id="saveGameBtn">Save to Local</button>
-            <button type="button" class="btn ghost" id="loadGameBtn">Load Local Save</button>
-            <button type="button" class="btn ghost" id="exportSaveBtn">Export Save JSON</button>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Body Tempering</div>
+            <div class="phase29-row"><span>Level</span><strong id="temperingLevel">1</strong></div>
+            <div class="phase29-row"><span>XP</span><strong id="temperingXp">0 / 0</strong></div>
+            <label class="muted" for="temperingAction">Training Action</label>
+            <select id="temperingAction" class="form-select form-select-sm">
+              <option>Breath Training</option>
+              <option>Sprint Training</option>
+              <option>Stone Lifting</option>
+              <option>Meditation</option>
+            </select>
+            <div id="temperingBonuses" class="muted">HP +0 | Jing gen +0.00/tick</div>
           </div>
-          <label class="muted" for="importSaveInput">Import Save JSON</label>
-          <input type="file" id="importSaveInput" accept="application/json,.json" class="form-control form-control-sm" />
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Settings</div>
-          <label class="muted" for="settingsTickRate">Tick Rate</label>
-          <select id="settingsTickRate" class="form-select form-select-sm">
-            <option value="1">1x</option>
-            <option value="2">2x</option>
-            <option value="5">5x</option>
-            <option value="10">10x</option>
-          </select>
-          <div class="bonus-title" style="margin-top:10px;">Offline Boost</div>
-          <div class="muted" id="offlineTickBankLabel">Offline ticks: 0</div>
-          <button type="button" id="offlineTickBoostBtn" class="btn ghost" disabled>Boost x5</button>
-          <label class="muted" for="settingsParticleDensity">Particle Density</label>
-          <select id="settingsParticleDensity" class="form-select form-select-sm">
-            <option value="0.5">Low</option>
-            <option value="1" selected>Normal</option>
-            <option value="1.5">High</option>
-          </select>
-          <label class="muted" for="settingsColorMode">Color Accessibility</label>
-          <select id="settingsColorMode" class="form-select form-select-sm">
-            <option value="default">Default</option>
-            <option value="deuteranopia">Deuteranopia</option>
-            <option value="tritanopia">Tritanopia</option>
-          </select>
-          <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
-            <input type="checkbox" id="settingsSoundToggle" checked />
-            Sound enabled
-          </label>
-          <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
-            <input type="checkbox" id="settingsGalaxyDefault" />
-            Galaxy View default
-          </label>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Inventory</div>
-          <div id="inventoryGrid" class="bonus-grid"></div>
-          <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>
-          <div class="bonus-title">Ingredients</div>
-          <div id="ingredientInventory"></div>
-        </div>
-        <div class="bonus-panel">
-          <div class="bonus-title">Alchemy Workbench</div>
-          <div class="phase29-row"><span>Alchemy Phase</span><strong id="alchemyPhase">IDLE</strong></div>
-          <div id="alchemySlots" class="phase31-slot-grid"></div>
-          <div id="alchemyQualityPreview"></div>
-          <button type="button" id="alchemyRefineBtn" class="btn ghost" disabled>Refine</button>
-          <div class="bonus-title">Recipe Browser</div>
-          <div class="phase31-filters">
-            <label class="muted">Type
-              <select id="alchemyFilterType" class="form-select form-select-sm">
-                <option value="all">All types</option>
-                <option value="condensed_essence_pill">Condensed Essence Pill</option>
-                <option value="refining_stone">Refining Stone</option>
-                <option value="meridian_salve">Meridian Salve</option>
-                <option value="meridian_restoration">Meridian Restoration</option>
-                <option value="jing_deposit">Jing Deposit</option>
-                <option value="dao_fragment">Dao Fragment</option>
-                <option value="recovery_elixir">Recovery Elixir</option>
-                <option value="formation_array">Formation Array</option>
-                <option value="cultivation_manual">Cultivation Manual</option>
-              </select>
+          <div class="bonus-panel" id="clusterRepairRow" style="display:none; flex-wrap: wrap; align-items: center; gap: 10px;">
+            <div class="bonus-title">Cluster Repair</div>
+            <label class="muted" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="directJingToggle" />
+              Direct Jing — active repair
             </label>
-            <label class="muted">Tier
-              <select id="alchemyFilterTier" class="form-select form-select-sm">
-                <option value="all">All tiers</option>
-                <option value="basic">Basic</option>
-                <option value="refined">Refined</option>
-                <option value="transcendent">Transcendent</option>
-              </select>
+            <span class="muted" id="bodyJingPoolLabel"></span>
+          </div>
+          <div class="bonus-panel">
+            <div class="bonus-title">Celestial Calendar</div>
+            <div id="celestialCalendarWidget" class="bonus-grid"></div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="inventory" hidden>
+        <div class="drawer-head">
+          <strong>Inventory</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Inventory</div>
+            <div id="inventoryGrid" class="bonus-grid"></div>
+            <div id="inventoryDetail" class="muted">Select a treasure to preview and apply.</div>
+            <div class="bonus-title">Ingredients</div>
+            <div id="ingredientInventory"></div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="alchemy" hidden>
+        <div class="drawer-head">
+          <strong>Alchemy</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Alchemy Workbench</div>
+            <div class="phase29-row"><span>Alchemy Phase</span><strong id="alchemyPhase">IDLE</strong></div>
+            <div id="alchemySlots" class="phase31-slot-grid"></div>
+            <div id="alchemyQualityPreview"></div>
+            <button type="button" id="alchemyRefineBtn" class="btn ghost" disabled>Refine</button>
+            <div class="bonus-title">Recipe Browser</div>
+            <div class="phase31-filters">
+              <label class="muted">Type
+                <select id="alchemyFilterType" class="form-select form-select-sm">
+                  <option value="all">All types</option>
+                  <option value="condensed_essence_pill">Condensed Essence Pill</option>
+                  <option value="refining_stone">Refining Stone</option>
+                  <option value="meridian_salve">Meridian Salve</option>
+                  <option value="meridian_restoration">Meridian Restoration</option>
+                  <option value="jing_deposit">Jing Deposit</option>
+                  <option value="dao_fragment">Dao Fragment</option>
+                  <option value="recovery_elixir">Recovery Elixir</option>
+                  <option value="formation_array">Formation Array</option>
+                  <option value="cultivation_manual">Cultivation Manual</option>
+                </select>
+              </label>
+              <label class="muted">Tier
+                <select id="alchemyFilterTier" class="form-select form-select-sm">
+                  <option value="all">All tiers</option>
+                  <option value="basic">Basic</option>
+                  <option value="refined">Refined</option>
+                  <option value="transcendent">Transcendent</option>
+                </select>
+              </label>
+            </div>
+            <label class="muted" style="display: inline-flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="alchemyFilterAvailable" />
+              Available ingredients only
+            </label>
+            <div id="alchemyRecipeList" class="bonus-grid"></div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="dao" hidden>
+        <div class="drawer-head">
+          <strong>Dao</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Dao Panel</div>
+            <div id="daoSummary" class="muted">No Dao selected.</div>
+            <select id="daoSelect" class="form-select form-select-sm">
+              <option value="">Select Dao...</option>
+              <option value="Earth">Earth</option>
+              <option value="Fire">Fire</option>
+              <option value="Water">Water</option>
+              <option value="Wind">Wind</option>
+              <option value="Void">Void</option>
+              <option value="Life">Life</option>
+              <option value="Sword">Sword</option>
+              <option value="Thunder">Thunder</option>
+            </select>
+            <div id="daoNodes"></div>
+            <div id="daoSkills"></div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="sect" hidden>
+        <div class="drawer-head">
+          <strong>Sect</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="bonus-title">Sect Panel</div>
+            <div id="sectPanelBody" class="bonus-grid"></div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="save" hidden>
+        <div class="drawer-head">
+          <strong>Save / Load</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="button-row">
+              <button type="button" class="btn ghost" id="saveGameBtn">Save to Local</button>
+              <button type="button" class="btn ghost" id="loadGameBtn">Load Local Save</button>
+              <button type="button" class="btn ghost" id="exportSaveBtn">Export Save JSON</button>
+            </div>
+            <label class="muted" for="importSaveInput">Import Save JSON</label>
+            <input type="file" id="importSaveInput" accept="application/json,.json" class="form-control form-control-sm" />
+          </div>
+        </div>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="settings" hidden>
+        <div class="drawer-head">
+          <strong>Settings</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <label class="muted" for="settingsTickRate">Tick Rate</label>
+            <select id="settingsTickRate" class="form-select form-select-sm">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+            </select>
+            <div class="bonus-title" style="margin-top:10px;">Offline Boost</div>
+            <div class="muted" id="offlineTickBankLabel">Offline ticks: 0</div>
+            <button type="button" id="offlineTickBoostBtn" class="btn ghost" disabled>Boost x5</button>
+            <label class="muted" for="settingsParticleDensity">Particle Density</label>
+            <select id="settingsParticleDensity" class="form-select form-select-sm">
+              <option value="0.5">Low</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.5">High</option>
+            </select>
+            <label class="muted" for="settingsColorMode">Color Accessibility</label>
+            <select id="settingsColorMode" class="form-select form-select-sm">
+              <option value="default">Default</option>
+              <option value="deuteranopia">Deuteranopia</option>
+              <option value="tritanopia">Tritanopia</option>
+            </select>
+            <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
+              <input type="checkbox" id="settingsSoundToggle" checked />
+              Sound enabled
+            </label>
+            <label class="muted" style="display:inline-flex; gap:8px; align-items:center;">
+              <input type="checkbox" id="settingsGalaxyDefault" />
+              Galaxy View default
             </label>
           </div>
-          <label class="muted" style="display: inline-flex; align-items: center; gap: 6px;">
-            <input type="checkbox" id="alchemyFilterAvailable" />
-            Available ingredients only
-          </label>
-          <div id="alchemyRecipeList" class="bonus-grid"></div>
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      <aside class="drawer-panel" data-drawer-id="dev" hidden>
+        <div class="drawer-head">
+          <strong>Developer</strong>
+          <button type="button" class="btn ghost" data-close-drawer="1">Close</button>
+        </div>
+        <div class="drawer-body">
+          <div class="bonus-panel">
+            <div class="button-row">
+              <button class="btn ghost" id="devModeToggle">Dev Mode: Off</button>
+              <button class="btn ghost" id="devSpeedToggle">Dev Speed: Off</button>
+            </div>
+          </div>
+          <div class="button-row" id="devToolsRow" style="display:none;">
+            <button class="btn ghost" id="showAllNodesBtn">Show All Nodes: Off</button>
+            <button class="btn ghost" id="editNodesBtn">Node Tools</button>
+            <button class="btn ghost" id="saveShapeBtn">Export nodes.ts</button>
+            <button class="btn ghost" id="addT2NodeBtn">Add T2 Node</button>
+            <button class="btn ghost" id="saveT2LayoutBtn">Export T2 Layout</button>
+            <button class="btn ghost" id="devDamageT1Btn" type="button">Dev: crack T1</button>
+          </div>
+          <div class="button-row" id="devSpeedRow" style="display:none;">
+            <button class="btn ghost active" id="speed1x">1x</button>
+            <button class="btn ghost" id="speed10x">10x</button>
+            <button class="btn ghost" id="speed100x">100x</button>
+          </div>
+          <div id="balancePaneHost"></div>
+        </div>
+      </aside>
+    </div>
+
   </div>
-  <div id="balancePaneHost"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.2.6/dist/pixi.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/zod@3.23.8/lib/index.umd.min.js"></script>
@@ -1295,14 +1701,40 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script type="module" src="src/app/bootstrap.ts"></script>
   <script>
-    for (const toggle of document.querySelectorAll("[data-toggle-panel]")) {
-      toggle.addEventListener("click", () => {
-        const panelId = toggle.getAttribute("data-toggle-panel");
-        const panel = document.getElementById(panelId);
-        if (!panel) return;
-        panel.classList.toggle("collapsed");
+    const drawerShell = document.getElementById("drawerShell");
+    const drawerPanels = [...document.querySelectorAll("[data-drawer-id]")];
+    const railButtons = [...document.querySelectorAll("[data-open-drawer]")];
+    let activeDrawer = "";
+
+    function setDrawer(drawerId) {
+      activeDrawer = drawerId || "";
+      drawerShell?.classList.toggle("hidden", !activeDrawer);
+      drawerShell?.setAttribute("aria-hidden", activeDrawer ? "false" : "true");
+      for (const panel of drawerPanels) {
+        const isActive = panel.getAttribute("data-drawer-id") === activeDrawer;
+        panel.toggleAttribute("hidden", !isActive);
+      }
+      for (const btn of railButtons) {
+        const on = btn.getAttribute("data-open-drawer") === activeDrawer;
+        btn.classList.toggle("active", on);
+      }
+    }
+
+    for (const trigger of railButtons) {
+      trigger.addEventListener("click", () => {
+        const target = trigger.getAttribute("data-open-drawer");
+        if (!target) return;
+        setDrawer(target === activeDrawer ? "" : target);
       });
     }
+
+    for (const closer of document.querySelectorAll("[data-close-drawer]")) {
+      closer.addEventListener("click", () => setDrawer(""));
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setDrawer("");
+    });
   </script>
 </body>
 </html>

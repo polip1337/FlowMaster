@@ -250,6 +250,7 @@ export const speed10xEl = document.getElementById("speed10x");
 export const speed100xEl = document.getElementById("speed100x");
 export const devModeToggleEl = document.getElementById("devModeToggle");
 export const resetBodyViewEl = document.getElementById("resetBodyView");
+export const zoomToT2BtnEl = document.getElementById("zoomToT2Btn");
 export const showAllNodesBtnEl = document.getElementById("showAllNodesBtn");
 export const editNodesBtnEl = document.getElementById("editNodesBtn");
 export const saveShapeEl = document.getElementById("saveShapeBtn");

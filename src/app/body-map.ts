@@ -120,21 +120,7 @@ export function ensureBodyMapUiState() {
   if (!st.bodyMapMeridians) {
     st.bodyMapMeridians = new Map<string, MeridianUiRecord>();
     for (const def of BODY_MAP_LINKS) {
-      const row = makeInitialMeridian(def);
-      const starter = row.id === getMeridianId("crown", "mind") || row.id === getMeridianId("mind", "intent");
-      if (starter) {
-        row.isEstablished = true;
-        row.state = "NASCENT";
-        row.width = 2.2;
-        row.purity = 0.62;
-        row.totalFlow = 140;
-        row.flowBonusPercent = 1.8;
-      }
-      st.bodyMapMeridians.set(row.id, row);
-      const legacyId = buildMeridianId(def.from, def.to, "legacy");
-      if (legacyId !== row.id) {
-        st.bodyMapMeridians.set(legacyId, row);
-      }
+      st.bodyMapMeridians.set(getMeridianId(def.from, def.to), makeInitialMeridian(def));
     }
   }
   if (!Array.isArray(st.routeDraftNodeIds)) st.routeDraftNodeIds = [];

@@ -20,9 +20,17 @@ const CLUSTER_SNAPSHOT_KEYS = [
   "repairAccumulator"
 ] as const;
 
-const defaultNodeNameById = new Map<number, string>(
-  nodeData.map((node: any) => [node.id as number, node.name as string])
-);
+const CLUSTER_STATIC_KEYS = [
+  "name",
+  "unlockCost",
+  "nodeType",
+  "isSourceNode",
+  "nodeShape",
+  "canProject",
+  "attributeType",
+  "attributeTier",
+  "bonuses"
+] as const;
 
 function clusterFieldsFromNode(node: any): Record<string, unknown> {
   const o: Record<string, unknown> = {};
@@ -30,6 +38,53 @@ function clusterFieldsFromNode(node: any): Record<string, unknown> {
     if (node[k] !== undefined) o[k] = node[k];
   }
   return o;
+}
+
+function staticFieldsFromNode(node: any): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  for (const k of CLUSTER_STATIC_KEYS) {
+    if (node[k] !== undefined) o[k] = node[k];
+  }
+  return o;
+}
+
+function normalizeSnapshotToSchema(snapshot: any) {
+  if (!snapshot?.tier2Id) return snapshot;
+  const schemaSnapshot = buildSnapshotFromTier2Schema(snapshot.tier2Id);
+
+  const incomingNodeById = new Map<number, any>(
+    (snapshot.nodeState ?? []).map((entry: any) => [entry.id, entry])
+  );
+  const mergedNodeState = (schemaSnapshot.nodeState ?? []).map((schemaNode: any) => {
+    const incoming = incomingNodeById.get(schemaNode.id);
+    if (!incoming) return { ...schemaNode };
+    const merged = { ...schemaNode };
+    if (typeof incoming.unlocked === "boolean") merged.unlocked = incoming.unlocked;
+    if (typeof incoming.si === "number" && Number.isFinite(incoming.si)) merged.si = incoming.si;
+    for (const key of CLUSTER_SNAPSHOT_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(incoming, key)) {
+        merged[key] = incoming[key];
+      }
+    }
+    return merged;
+  });
+
+  const incomingFlows = snapshot.edgeFlows ?? {};
+  const mergedEdgeFlows: Record<string, number> = {};
+  for (const edge of schemaSnapshot.edgeDefs ?? []) {
+    const nextFlow = incomingFlows[edge.key];
+    mergedEdgeFlows[edge.key] =
+      typeof nextFlow === "number" && Number.isFinite(nextFlow) ? nextFlow : 0;
+  }
+
+  return {
+    ...schemaSnapshot,
+    ...snapshot,
+    nodeState: mergedNodeState,
+    edgeDefs: schemaSnapshot.edgeDefs,
+    edgeFlows: mergedEdgeFlows,
+    projections: Array.isArray(snapshot.projections) ? snapshot.projections : []
+  };
 }
 
 export function captureCurrentTier1Snapshot() {
@@ -45,16 +100,12 @@ export function captureCurrentTier1Snapshot() {
 }
 
 export function applyTier1Snapshot(snapshot: any) {
-  if (!snapshot) return;
-
-  const activeTier2Id: string | undefined = snapshot.tier2Id;
-  const rootNodeName = activeTier2Id === "dantian"
-    ? (defaultNodeNameById.get(0) ?? nodeData.find((n: any) => n.id === 0)?.name ?? "Dantian Core")
-    : "Root I/O";
+  const normalized = normalizeSnapshotToSchema(snapshot);
+  if (!normalized) return;
 
   // Switching topologies must rebuild the edge graph *and* its PIXI visuals,
   // otherwise `from/to` changes won't render.
-  if (Array.isArray(snapshot.edgeDefs)) {
+  if (Array.isArray(normalized.edgeDefs)) {
     // Clear existing edge visuals (and their cached geometry).
     for (const edgeKey of Object.keys(edgeVisuals)) {
       deleteEdgeVisual(edgeKey);
@@ -71,7 +122,7 @@ export function applyTier1Snapshot(snapshot: any) {
     edges.splice(
       0,
       edges.length,
-      ...snapshot.edgeDefs.map((e: any) => {
+      ...normalized.edgeDefs.map((e: any) => {
         const next = { ...e, flow: 0 };
         ensureMeridianUiFields(next);
         return next;
@@ -84,15 +135,10 @@ export function applyTier1Snapshot(snapshot: any) {
     }
   }
 
-  const nodeStateById = new Map<number, any>(snapshot.nodeState.map((entry: any) => [entry.id, entry]));
+  const nodeStateById = new Map<number, any>(normalized.nodeState.map((entry: any) => [entry.id, entry]));
   for (const edge of edges) { edge.flow = 0; }
   for (const node of nodeData) {
     const entry = nodeStateById.get(node.id);
-
-    // The UI node ids are shared across all T1 topologies (0..11), but their
-    // semantic role is topology-dependent. Keep "Dantian" naming exclusive
-    // to the dantian T2 focus.
-    if (node.id === 0) node.name = rootNodeName;
 
     if (!entry) {
       node.unlocked = false;
@@ -103,17 +149,20 @@ export function applyTier1Snapshot(snapshot: any) {
     ensureClusterTier1UiFields(node);
     node.unlocked = entry.unlocked;
     node.si = entry.si;
+    for (const k of CLUSTER_STATIC_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(entry, k)) (node as any)[k] = (entry as any)[k];
+    }
     for (const k of CLUSTER_SNAPSHOT_KEYS) {
       if (Object.prototype.hasOwnProperty.call(entry, k)) (node as any)[k] = (entry as any)[k];
     }
   }
   for (const edge of edges) {
-    if (Object.prototype.hasOwnProperty.call(snapshot.edgeFlows, edge.key)) {
-      edge.flow = snapshot.edgeFlows[edge.key];
+    if (Object.prototype.hasOwnProperty.call(normalized.edgeFlows, edge.key)) {
+      edge.flow = normalized.edgeFlows[edge.key];
     }
   }
   activeProjections.length = 0;
-  for (const p of snapshot.projections) { activeProjections.push({ ...p }); }
+  for (const p of normalized.projections) { activeProjections.push({ ...p }); }
 }
 
 export function initializeTier2Snapshots() {
@@ -131,6 +180,7 @@ export function initializeTier2Snapshots() {
         id: node.id,
         unlocked: node.unlocked,
         si: node.si,
+        ...staticFieldsFromNode(node),
         ...clusterFieldsFromNode(node)
       })),
       edgeDefs: schemaEdges,
@@ -153,6 +203,7 @@ export function buildSnapshotFromTier2Schema(tier2Id: string) {
       id: node.id,
       unlocked: node.unlocked,
       si: node.si,
+      ...staticFieldsFromNode(node),
       ...clusterFieldsFromNode(node)
     })),
     edgeDefs: schemaEdges,
@@ -165,7 +216,11 @@ export function getOrCreateTier2Snapshot(tier2Id: string) {
   if (!tier2Tier1Snapshots.has(tier2Id)) {
     tier2Tier1Snapshots.set(tier2Id, buildSnapshotFromTier2Schema(tier2Id));
   }
-  return tier2Tier1Snapshots.get(tier2Id);
+  const normalized = normalizeSnapshotToSchema(tier2Tier1Snapshots.get(tier2Id));
+  if (normalized) {
+    tier2Tier1Snapshots.set(tier2Id, normalized);
+  }
+  return normalized;
 }
 
 // Used when switching away from the T1 view (e.g. entering T2/symbol mode) so
@@ -174,9 +229,24 @@ export function captureAndStoreCurrentTier1Snapshot(tier2Id: string): void {
   const existing = getOrCreateTier2Snapshot(tier2Id);
   if (!existing) return;
   const captured = captureCurrentTier1Snapshot();
+  const capturedById = new Map<number, any>(
+    (captured.nodeState ?? []).map((entry: any) => [entry.id, entry])
+  );
+  const mergedNodeState = (existing.nodeState ?? []).map((entry: any) => {
+    const live = capturedById.get(entry.id);
+    if (!live) {
+      return { ...entry };
+    }
+    // Keep static schema metadata (name/type/cost/bonuses), only refresh live state.
+    return {
+      ...entry,
+      ...live,
+      id: entry.id
+    };
+  });
   tier2Tier1Snapshots.set(tier2Id, {
     ...existing,
-    nodeState: captured.nodeState,
+    nodeState: mergedNodeState,
     edgeFlows: captured.edgeFlows,
     projections: captured.projections
   });

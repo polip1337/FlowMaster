@@ -1,7 +1,7 @@
 // FlowMaster: tunable constants, render metadata, theme tables.
 // Pure values only — no runtime state, no game data.
 
-import { TIER2_LAYOUT_OVERRIDE } from '../t2-nodes/t2-layout.ts';
+import { TIER2_LAYOUT_OVERRIDE } from '../data/t2-layout.ts';
 
 export const TICKS_PER_SECOND = 100;
 export const TICKS_PER_CYCLE = 1000;
@@ -23,6 +23,8 @@ export let sunSurgeIntervalTicks = 1400;
 export let sunSurgeDurationTicks = 280;
 export const SYMBOL_MODE_ENTER_ZOOM_THRESHOLD = 2.00;
 export const SYMBOL_MODE_EXIT_ZOOM_THRESHOLD = 0.40;
+export const TIER2_MIN_ZOOM = 0.7;
+export const T1_TO_T2_TRANSITION_ZOOM = 1.3;
 export const CHAKRA_SYMBOL_URL = "file:///C:/Users/konra/.cursor/projects/c-Users-konra-Desktop-Cursor-FlowMaster/assets/c__Users_konra_Desktop_Cursor_FlowMaster_body.png";
 export const BODY_WORLD_BASE_WIDTH = 1500;
 export const BODY_MODE_DEFAULT_SCALE = 2.0;
@@ -36,8 +38,18 @@ export const DEFAULT_T2_NODES = [
   { id: "stomach", name: "Stomach", x: 760, y: 1280, radius: 18 },
   { id: "dantian", name: "Dantian", x: 760, y: 1510, radius: 20 },
   { id: "spine", name: "Spine", x: 760, y: 1640, radius: 18 },
+  { id: "shoulderLeft", name: "Left Shoulder", x: 606, y: 1060, radius: 16 },
+  { id: "shoulderRight", name: "Right Shoulder", x: 913, y: 1060, radius: 16 },
+  { id: "elbowLeft", name: "Left Elbow", x: 500, y: 1308, radius: 16 },
+  { id: "elbowRight", name: "Right Elbow", x: 1019, y: 1308, radius: 16 },
+  { id: "wristLeft", name: "Left Wrist", x: 420, y: 1546, radius: 16 },
+  { id: "wristRight", name: "Right Wrist", x: 1099, y: 1546, radius: 16 },
+  { id: "handLeft", name: "Left Hand", x: 362, y: 1770, radius: 17 },
+  { id: "handRight", name: "Right Hand", x: 1157, y: 1770, radius: 17 },
   { id: "kneeLeft", name: "Left Knee", x: 590, y: 1865, radius: 16 },
   { id: "kneeRight", name: "Right Knee", x: 930, y: 1865, radius: 16 },
+  { id: "ankleLeft", name: "Left Ankle", x: 644, y: 2225, radius: 16 },
+  { id: "ankleRight", name: "Right Ankle", x: 876, y: 2225, radius: 16 },
   { id: "footLeft", name: "Left Foot", x: 565, y: 2110, radius: 17 },
   { id: "footRight", name: "Right Foot", x: 955, y: 2110, radius: 17 }
 ];

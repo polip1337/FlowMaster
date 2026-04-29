@@ -2,7 +2,7 @@
 // calculations. These functions are pure reads: they don't mutate nodeData.
 
 import {
-  TICKS_PER_CYCLE, TICKS_PER_SECOND, FLOW_TRANSFER_FACTOR_PER_TICK,
+  SOURCE_RATE_PER_TICK, TICKS_PER_CYCLE, TICKS_PER_SECOND, FLOW_TRANSFER_FACTOR_PER_TICK,
   projectionTransferFactorPerTick
 } from './constants.ts';
 import { nodeData, edges } from './config.ts';
@@ -128,6 +128,19 @@ export function computeNodeRates(attr: any) {
     (rates as any)[id].net = (rates as any)[id].in - (rates as any)[id].out;
   }
   return rates;
+}
+
+export function computeNodeSiDeltaPerTick(attr: any) {
+  const rates = computeNodeRates(attr);
+  const deltas: Record<number, number> = Object.fromEntries(
+    nodeData.map((node) => [node.id, rates[node.id]?.net ?? 0])
+  );
+  const sourceNode = getPrimaryGenerationNode();
+  const generation = SOURCE_RATE_PER_TICK * (1 + attr.generationPercent) + attr.generationFlatPerTick;
+  if (sourceNode && !isIoNode(sourceNode)) {
+    deltas[sourceNode.id] = (deltas[sourceNode.id] ?? 0) + generation;
+  }
+  return deltas;
 }
 
 export function formatNodeBonuses(node: any) {

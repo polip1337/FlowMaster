@@ -12,6 +12,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "nodes.ts", "js/**/*.ts", "globals.d.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "globals.d.ts"],
   "exclude": ["node_modules"]
 }

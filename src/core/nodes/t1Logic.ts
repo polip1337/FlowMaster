@@ -124,6 +124,13 @@ export function applyT1Flows(nodes: Map<number, T1Node>, flows: FlowResult[]): v
 }
 
 export function generateSourceEnergy(node: T1Node): ReturnType<typeof emptyPool> {
+  if (node.state === T1NodeState.ACTIVE && node.type === T1NodeType.DANTIAN) {
+    return {
+      ...emptyPool(),
+      [EnergyType.Shen]: T1_SECONDARY_SOURCE_RATE * node.quality
+    };
+  }
+
   if (node.isSourceNode && node.type === T1NodeType.INTERNAL) {
     return {
       ...emptyPool(),

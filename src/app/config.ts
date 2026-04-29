@@ -2,29 +2,83 @@
 // Runs once at module evaluation to produce gameConfig, nodeData, edges, etc.
 
 import { BODY_MODE_FOCUS_TIER2_ID } from './constants.ts';
-import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
-import { allTopologies } from '../data/topologies/index.ts';
-import { getTopologyNodeDefinitions } from '../data/topologies/node-definitions.ts';
+import { allTopologies, topologyPositionsByUiId } from '../data/topologies/index.ts';
+import { buildTopologyNodeDefinitions } from '../data/topologies/ui-definitions.ts';
 import { T2_NODE_DEFS_BY_ID } from '../data/t2NodeDefs.ts';
 import { toCoreTier2Id } from '../uiCore/t2UiMapping.ts';
 import { edgeKey } from '../core/nodes/T1Edge.ts';
-import { TIER2_NODE_SCHEMAS } from '../t2-nodes/schemas.ts';
+
+const T1_POSITION_DISTANCE_MULTIPLIER = 3;
 
 export function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function getTier2SchemaConfig(tier2Id: string) {
-  const schemaOverride = TIER2_NODE_SCHEMAS[tier2Id];
-  if (schemaOverride) {
-    return {
-      nodeDefinitions: deepClone(schemaOverride.nodeDefinitions),
-      initialNodePositions: deepClone(schemaOverride.initialNodePositions),
-      nodeEdges: deepClone(schemaOverride.nodeEdges),
-      projectionLinks: deepClone(schemaOverride.projectionLinks)
-    };
+function ensureRequiredManipuraEdges(nodeEdges: any[]) {
+  const requiredPairs: Array<[number, number]> = [
+    [0, 1], // Dantian <-> Solar Crucible
+    [0, 2], // Dantian <-> Golden Cauldron
+    [0, 3]  // Dantian <-> Ember Meridian
+  ];
+  for (const [from, to] of requiredPairs) {
+    const hasForward = nodeEdges.some((edge) => edge.from === from && edge.to === to);
+    if (!hasForward) {
+      nodeEdges.push({
+        from,
+        to,
+        flow: 0,
+        key: edgeKey(from, to),
+        weight: 50,
+        isScarred: false,
+        scarPenalty: 0,
+        scarHealingCostShen: 50000
+      });
+    }
+    const hasReverse = nodeEdges.some((edge) => edge.from === to && edge.to === from);
+    if (!hasReverse) {
+      nodeEdges.push({
+        from: to,
+        to: from,
+        flow: 0,
+        key: edgeKey(to, from),
+        weight: 50,
+        isScarred: false,
+        scarPenalty: 0,
+        scarHealingCostShen: 50000
+      });
+    }
+  }
+}
+
+function scaleNodePositions(
+  positions: Record<number, { x: number; y: number }>,
+  multiplier: number
+): Record<number, { x: number; y: number }> {
+  const entries = Object.entries(positions);
+  if (entries.length === 0 || multiplier === 1) {
+    return deepClone(positions);
   }
 
+  let sumX = 0;
+  let sumY = 0;
+  for (const [, pos] of entries) {
+    sumX += pos.x;
+    sumY += pos.y;
+  }
+  const pivotX = sumX / entries.length;
+  const pivotY = sumY / entries.length;
+
+  const scaled: Record<number, { x: number; y: number }> = {};
+  for (const [id, pos] of entries) {
+    scaled[Number(id)] = {
+      x: pivotX + (pos.x - pivotX) * multiplier,
+      y: pivotY + (pos.y - pivotY) * multiplier
+    };
+  }
+  return scaled;
+}
+
+export function getTier2SchemaConfig(tier2Id: string) {
   const coreTier2Id = toCoreTier2Id(tier2Id);
   const t2Def = T2_NODE_DEFS_BY_ID.get(coreTier2Id);
   if (!t2Def) return null;
@@ -32,7 +86,7 @@ export function getTier2SchemaConfig(tier2Id: string) {
   const topology = allTopologies[t2Def.topologyId];
   if (!topology) return null;
 
-  const nodeDefinitions = getTopologyNodeDefinitions(topology);
+  const nodeDefinitions = buildTopologyNodeDefinitions(topology);
 
   const nodeEdges: any[] = [];
   const addEdge = (from: number, to: number, weight: number) => {
@@ -57,32 +111,35 @@ export function getTier2SchemaConfig(tier2Id: string) {
       addEdge(e.to, e.from, e.defaultWeight);
     }
   }
+  if (tier2Id === "stomach" || topology.id === "manipura") {
+    ensureRequiredManipuraEdges(nodeEdges);
+  }
 
-  // Keep the full legacy positions set so edge rendering works even when switching topologies.
   return {
     nodeDefinitions: deepClone(nodeDefinitions),
-    initialNodePositions: deepClone(INITIAL_NODE_POSITIONS),
+    initialNodePositions: scaleNodePositions(
+      topologyPositionsByUiId[tier2Id] ?? {},
+      T1_POSITION_DISTANCE_MULTIPLIER
+    ),
     nodeEdges: deepClone(nodeEdges),
-    projectionLinks: deepClone(PROJECTION_LINKS)
+    projectionLinks: deepClone(topology.projectionLinks ?? [])
   };
 }
 
 function loadConfigWithValidation() {
   const activeSchema = getTier2SchemaConfig(BODY_MODE_FOCUS_TIER2_ID);
   const schemaSource = activeSchema ?? {
-    nodeDefinitions: NODE_DEFINITIONS ?? [],
-    initialNodePositions: INITIAL_NODE_POSITIONS ?? {},
-    nodeEdges: NODE_EDGES ?? [],
-    projectionLinks: PROJECTION_LINKS ?? []
+    nodeDefinitions: [],
+    initialNodePositions: {},
+    nodeEdges: [],
+    projectionLinks: []
   };
 
-  // Important: keep the *full* legacy node set so PIXI visuals and UI lookups remain valid
-  // across topology switches. We only swap the topology-specific edge graph.
   const cfg = {
-    nodeDefinitions: NODE_DEFINITIONS ?? [],
-    initialNodePositions: INITIAL_NODE_POSITIONS ?? {},
+    nodeDefinitions: schemaSource.nodeDefinitions,
+    initialNodePositions: schemaSource.initialNodePositions,
     nodeEdges: schemaSource.nodeEdges,
-    projectionLinks: PROJECTION_LINKS ?? []
+    projectionLinks: schemaSource.projectionLinks
   };
   const zApi = window.z ?? window.Zod ?? null;
   if (!zApi) {
@@ -103,6 +160,7 @@ function loadConfigWithValidation() {
     unlockCost: zApi.number(),
     nodeType: zApi.string().optional(),
     isSourceNode: zApi.boolean().optional(),
+    nodeShape: zApi.enum(["circle", "diamond", "square", "star"]).optional(),
     canProject: zApi.boolean().optional(),
     attributeType: zApi.string().optional(),
     attributeTier: zApi.number().optional(),

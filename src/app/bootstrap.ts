@@ -14,11 +14,11 @@ import { createNodeVisual, bindNodeInteractions } from './node-render.ts';
 import { animateParticles } from './particles.ts';
 import { createTier2MarkerVisual, bindEnterTier1, refreshTier2MarkerVisuals } from './tier2-markers.ts';
 import {
-  layoutSymbolSprite, updateSymbolMode, focusBodyModeOnTier2, recenterView, resetBodyView,
-  clampWorldToBodyBounds, onWheelZoom, updateZoomHud, enterTier1ForActiveTier2,
+  layoutSymbolSprite, updateSymbolMode, focusBodyModeOnTier2, recenterView, resetBodyView, focusTier1OnNode,
+  clampWorldToBodyBounds, onWheelZoom, updateZoomHud, enterTier1ForActiveTier2, exitToTier2,
   bindRedrawNetwork, bindFlowPopupFns
 } from './view.ts';
-import { initializeTier2Snapshots } from './snapshots.ts';
+import { initializeTier2Snapshots, applyTier1Snapshot, getOrCreateTier2Snapshot } from './snapshots.ts';
 import { redrawNetwork, updateBonusSummary } from './hud.ts';
 import { startPan, onPanMove, stopPan, selectNode, toggleConnection, tryStartNodeDrag } from './input.ts';
 import { renderFlowPopup, hideFlowPopup, updateFlowPopupPosition, bindToggleConnection } from './flow-popup.ts';
@@ -195,6 +195,7 @@ async function setupPixi() {
 // DOM event listeners
 bindClusterRepairUi();
 document.getElementById("recenter")!.addEventListener("click", recenterView);
+document.getElementById("zoomToT2Btn")!.addEventListener("click", exitToTier2);
 resetBodyViewEl!.addEventListener("click", resetBodyView);
 devModeToggleEl!.addEventListener("click", () => setDeveloperMode(!st.developerMode));
 devSpeedToggleEl!.addEventListener("click", () => setDevSpeedMode(!st.devSpeedEnabled));
@@ -224,7 +225,11 @@ setupPixi().then(() => {
   if (st.symbolModeEnabled) {
     focusBodyModeOnTier2(BODY_MODE_FOCUS_TIER2_ID);
   } else {
-    recenterView();
+    st.activeTier2NodeId = "stomach";
+    st.activeTier1OwnerTier2Id = "stomach";
+    applyTier1Snapshot(getOrCreateTier2Snapshot("stomach"));
+    st.world.scale.set(0.85);
+    focusTier1OnNode(0);
   }
   st.selectedNodeId = -1;
   hideFlowPopup();

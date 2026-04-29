@@ -10,7 +10,7 @@ import {
   nodeById, outgoingEdges, getNodeState, getNodeStatLevels,
   findBlockingUpstreamNode, edgeBetween, getCultivationAttributeInfo
 } from './queries.ts';
-import { getAttributeState, computeNodeRates, formatNodeBonuses } from './mechanics.ts';
+import { getAttributeState, computeNodeRates, computeNodeSiDeltaPerTick, formatNodeBonuses } from './mechanics.ts';
 import { fmt, formatHumanDuration } from './utils.ts';
 import { attachDomTooltips, hideMarkerTooltip } from './tooltips.ts';
 import { candidateProjectionTargets, activateProjection, toggleProjectionBridge } from './projections.ts';
@@ -123,11 +123,14 @@ export function renderFlowPopup(nodeId: number) {
 
   const attr = getAttributeState();
   const rates = computeNodeRates(attr);
+  const siDeltaByNode = computeNodeSiDeltaPerTick(attr);
   const nodeRate = rates[nodeId] ?? { in: 0, out: 0, net: 0 };
+  const siDeltaPerTick = siDeltaByNode[nodeId] ?? 0;
+  const remainingToUnlock = Math.max(0, node.unlockCost - node.si);
   const etaSec = node.unlocked
     ? 0
-    : ((node.unlockCost - node.si) > 0 && nodeRate.net > 0
-      ? (node.unlockCost - node.si) / nodeRate.net / TICKS_PER_SECOND
+    : ((node.unlockCost - node.si) > 0 && siDeltaPerTick > 0
+      ? (node.unlockCost - node.si) / siDeltaPerTick / TICKS_PER_SECOND
       : Infinity);
   const formatSiPerSec = (v: number) => stateKey === "locked" && v === 0 ? "—" : `${fmt(v)} SI/s`;
   const etaLabel = node.unlocked ? "—" : (Number.isFinite(etaSec) ? formatHumanDuration(etaSec) : "blocked");
@@ -139,10 +142,11 @@ export function renderFlowPopup(nodeId: number) {
     <div class="popup-section-title">概覽 · Overview</div>
     <div class="popup-keyvals">
       <div data-tooltip="${escapeHtml(info.description)}"><span>Path</span>${escapeHtml(info.name)} T${node.attributeTier ?? "-"}</div>
-      <div><span>SI</span>${fmt(node.si)} / ${node.unlockCost}</div>
+      <div><span>${node.unlocked ? "SI" : "Needed"}</span>${node.unlocked ? fmt(node.si) : fmt(remainingToUnlock)}${node.unlocked ? "" : ` / ${node.unlockCost}`} SI</div>
       <div><span>In</span>${formatSiPerSec(nodeRate.in * TICKS_PER_SECOND)}</div>
       <div><span>Out</span>${formatSiPerSec(nodeRate.out * TICKS_PER_SECOND)}</div>
       <div><span>Net</span>${stateKey === "locked" && nodeRate.net === 0 ? "—" : `${fmt(nodeRate.net * TICKS_PER_SECOND)} SI/s`}</div>
+      <div><span>ΔSI</span>${stateKey === "locked" && siDeltaPerTick <= 0 ? "—" : `${fmt(siDeltaPerTick * TICKS_PER_SECOND)} SI/s`}</div>
       <div><span>時至突破 ETA</span>${etaLabel}</div>
     </div>`;
   flowPopupEl.appendChild(overviewBlock);

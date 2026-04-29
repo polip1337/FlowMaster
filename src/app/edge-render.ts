@@ -1,9 +1,7 @@
 // FlowMaster: edge (meridian channel) rendering — PIXI Graphics only.
 
-import { TICKS_PER_SECOND } from './constants.ts';
 import { st, edgeVisuals } from './state.ts';
-import { makeSerifText, cubicBezierPoint, computeEdgeBezier, drawDashedCircle, fmt } from './utils.ts';
-import { getEdgeTransferPerTick } from './mechanics.ts';
+import { makeSerifText, cubicBezierPoint, computeEdgeBezier, drawDashedCircle } from './utils.ts';
 
 export function createEdgeVisual(edge: any) {
   const line = new PIXI.Graphics();
@@ -156,13 +154,5 @@ export function redrawEdge(edge: any) {
     });
   }
 
-  if (edge.flow > 0) {
-    const midpoint = cubicBezierPoint(start, c1, c2, end, 0.5);
-    const transferPerSecond = getEdgeTransferPerTick(edge) * TICKS_PER_SECOND;
-    visual.label.text = `${edge.flow}%  ${fmt(transferPerSecond)} SI/s`;
-    visual.label.style.fill = intensity === "burst" ? 0x6b3d04 : 0x2a2318;
-    visual.label.style.fontSize = 10;
-    visual.label.style.letterSpacing = 0.5;
-    visual.label.position.set(midpoint.x, midpoint.y + 16);
-  }
+  // Edge stats are surfaced by the minimized flow-control chip.
 }

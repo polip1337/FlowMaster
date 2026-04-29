@@ -2,21 +2,76 @@
 
 import {
   STATE_LOCKED, STATE_ACTIVE, STATE_RESONANT, STATE_META,
-  STAT_ORDER, STAT_COLOR_HEX, STAT_CHAR,
+  STAT_COLOR_HEX, STAT_CHAR,
   NODE_ORB_RADIUS, NODE_ARC_RADIUS, NODE_INNER_DASHED_RADIUS,
-  NODE_RADAR_MAX_RADIUS, NODE_RIPPLE_RADII, UNLOCK_FADE_TICKS,
-  TICKS_PER_SECOND
+  UNLOCK_FADE_TICKS, TICKS_PER_SECOND
 } from './constants.ts';
 import { nodePositions } from './config.ts';
 import { st, nodeVisuals, unlockFadeProgress } from './state.ts';
 import { makeSerifText, drawDashedCircle, fmt, formatDuration } from './utils.ts';
 import { getNodeState, getNodeStatLevels, topStats } from './queries.ts';
-import { getAttributeState, computeNodeRates } from './mechanics.ts';
+import { getAttributeState, computeNodeSiDeltaPerTick } from './mechanics.ts';
 import {
   mixEnergyOrbColor,
   drawT1QualityRing,
   drawRepairPulse
 } from './cluster-view.ts';
+
+let cachedRatesTick = -1;
+let cachedDeltaByNode: Record<number, number> = {};
+
+function currentSiDeltaByNode() {
+  if (cachedRatesTick !== st.tickCounter) {
+    const attr = getAttributeState();
+    cachedDeltaByNode = computeNodeSiDeltaPerTick(attr);
+    cachedRatesTick = st.tickCounter;
+  }
+  return cachedDeltaByNode;
+}
+
+function drawOctagonPath(g: any, R: number): void {
+  for (let i = 0; i < 8; i += 1) {
+    const angle = -Math.PI / 2 + (Math.PI / 4) * i;
+    if (i === 0) g.moveTo(Math.cos(angle) * R, Math.sin(angle) * R);
+    else g.lineTo(Math.cos(angle) * R, Math.sin(angle) * R);
+  }
+  g.closePath();
+}
+
+function drawNodeCoreShape(g: any, shape: string | undefined, radius: number): void {
+  const r = radius;
+  if (shape === "diamond") {
+    g.moveTo(0, -r);
+    g.lineTo(r, 0);
+    g.lineTo(0, r);
+    g.lineTo(-r, 0);
+    g.lineTo(0, -r);
+    return;
+  }
+  if (shape === "square") {
+    g.rect(-r, -r, r * 2, r * 2);
+    return;
+  }
+  if (shape === "star") {
+    const outer = r;
+    const inner = r * 0.46;
+    const start = -Math.PI / 2;
+    g.moveTo(Math.cos(start) * outer, Math.sin(start) * outer);
+    for (let i = 1; i <= 10; i += 1) {
+      const angle = start + (Math.PI / 5) * i;
+      const useOuter = i % 2 === 0;
+      const len = useOuter ? outer : inner;
+      g.lineTo(Math.cos(angle) * len, Math.sin(angle) * len);
+    }
+    g.lineTo(Math.cos(start) * outer, Math.sin(start) * outer);
+    return;
+  }
+  g.circle(0, 0, r);
+}
+
+function isIoNode(node: any): boolean {
+  return node?.nodeType === "IO_IN" || node?.nodeType === "IO_OUT" || node?.nodeType === "IO_BIDIR";
+}
 
 export function createNodeVisual(node: any) {
   const container = new PIXI.Container();
@@ -44,9 +99,9 @@ export function createNodeVisual(node: any) {
   const damageOverlay = new PIXI.Graphics();
   const corona = new PIXI.Graphics();
 
-  const watermark = makeSerifText("", 46, 0x8b7a5a, { cjk: true });
+  const watermark = makeSerifText("", 24, 0x8b7a5a, { cjk: true });
   watermark.anchor.set(0.5);
-  const siText = makeSerifText("", 15, 0x2a2318, { bold: true });
+  const siText = makeSerifText("", 12, 0x2a2318, { bold: true });
   siText.anchor.set(0.5);
   const netText = makeSerifText("", 11, 0x2a6a4a);
   netText.anchor.set(0.5);
@@ -54,7 +109,7 @@ export function createNodeVisual(node: any) {
   etaText.anchor.set(0.5);
   const nameText = makeSerifText(node.name, 13, 0x2a2318, { bold: true, letterSpacing: 1.5 });
   nameText.anchor.set(0.5);
-  const stateText = makeSerifText("", 11, 0x8b7a5a, { cjk: true, letterSpacing: 1 });
+  const stateText = makeSerifText("", 11, 0x8b7a5a, { bold: true, letterSpacing: 1.5 });
   stateText.anchor.set(0.5);
 
   const calloutLayer = new PIXI.Container();
@@ -100,17 +155,32 @@ export function redrawNode(node: any) {
 
   const state = getNodeState(node);
   const meta = STATE_META[state];
+  const ioNode = isIoNode(node);
+  const ioPrimaryStroke = 0x2f78d6;
+  const ioArcColor = 0x4a9cff;
+  const ioTextColor = 0x1f4f94;
+  const primaryStroke = ioNode ? ioPrimaryStroke : meta.primaryStroke;
+  const arcColor = ioNode ? ioArcColor : meta.arcColor;
+  const textColor = ioNode ? ioTextColor : meta.textColor;
   const levels = getNodeStatLevels(node);
   const selected = node.id === st.selectedNodeId;
-  const hovered = node.id === st.hoveredTargetNodeId;
+  const deltaByNode = currentSiDeltaByNode();
+  const siDeltaPerTick = deltaByNode[node.id] ?? 0;
 
-  const rippleCount = state === STATE_RESONANT ? 3 : 2;
-  const rippleAlphaBase = state === STATE_RESONANT ? 0.38 : state === STATE_ACTIVE ? 0.3 : 0.22;
+  const OCT_R = 65;
+  const OCT_RI = 61;
+
+  // Outer octagon frame — cream fill, double dark-brown border
   visual.ripples.clear();
-  for (let i = 0; i < rippleCount; i += 1) {
-    const r = NODE_RIPPLE_RADII[i] ?? (NODE_RIPPLE_RADII[NODE_RIPPLE_RADII.length - 1] + (i * 8));
-    visual.ripples.circle(0, 0, r);
-    visual.ripples.stroke({ width: 0.6 - i * 0.08, color: meta.primaryStroke, alpha: rippleAlphaBase - i * 0.07 });
+  drawOctagonPath(visual.ripples, OCT_R);
+  visual.ripples.fill({ color: 0xe8dfc0, alpha: 0.97 });
+  drawOctagonPath(visual.ripples, OCT_R);
+  visual.ripples.stroke({ width: 2.8, color: 0x3d2008, alpha: 0.95 });
+  drawOctagonPath(visual.ripples, OCT_RI);
+  visual.ripples.stroke({ width: 1.2, color: 0x6b4010, alpha: 0.7 });
+  if (selected) {
+    drawOctagonPath(visual.ripples, OCT_R + 3);
+    visual.ripples.stroke({ width: 1.5, color: primaryStroke, alpha: 0.85 });
   }
 
   drawT1QualityRing(visual.qualityRing, node, st.tickCounter);
@@ -124,81 +194,68 @@ export function redrawNode(node: any) {
       ? Math.min(1, node.si / node.unlockCost)
       : (node.unlocked ? 1 : 0);
 
-  if (state === STATE_LOCKED) {
-    drawDashedCircle(visual.arcTrack, 0, 0, NODE_ARC_RADIUS + 6, 0.18, 0.12, {
-      width: 0.6, color: meta.primaryStroke, alpha: 0.6
-    });
-  }
+  // Dark ring track that the progress arc rides on
   visual.arcTrack.circle(0, 0, NODE_ARC_RADIUS);
-  visual.arcTrack.stroke({ width: 1.4, color: meta.primaryStroke, alpha: state === STATE_LOCKED ? 0.45 : 0.55 });
+  visual.arcTrack.stroke({ width: 7, color: 0x3d2008, alpha: 0.22 });
 
   if (maxProgress > 0) {
     const startA = -Math.PI / 2;
     const endA = startA + Math.PI * 2 * Math.max(0.001, maxProgress);
     visual.arcFill.arc(0, 0, NODE_ARC_RADIUS, startA, endA);
-    visual.arcFill.stroke({ width: state === STATE_RESONANT ? 4 : 2.4, color: meta.arcColor, alpha: 1, cap: "round" });
+    visual.arcFill.stroke({ width: state === STATE_RESONANT ? 9 : 7, color: arcColor, alpha: 1, cap: "round" });
   }
   if (state === STATE_RESONANT) {
-    drawDashedCircle(visual.arcFill, 0, 0, NODE_ARC_RADIUS - 6, 0.12, 0.08, {
+    drawDashedCircle(visual.arcFill, 0, 0, NODE_ARC_RADIUS - 8, 0.12, 0.08, {
       width: 1.2, color: 0xe8a830, alpha: 0.75
     });
   }
 
+  // Cardinal diamond markers at the 4 vertex tips of the octagon (N/E/S/W)
   visual.compassTicks.clear();
-  for (let i = 0; i < 8; i += 1) {
-    const angle = -Math.PI / 2 + (Math.PI / 4) * i;
-    const isCardinal = i % 2 === 0;
-    const inner = NODE_ARC_RADIUS - (isCardinal ? 5 : 3);
-    const outer = NODE_ARC_RADIUS + (isCardinal ? 4 : 2);
-    visual.compassTicks.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
-    visual.compassTicks.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
-    visual.compassTicks.stroke({ width: isCardinal ? 0.9 : 0.6, color: meta.primaryStroke, alpha: 0.75 });
+  const dS = 6.5;
+  for (let i = 0; i < 4; i += 1) {
+    const angle = -Math.PI / 2 + (Math.PI / 2) * i;
+    const nx = Math.cos(angle);
+    const ny = Math.sin(angle);
+    const tx = -Math.sin(angle);
+    const ty = Math.cos(angle);
+    const cx = nx * OCT_R;
+    const cy = ny * OCT_R;
+    visual.compassTicks.moveTo(cx + nx * dS, cy + ny * dS);
+    visual.compassTicks.lineTo(cx + tx * dS, cy + ty * dS);
+    visual.compassTicks.lineTo(cx - nx * dS, cy - ny * dS);
+    visual.compassTicks.lineTo(cx - tx * dS, cy - ty * dS);
+    visual.compassTicks.closePath();
+    visual.compassTicks.fill({ color: 0x3d2008, alpha: 0.92 });
+    visual.compassTicks.stroke({ width: 0.7, color: 0x8b6a2a, alpha: 0.75 });
   }
 
+  // Subtle cross-hair lines inside the inner circle
   visual.statDots.clear();
-  for (let i = 0; i < STAT_ORDER.length; i += 1) {
-    const stat = STAT_ORDER[i] as keyof typeof levels & keyof typeof STAT_COLOR_HEX & keyof typeof STAT_CHAR;
-    const angle = -Math.PI / 2 + (Math.PI * 2 / 5) * i;
-    const dx = Math.cos(angle) * NODE_ARC_RADIUS;
-    const dy = Math.sin(angle) * NODE_ARC_RADIUS;
-    const dotLevel = levels[stat];
-    let radius: number, fill: number, strokeColor: number, strokeAlpha: number;
-    if (state === STATE_LOCKED) {
-      radius = 2.2; fill = 0xc8b898; strokeColor = 0x8b7a5a; strokeAlpha = 0.45;
-    } else if (state === STATE_RESONANT) {
-      radius = 2.8 + dotLevel * 1.6; fill = STAT_COLOR_HEX[stat]; strokeColor = 0xc87a14; strokeAlpha = 0.95;
-    } else {
-      radius = 2.4 + dotLevel * 1.3; fill = STAT_COLOR_HEX[stat]; strokeColor = 0x2a6a4a; strokeAlpha = 0.6;
-    }
-    visual.statDots.circle(dx, dy, radius);
-    visual.statDots.fill({ color: fill, alpha: state === STATE_LOCKED ? 0.8 : 0.95 });
-    visual.statDots.stroke({ width: 0.7, color: strokeColor, alpha: strokeAlpha });
-  }
+  const crossR = NODE_ORB_RADIUS * 0.72;
+  const crossColor = 0x8b7a5a;
+  visual.statDots.moveTo(-crossR, 0);
+  visual.statDots.lineTo(crossR, 0);
+  visual.statDots.stroke({ width: 0.6, color: crossColor, alpha: 0.22 });
+  visual.statDots.moveTo(0, -crossR);
+  visual.statDots.lineTo(0, crossR);
+  visual.statDots.stroke({ width: 0.6, color: crossColor, alpha: 0.22 });
+  visual.statDots.moveTo(-crossR * 0.71, -crossR * 0.71);
+  visual.statDots.lineTo(crossR * 0.71, crossR * 0.71);
+  visual.statDots.stroke({ width: 0.4, color: crossColor, alpha: 0.13 });
+  visual.statDots.moveTo(crossR * 0.71, -crossR * 0.71);
+  visual.statDots.lineTo(-crossR * 0.71, crossR * 0.71);
+  visual.statDots.stroke({ width: 0.4, color: crossColor, alpha: 0.13 });
 
   visual.wedges.clear();
-  if (state !== STATE_LOCKED) {
-    const wedgeAlpha = state === STATE_RESONANT ? 0.28 : 0.18;
-    for (let i = 0; i < STAT_ORDER.length; i += 1) {
-      const stat = STAT_ORDER[i] as keyof typeof levels & keyof typeof STAT_COLOR_HEX;
-      const level = state === STATE_RESONANT ? Math.max(0.7, levels[stat]) : levels[stat];
-      if (level <= 0.02) continue;
-      const start = -Math.PI / 2 - Math.PI / 5 + (Math.PI * 2 / 5) * i;
-      const end = start + (Math.PI * 2 / 5);
-      const radius = NODE_RADAR_MAX_RADIUS * level;
-      visual.wedges.moveTo(0, 0);
-      visual.wedges.arc(0, 0, radius, start, end);
-      visual.wedges.lineTo(0, 0);
-      visual.wedges.fill({ color: STAT_COLOR_HEX[stat], alpha: wedgeAlpha });
-    }
-  }
 
   visual.orb.clear();
   visual.orb.circle(0, 0, NODE_ORB_RADIUS);
   const energyMix = mixEnergyOrbColor(node);
   const orbFill = energyMix != null && (node.unlocked || node.id === 0) ? energyMix : meta.orbFill;
-  visual.orb.fill({ color: orbFill, alpha: 0.95 });
-  const orbStrokeWidth = selected ? 2.2 : hovered ? 1.8 : 1.2;
-  visual.orb.stroke({ width: orbStrokeWidth, color: selected ? 0x8b6914 : meta.primaryStroke, alpha: 0.9 });
+  visual.orb.fill({ color: orbFill, alpha: 0.97 });
+  visual.orb.circle(0, 0, NODE_ORB_RADIUS);
+  visual.orb.stroke({ width: 1.4, color: 0x3d2008, alpha: 0.38 });
   const shenPool = Math.max(0, Number(node.energyShen) || 0);
   const qiPool = Math.max(0, Number(node.energyQi) || 0);
   const shenRatio = shenPool / Math.max(1, shenPool + qiPool);
@@ -215,7 +272,7 @@ export function redrawNode(node: any) {
 
   visual.orbDashed.clear();
   drawDashedCircle(visual.orbDashed, 0, 0, NODE_INNER_DASHED_RADIUS, 0.14, 0.1, {
-    width: 0.6, color: meta.primaryStroke, alpha: 0.55
+    width: 0.6, color: primaryStroke, alpha: 0.32
   });
 
   visual.burstRays.clear();
@@ -261,60 +318,51 @@ export function redrawNode(node: any) {
     visual.damageOverlay.stroke({ width: fractureWidth, color: fractureColor, alpha: 0.75 });
   }
 
+  // Prominent CJK state character inside inner circle
+  visual.watermark.text = meta.char;
+  visual.watermark.alpha = state === STATE_LOCKED ? 0.38 : 0.88;
+  visual.watermark.style.fill = primaryStroke;
+  visual.watermark.position.set(0, -10);
+
+  // State label just below the CJK char
+  visual.stateText.text = meta.en;
+  visual.stateText.style.fill = primaryStroke;
+  visual.stateText.position.set(0, 6);
+
+  // SI value below state label
+  const netPerSecond = siDeltaPerTick * TICKS_PER_SECOND;
   if (state === STATE_LOCKED) {
-    visual.watermark.text = "";
+    const remaining = Math.max(0, node.unlockCost - node.si);
+    visual.siText.text = `${fmt(remaining)} SI needed`;
   } else {
-    visual.watermark.text = state === STATE_RESONANT ? "鳴" : "氣";
-    visual.watermark.alpha = state === STATE_RESONANT ? 0.2 : 0.14;
-    visual.watermark.style.fill = meta.primaryStroke;
+    visual.siText.text = `${fmt(node.si)} SI`;
   }
-  visual.watermark.position.set(0, 1);
+  visual.siText.style.fill = textColor;
+  visual.siText.position.set(0, 20);
 
-  const attr = getAttributeState();
-  const rates = computeNodeRates(attr);
-  const nodeRate = rates[node.id] ?? { in: 0, out: 0, net: 0 };
-  const netPerSec = nodeRate.net * TICKS_PER_SECOND;
-  const remaining = Math.max(0, node.unlockCost - node.si);
-  const etaSec = !node.unlocked && nodeRate.net > 0
-    ? remaining / nodeRate.net / TICKS_PER_SECOND
-    : Infinity;
+  // Current SI delta line
+  visual.netText.text = `${netPerSecond >= 0 ? "+" : ""}${fmt(netPerSecond)} SI/s`;
+  visual.netText.style.fill = textColor;
+  visual.netText.position.set(0, 33);
 
-  visual.siText.text = fmt(node.si);
-  visual.siText.style.fill = meta.textColor;
-  visual.siText.position.set(0, -10);
-
+  // ETA — shown only while the node is locked
   if (state === STATE_LOCKED) {
-    const pct = node.unlockCost > 0 ? (node.si / node.unlockCost) * 100 : 0;
-    visual.netText.text = `${pct.toFixed(0)}% 突破`;
-    visual.netText.style.fill = meta.subTextColor;
-  } else if (state === STATE_RESONANT) {
-    const surge = 1 + Math.min(3.5, Math.max(0.2, netPerSec / 10));
-    visual.netText.text = `共鳴 ×${surge.toFixed(1)}`;
-    visual.netText.style.fill = meta.subTextColor;
+    const remaining = Math.max(0, node.unlockCost - node.si);
+    const etaSec = remaining > 0 && siDeltaPerTick > 0
+      ? remaining / siDeltaPerTick / TICKS_PER_SECOND
+      : Number.POSITIVE_INFINITY;
+    visual.etaText.text = Number.isFinite(etaSec) ? `ETA ${formatDuration(etaSec)}` : "ETA blocked";
+    visual.etaText.style.fill = textColor;
+    visual.etaText.position.set(0, 45);
   } else {
-    const sign = netPerSec >= 0 ? "+" : "";
-    visual.netText.text = `${sign}${netPerSec.toFixed(2)} SI/s`;
-    visual.netText.style.fill = meta.subTextColor;
+    visual.etaText.text = "";
+    visual.etaText.position.set(0, 0);
   }
-  visual.netText.position.set(0, 5);
 
-  if (state === STATE_LOCKED) {
-    visual.etaText.text = Number.isFinite(etaSec) ? `ETA ${formatDuration(etaSec)}` : "blocked";
-  } else if (state === STATE_RESONANT) {
-    visual.etaText.text = "BURST";
-  } else {
-    visual.etaText.text = `通 ACTIVE`;
-  }
-  visual.etaText.style.fill = 0x6b5a3e;
-  visual.etaText.position.set(0, 18);
-
-  visual.stateText.text = `${meta.char} · ${meta.en}`;
-  visual.stateText.style.fill = meta.primaryStroke;
-  visual.stateText.position.set(0, -NODE_RIPPLE_RADII[rippleCount - 1] - 10);
-
+  // Node name label below the octagon
   visual.nameText.text = node.name;
   visual.nameText.style.fill = 0x2a2318;
-  visual.nameText.position.set(0, NODE_RIPPLE_RADII[rippleCount - 1] + 12);
+  visual.nameText.position.set(0, OCT_R + 14);
 
   for (const callout of visual.callouts) {
     callout.line.clear();
