@@ -10,6 +10,16 @@ import { st, activeProjections } from './state.ts';
 import { nodeById, sumUnlockedBonus, edgeFlow, isNodeAvailableForOutflow } from './queries.ts';
 import { fmtPercent } from './utils.ts';
 
+function isIoNode(node: any): boolean {
+  return node?.nodeType === "IO_IN" || node?.nodeType === "IO_OUT" || node?.nodeType === "IO_BIDIR";
+}
+
+function getPrimaryGenerationNode() {
+  return nodeData.find((n) => n.unlocked && n.isSourceNode && !isIoNode(n))
+    ?? nodeData.find((n) => n.unlocked && !isIoNode(n))
+    ?? nodeById(0);
+}
+
 export function getAttributeState() {
   const flowEfficiency = sumUnlockedBonus("flowEfficiency");
   const projectionRatePercent = sumUnlockedBonus("projectionRatePercent");
@@ -68,7 +78,7 @@ export function getAttributeState() {
 }
 
 export function getProjectionTransferPerTick(attr: any, projection: any) {
-  const sourceNode = nodeById(0);
+  const sourceNode = getPrimaryGenerationNode();
   const fromNode = nodeById(projection.from);
   if (!sourceNode || !fromNode) return 0;
   const surgeProjectionBonus = st.sunSurgeTicks > 0 ? 0.2 : 0;
@@ -82,7 +92,7 @@ export function getProjectionTransferPerTick(attr: any, projection: any) {
 export function getEdgeTransferPerTick(edge: any, attr: any = null) {
   if (edge.flow <= 0) return 0;
   if (!isNodeAvailableForOutflow(edge.from)) return 0;
-  const sourceNode = nodeById(0);
+  const sourceNode = getPrimaryGenerationNode();
   const fromNode = nodeById(edge.from);
   if (!sourceNode || !fromNode) return 0;
   const state = attr ?? getAttributeState();

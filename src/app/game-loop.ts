@@ -31,13 +31,25 @@ import { stepPhase29UiSystems, updatePhase29Panels } from './phase29-panels.ts';
 import { resetTutorial, stepTutorialSystem } from "./tutorial.ts";
 import { updateOfflineTickBankHeartbeat } from "./offline-ticks.ts";
 
+function isIoNode(node: any): boolean {
+  return node?.nodeType === "IO_IN" || node?.nodeType === "IO_OUT" || node?.nodeType === "IO_BIDIR";
+}
+
+function getPrimaryGenerationNode() {
+  return nodeData.find((n) => n.unlocked && n.isSourceNode && !isIoNode(n))
+    ?? nodeData.find((n) => n.unlocked && !isIoNode(n))
+    ?? nodeById(0);
+}
+
 export function processTick() {
   if (st.gameWon) return;
   const attr = getAttributeState();
-  const sourceNode = nodeById(0);
+  const sourceNode = getPrimaryGenerationNode();
   const surgeProjectionBonus = st.sunSurgeTicks > 0 ? 0.2 : 0;
   const generation = SOURCE_RATE_PER_TICK * (1 + attr.generationPercent) + attr.generationFlatPerTick;
-  sourceNode.si += generation;
+  if (!isIoNode(sourceNode)) {
+    sourceNode.si += generation;
+  }
 
   let earthInflowThisTick = 0;
   let apexInflowThisTick = 0;
@@ -115,7 +127,7 @@ export function processTick() {
 
   let unlockedThisTick = false;
   for (const node of nodeData) {
-    if (node.unlocked || node.id === 0) continue;
+    if (node.unlocked || node.id === sourceNode.id) continue;
     if (node.si >= node.unlockCost) {
       node.unlocked = true;
       unlockedThisTick = true;

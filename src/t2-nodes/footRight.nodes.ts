@@ -1,8 +1,14 @@
-﻿import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
+﻿import { footTopology } from "../data/topologies/foot.ts";
+import { buildNodeSchema } from "./spec.ts";
 
-export const footRightSchema = {
-  nodeDefinitions: JSON.parse(JSON.stringify(NODE_DEFINITIONS)),
-  initialNodePositions: JSON.parse(JSON.stringify(INITIAL_NODE_POSITIONS)),
-  nodeEdges: JSON.parse(JSON.stringify(NODE_EDGES)),
-  projectionLinks: JSON.parse(JSON.stringify(PROJECTION_LINKS))
+export const footRightTopology = footTopology;
+export const footRightPositions = {
+  0: { x: 490, y: 320 },
+  1: { x: 380, y: 320 },
+  2: { x: 270, y: 320 },
+  3: { x: 160, y: 320 },
+  4: { x: 270, y: 430 },
+  5: { x: 50, y: 300 }
 };
+
+export const footRightSchema = buildNodeSchema(footRightTopology, footRightPositions);

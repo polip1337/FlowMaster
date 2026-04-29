@@ -26,6 +26,8 @@ export interface T1ClusterTopology {
   id: string;
   nodeCount: number;
   nodes: T1NodeDef[];
+  /** UI-facing data for nodes belonging to this topology (names, costs, bonuses). */
+  nodeDefinitions?: Array<Record<string, unknown>>;
   /** Logical undirected links; clusterFactory adds both directed edges unless `directed: true`. */
   edges: T1EdgeDef[];
   /** Optional unlockable adjacency-preserving shortcuts (TASK-168). */

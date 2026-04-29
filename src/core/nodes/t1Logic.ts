@@ -124,7 +124,7 @@ export function applyT1Flows(nodes: Map<number, T1Node>, flows: FlowResult[]): v
 }
 
 export function generateSourceEnergy(node: T1Node): ReturnType<typeof emptyPool> {
-  if (node.isSourceNode) {
+  if (node.isSourceNode && node.type === T1NodeType.INTERNAL) {
     return {
       ...emptyPool(),
       [EnergyType.Qi]: T1_BASE_SOURCE_RATE * qualityMultiplier(node.quality)
@@ -146,8 +146,6 @@ export function updateT1States(nodes: Map<number, T1Node>): T1StateChangeEvent[]
 
   for (const node of nodes.values()) {
     if (node.state === T1NodeState.LOCKED) {
-      const isIo = node.type === T1NodeType.IO_IN || node.type === T1NodeType.IO_OUT || node.type === T1NodeType.IO_BIDIR;
-      const ioSeedThreshold = node.capacity * 0.1; // IO ports unlock when meridian flow has delivered enough energy.
       const predecessorsReady =
         node.predecessorIds.length > 0
           ? node.predecessorIds.every((predId) => {
@@ -159,10 +157,7 @@ export function updateT1States(nodes: Map<number, T1Node>): T1StateChangeEvent[]
               return predecessor?.state === T1NodeState.ACTIVE;
             });
 
-      const hasEnergySeed = totalEnergy(node.energy) >= ioSeedThreshold;
-      const unlockReady = predecessorsReady || (isIo && hasEnergySeed);
-
-      if (unlockReady) {
+      if (predecessorsReady) {
         events.push({
           nodeId: node.id,
           from: T1NodeState.LOCKED,

@@ -1,8 +1,14 @@
-﻿import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
+﻿import { kneeTopology } from "../data/topologies/knee.ts";
+import { buildNodeSchema } from "./spec.ts";
 
-export const kneeRightSchema = {
-  nodeDefinitions: JSON.parse(JSON.stringify(NODE_DEFINITIONS)),
-  initialNodePositions: JSON.parse(JSON.stringify(INITIAL_NODE_POSITIONS)),
-  nodeEdges: JSON.parse(JSON.stringify(NODE_EDGES)),
-  projectionLinks: JSON.parse(JSON.stringify(PROJECTION_LINKS))
+export const kneeRightTopology = kneeTopology;
+export const kneeRightPositions = {
+  0: { x: 390, y: 110 },
+  1: { x: 390, y: 220 },
+  2: { x: 390, y: 330 },
+  3: { x: 280, y: 330 },
+  4: { x: 170, y: 330 },
+  5: { x: 60, y: 330 }
 };
+
+export const kneeRightSchema = buildNodeSchema(kneeRightTopology, kneeRightPositions);

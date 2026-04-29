@@ -4,8 +4,6 @@ import { muladharaTopology } from "../../../src/data/topologies/muladhara";
 import { svadhisthanaTopology } from "../../../src/data/topologies/svadhisthana";
 import { T1NodeState } from "../../../src/core/nodes/T1Types";
 import { T1NodeType } from "../../../src/core/nodes/T1Types";
-import { updateT1States } from "../../../src/core/nodes/t1Logic";
-import { EnergyType } from "../../../src/core/energy/EnergyType";
 
 describe("createT2Cluster", () => {
   it("Muladhara: 12 nodes, source UNSEALED, others LOCKED", () => {
@@ -58,18 +56,4 @@ describe("createT2Cluster", () => {
     }
   });
 
-  it("IO nodes can UNSEAL from energy seed (no active predecessors)", () => {
-    const { nodes } = createT2Cluster(svadhisthanaTopology, "SVADHISTHANA");
-    const io = [...nodes.values()].find((n) => n.type === T1NodeType.IO_BIDIR) ?? null;
-    expect(io).toBeTruthy();
-    if (!io) return;
-
-    expect(io.state).toBe(T1NodeState.LOCKED);
-    // Below UNSEALED→ACTIVE threshold (capacity * 0.3), but above IO seed threshold (capacity * 0.1).
-    io.energy[EnergyType.Qi] = io.capacity * 0.2;
-
-    const events = updateT1States(nodes);
-    expect(events.some((e) => e.nodeId === io.id && e.to === T1NodeState.UNSEALED)).toBe(true);
-    expect(io.state).toBe(T1NodeState.UNSEALED);
-  });
 });

@@ -4,15 +4,27 @@
 import { BODY_MODE_FOCUS_TIER2_ID } from './constants.ts';
 import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
 import { allTopologies } from '../data/topologies/index.ts';
+import { getTopologyNodeDefinitions } from '../data/topologies/node-definitions.ts';
 import { T2_NODE_DEFS_BY_ID } from '../data/t2NodeDefs.ts';
 import { toCoreTier2Id } from '../uiCore/t2UiMapping.ts';
 import { edgeKey } from '../core/nodes/T1Edge.ts';
+import { TIER2_NODE_SCHEMAS } from '../t2-nodes/schemas.ts';
 
 export function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
 export function getTier2SchemaConfig(tier2Id: string) {
+  const schemaOverride = TIER2_NODE_SCHEMAS[tier2Id];
+  if (schemaOverride) {
+    return {
+      nodeDefinitions: deepClone(schemaOverride.nodeDefinitions),
+      initialNodePositions: deepClone(schemaOverride.initialNodePositions),
+      nodeEdges: deepClone(schemaOverride.nodeEdges),
+      projectionLinks: deepClone(schemaOverride.projectionLinks)
+    };
+  }
+
   const coreTier2Id = toCoreTier2Id(tier2Id);
   const t2Def = T2_NODE_DEFS_BY_ID.get(coreTier2Id);
   if (!t2Def) return null;
@@ -20,8 +32,7 @@ export function getTier2SchemaConfig(tier2Id: string) {
   const topology = allTopologies[t2Def.topologyId];
   if (!topology) return null;
 
-  const topologyNodeIds = new Set(topology.nodes.map((n) => n.id));
-  const nodeDefinitions = NODE_DEFINITIONS.filter((n: any) => topologyNodeIds.has(n.id));
+  const nodeDefinitions = getTopologyNodeDefinitions(topology);
 
   const nodeEdges: any[] = [];
   const addEdge = (from: number, to: number, weight: number) => {
@@ -90,6 +101,8 @@ function loadConfigWithValidation() {
     unlocked: zApi.boolean(),
     si: zApi.number(),
     unlockCost: zApi.number(),
+    nodeType: zApi.string().optional(),
+    isSourceNode: zApi.boolean().optional(),
     canProject: zApi.boolean().optional(),
     attributeType: zApi.string().optional(),
     attributeTier: zApi.number().optional(),

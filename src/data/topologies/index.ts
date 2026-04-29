@@ -1,56 +1,57 @@
 export type { T1ClusterTopology, T1EdgeDef, T1NodeDef, TopologySpecialNode } from "./types";
-export { muladharaTopology } from "./muladhara";
-export { svadhisthanaTopology } from "./svadhisthana";
-export { manipuraTopology } from "./manipura";
-export { anahataTopology } from "./anahata";
-export { vishuddhaTopology } from "./vishuddha";
-export { ajnaTopology } from "./ajna";
-export { sahasraraTopology } from "./sahasrara";
-export { binduTopology } from "./bindu";
+export { spineTopology as muladharaTopology } from "../../t2-nodes/spine.nodes.ts";
+export { dantianTopology as svadhisthanaTopology } from "../../t2-nodes/dantian.nodes.ts";
+export { stomachTopology as manipuraTopology } from "../../t2-nodes/stomach.nodes.ts";
+export { heartTopology as anahataTopology } from "../../t2-nodes/heart.nodes.ts";
+export { qiTopology as vishuddhaTopology } from "../../t2-nodes/qi.nodes.ts";
+export { intentTopology as ajnaTopology } from "../../t2-nodes/intent.nodes.ts";
+export { mindTopology as sahasraraTopology } from "../../t2-nodes/mind.nodes.ts";
+export { crownTopology as binduTopology } from "../../t2-nodes/crown.nodes.ts";
 export { shoulderTopology } from "./shoulder";
 export { hipTopology } from "./hip";
-export { kneeTopology } from "./knee";
+export { kneeLeftTopology as kneeTopology } from "../../t2-nodes/kneeLeft.nodes.ts";
 export { elbowTopology } from "./elbow";
 export { wristTopology } from "./wrist";
 export { handTopology } from "./hand";
 export { ankleTopology } from "./ankle";
-export { footTopology } from "./foot";
+export { footLeftTopology as footTopology } from "../../t2-nodes/footLeft.nodes.ts";
 
-import { muladharaTopology } from "./muladhara";
-import { svadhisthanaTopology } from "./svadhisthana";
-import { manipuraTopology } from "./manipura";
-import { anahataTopology } from "./anahata";
-import { vishuddhaTopology } from "./vishuddha";
-import { ajnaTopology } from "./ajna";
-import { sahasraraTopology } from "./sahasrara";
-import { binduTopology } from "./bindu";
+import { spineTopology as muladharaTopology } from "../../t2-nodes/spine.nodes.ts";
+import { dantianTopology as svadhisthanaTopology } from "../../t2-nodes/dantian.nodes.ts";
+import { stomachTopology as manipuraTopology } from "../../t2-nodes/stomach.nodes.ts";
+import { heartTopology as anahataTopology } from "../../t2-nodes/heart.nodes.ts";
+import { qiTopology as vishuddhaTopology } from "../../t2-nodes/qi.nodes.ts";
+import { intentTopology as ajnaTopology } from "../../t2-nodes/intent.nodes.ts";
+import { mindTopology as sahasraraTopology } from "../../t2-nodes/mind.nodes.ts";
+import { crownTopology as binduTopology } from "../../t2-nodes/crown.nodes.ts";
 import { shoulderTopology } from "./shoulder";
 import { hipTopology } from "./hip";
-import { kneeTopology } from "./knee";
+import { kneeLeftTopology as kneeTopology } from "../../t2-nodes/kneeLeft.nodes.ts";
 import { elbowTopology } from "./elbow";
 import { wristTopology } from "./wrist";
 import { handTopology } from "./hand";
 import { ankleTopology } from "./ankle";
-import { footTopology } from "./foot";
+import { footLeftTopology as footTopology } from "../../t2-nodes/footLeft.nodes.ts";
+import { withTopologyNodeDefinitions } from "./node-definitions.ts";
 
 /** All 17 named topology graphs (chakra + joint patterns; L/R share shoulder/hip/etc.). */
 export const allTopologies = {
-  muladhara: muladharaTopology,
-  svadhisthana: svadhisthanaTopology,
-  manipura: manipuraTopology,
-  anahata: anahataTopology,
-  vishuddha: vishuddhaTopology,
-  ajna: ajnaTopology,
-  sahasrara: sahasraraTopology,
-  bindu: binduTopology,
-  shoulder: shoulderTopology,
-  hip: hipTopology,
-  knee: kneeTopology,
-  elbow: elbowTopology,
-  wrist: wristTopology,
-  hand: handTopology,
-  ankle: ankleTopology,
-  foot: footTopology
+  muladhara: withTopologyNodeDefinitions(muladharaTopology),
+  svadhisthana: withTopologyNodeDefinitions(svadhisthanaTopology),
+  manipura: withTopologyNodeDefinitions(manipuraTopology),
+  anahata: withTopologyNodeDefinitions(anahataTopology),
+  vishuddha: withTopologyNodeDefinitions(vishuddhaTopology),
+  ajna: withTopologyNodeDefinitions(ajnaTopology),
+  sahasrara: withTopologyNodeDefinitions(sahasraraTopology),
+  bindu: withTopologyNodeDefinitions(binduTopology),
+  shoulder: withTopologyNodeDefinitions(shoulderTopology),
+  hip: withTopologyNodeDefinitions(hipTopology),
+  knee: withTopologyNodeDefinitions(kneeTopology),
+  elbow: withTopologyNodeDefinitions(elbowTopology),
+  wrist: withTopologyNodeDefinitions(wristTopology),
+  hand: withTopologyNodeDefinitions(handTopology),
+  ankle: withTopologyNodeDefinitions(ankleTopology),
+  foot: withTopologyNodeDefinitions(footTopology)
 } as const;
 
 export type TopologyId = keyof typeof allTopologies;

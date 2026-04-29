@@ -1,8 +1,11 @@
-﻿import { NODE_DEFINITIONS, INITIAL_NODE_POSITIONS, NODE_EDGES, PROJECTION_LINKS } from '../../nodes.ts';
+﻿import { svadhisthanaTopology } from "../data/topologies/svadhisthana.ts";
+import { buildNodeSchema } from "./spec.ts";
 
-export const dantianSchema = {
-  nodeDefinitions: JSON.parse(JSON.stringify(NODE_DEFINITIONS)),
-  initialNodePositions: JSON.parse(JSON.stringify(INITIAL_NODE_POSITIONS)),
-  nodeEdges: JSON.parse(JSON.stringify(NODE_EDGES)),
-  projectionLinks: JSON.parse(JSON.stringify(PROJECTION_LINKS))
+export const dantianTopology = svadhisthanaTopology;
+export const dantianPositions = {
+  0: { x: 300, y: 50 }, 1: { x: 517, y: 175 }, 2: { x: 517, y: 425 }, 3: { x: 300, y: 550 },
+  4: { x: 83, y: 425 }, 5: { x: 83, y: 175 }, 6: { x: 300, y: 175 }, 7: { x: 408, y: 238 },
+  8: { x: 408, y: 363 }, 9: { x: 300, y: 425 }, 10: { x: 192, y: 363 }, 11: { x: 192, y: 238 }
 };
+
+export const dantianSchema = buildNodeSchema(dantianTopology, dantianPositions);
